@@ -1,0 +1,77 @@
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from typing import Optional
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.services.jobs_service import (
+    get_cities_by_occupation,
+    get_skill_trends_by_occupation,
+    get_skill_overlap,
+    get_top_companies,
+    get_city_lead_indicator
+)
+
+router = APIRouter(prefix="/api/jobs", tags=["Jobs"])
+
+
+# ── Schemas ────────────────────────────────────────────────
+class CityResponse(BaseModel):
+    city:      str
+    job_count: int
+
+class TrendPoint(BaseModel):
+    date:  str
+    count: int
+
+class SkillTrendResponse(BaseModel):
+    skill_name: str
+    points:     list[TrendPoint]
+    trend:      str
+    velocity:   float
+
+class OverlapResponse(BaseModel):
+    skills:      list[str]
+    occupations: list[str]
+    matrix:      list[list[int]]
+
+class CompanyResponse(BaseModel):
+    company:  str
+    postings: int
+
+class CityLeadResponse(BaseModel):
+    city:           str
+    first_seen:     Optional[str]
+    total_postings: int
+    is_lead:        bool
+    rank:           int
+
+
+# ── Endpoints ──────────────────────────────────────────────
+@router.get("/cities/", response_model=list[CityResponse])
+def city_demand(occupation_id: int, db: Session = Depends(get_db)):
+    """Australian city demand distribution for an occupation."""
+    return get_cities_by_occupation(db, occupation_id)
+
+
+@router.get("/trends/", response_model=list[SkillTrendResponse])
+def skill_trends(occupation_id: int, db: Session = Depends(get_db)):
+    """Skill demand trends over time with velocity scores."""
+    return get_skill_trends_by_occupation(db, occupation_id)
+
+
+@router.get("/overlap/", response_model=OverlapResponse)
+def skill_overlap(occupation_id: int, db: Session = Depends(get_db)):
+    """Skill overlap heatmap between related occupations."""
+    return get_skill_overlap(db, occupation_id)
+
+
+@router.get("/companies/", response_model=list[CompanyResponse])
+def top_companies(occupation_id: int, db: Session = Depends(get_db)):
+    """Top hiring companies for an occupation."""
+    return get_top_companies(db, occupation_id)
+
+
+@router.get("/lead-cities/", response_model=list[CityLeadResponse])
+def lead_cities(occupation_id: int, db: Session = Depends(get_db)):
+    """City lead indicators — which cities post first."""
+    return get_city_lead_indicator(db, occupation_id)
