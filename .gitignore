@@ -1,0 +1,4 @@
+env/
+__pycache__/
+.app/logger.py
+.app/settings.py

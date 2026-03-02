@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="{{ app_name }} — Australian Skills Intelligence Platform" />
+  <meta name="author" content="SkillPulse" />
+  <title>{{ app_name }} v{{ app_version }}</title>
+
+  <!-- Google Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Materialize CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" />
+
+  <!-- Our compiled SASS -->
+  <link rel="stylesheet" href="stylesheet/style.css" />
+</head>
+
+<body>
+
+  <!-- ── Sidenav ── -->
+  <ul id="slide-out" class="sidenav sidenav-fixed">
+
+    <!-- Brand -->
+    <li>
+      <div class="brand-wrapper">
+        <div class="brand-icon">
+          <i class="material-icons">insights</i>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">{{ app_name }}</span>
+          <span class="brand-version">v{{ app_version }}</span>
+        </div>
+      </div>
+    </li>
+
+    <!-- Filters section -->
+    <li><div class="nav-section-label">Filters</div></li>
+
+    <li>
+      <div class="nav-filter-block">
+
+        <div class="filter-group">
+          <label class="filter-label">Major Group</label>
+          <div class="input-field filter-select-wrap">
+            <select id="filterMajor" class="filter-select">
+              <option value="">All Major Groups</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Sub-Major Group</label>
+          <div class="input-field filter-select-wrap">
+            <select id="filterSubMajor" class="filter-select" disabled>
+              <option value="">All Sub-Major Groups</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Minor Group</label>
+          <div class="input-field filter-select-wrap">
+            <select id="filterMinor" class="filter-select" disabled>
+              <option value="">All Minor Groups</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="filter-label">Top N Skills: <span id="topNVal" class="top-n-badge">20</span></label>
+          <input type="range" id="topNSlider" min="5" max="50" value="20" step="5" class="top-n-slider" />
+        </div>
+
+        <div class="filter-group search-group">
+          <div class="input-field search-field">
+            <i class="material-icons prefix">search</i>
+            <input type="text" id="occSearch" placeholder="Search occupations…" />
+          </div>
+        </div>
+
+      </div>
+    </li>
+
+    <!-- Navigation -->
+    <li><div class="nav-section-label">Navigation</div></li>
+    <li>
+      <a href="#" class="nav-link active" data-page="dashboard">
+        <i class="material-icons">dashboard</i>
+        <span>Dashboard</span>
+      </a>
+    </li>
+    <li>
+      <a href="#" class="nav-link" data-page="skills">
+        <i class="material-icons">bar_chart</i>
+        <span>Skills Demand</span>
+      </a>
+    </li>
+    <li>
+      <a href="#" class="nav-link" data-page="occupations">
+        <i class="material-icons">account_tree</i>
+        <span>Occupations</span>
+      </a>
+    </li>
+    <li>
+      <a href="#" class="nav-link" data-page="pipeline">
+        <i class="material-icons">settings</i>
+        <span>Pipeline</span>
+      </a>
+    </li>
+
+    <!-- Signature -->
+    <li>
+      <div class="nav-signature">
+        <span class="sig-label">Signature</span>
+        <span class="sig-val" id="navSig">—</span>
+      </div>
+    </li>
+
+  </ul>
+
+  <!-- ── Top Nav ── -->
+  <nav class="top-nav hide-on-med-and-down">
+    <div class="nav-wrapper">
+      <div class="nav-left">
+        <a href="#" data-target="slide-out" class="sidenav-trigger hide-on-large-only">
+          <i class="material-icons">menu</i>
+        </a>
+        <!-- Breadcrumb -->
+        <div class="breadcrumb-wrap" id="breadcrumb">
+          <span class="breadcrumb-item">Select an occupation</span>
+        </div>
+      </div>
+      <div class="nav-right">
+        <!-- KPI chips -->
+        <div class="kpi-chips" id="kpiChips">
+          <div class="kpi-chip">
+            <i class="material-icons">psychology</i>
+            <span id="chipSkills">—</span>
+            <small>skills</small>
+          </div>
+          <div class="kpi-chip">
+            <i class="material-icons">work</i>
+            <span id="chipOccupations">—</span>
+            <small>occupations</small>
+          </div>
+          <div class="kpi-chip">
+            <i class="material-icons">description</i>
+            <span id="chipJobs">—</span>
+            <small>postings</small>
+          </div>
+        </div>
+        <!-- Status -->
+        <div class="status-chip" id="statusChip">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText">Connecting…</span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Main Layout ── -->
+  <main class="main-content">
+
+    <!-- Occupation list panel -->
+    <div class="occ-panel" id="occPanel">
+      <div class="occ-panel-header">
+        <span class="occ-panel-title">Occupations</span>
+        <span class="occ-count-badge" id="occCount">—</span>
+      </div>
+      <div class="occ-list" id="occList">
+        <div class="occ-loading">
+          <div class="preloader-wrapper small active">
+            <div class="spinner-layer spinner-teal-only">
+              <div class="circle-clipper left"><div class="circle"></div></div>
+              <div class="gap-patch"><div class="circle"></div></div>
+              <div class="circle-clipper right"><div class="circle"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart area -->
+    <div class="chart-area" id="chartArea">
+
+      <!-- Welcome state -->
+      <div class="welcome-state" id="welcomeState">
+        <div class="welcome-icon-wrap">
+          <i class="material-icons">insights</i>
+        </div>
+        <h5 class="welcome-title">Skills Demand Intelligence</h5>
+        <p class="welcome-sub">
+          Select an occupation from the left panel to explore<br />
+          skill demand patterns across Australian job postings.
+        </p>
+        <div class="welcome-hint">
+          <i class="material-icons">arrow_back</i>
+          <span>Use filters in the sidebar to narrow by OSCA hierarchy</span>
+        </div>
+      </div>
+
+      <!-- Dashboard page -->
+      <section class="page" id="page-dashboard">
+
+        <!-- KPI row -->
+        <div class="kpi-row" id="kpiRow"></div>
+
+        <!-- Charts row -->
+        <div class="charts-row">
+          <!-- Bar chart card -->
+          <div class="chart-card wide-card">
+            <div class="chart-card-header">
+              <div>
+                <h6 class="chart-card-title">Top Skills in Demand</h6>
+                <span class="chart-card-sub" id="barChartSub">Select an occupation</span>
+              </div>
+              <div class="chart-card-actions">
+                <span class="chip teal white-text" id="liveChip">Live</span>
+              </div>
+            </div>
+            <div class="chart-body" id="barChartBody">
+              <div class="chart-empty">
+                <i class="material-icons">bar_chart</i>
+                <span>Select an occupation to view skill demand</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Donut card -->
+          <div class="chart-card narrow-card">
+            <div class="chart-card-header">
+              <div>
+                <h6 class="chart-card-title">Skill Type Breakdown</h6>
+                <span class="chart-card-sub">By ESCO category</span>
+              </div>
+            </div>
+            <div class="chart-body" id="donutBody">
+              <div class="chart-empty">
+                <i class="material-icons">donut_large</i>
+                <span>Select an occupation</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Skills page -->
+      <section class="page" id="page-skills" style="display:none">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <h6 class="chart-card-title">Skills Demand Ranking</h6>
+          </div>
+          <div class="chart-body" id="skillsPageBody">
+            <div class="chart-empty">
+              <i class="material-icons">bar_chart</i>
+              <span>Select an occupation from the sidebar</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Occupations page -->
+      <section class="page" id="page-occupations" style="display:none">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <h6 class="chart-card-title">OSCA Hierarchy Explorer</h6>
+          </div>
+          <div class="occ-detail-body" id="occDetailBody">
+            <div class="chart-empty">
+              <i class="material-icons">account_tree</i>
+              <span>Select an occupation to view hierarchy details</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pipeline page -->
+      <section class="page" id="page-pipeline" style="display:none">
+        <div class="chart-card">
+          <div class="chart-card-header">
+            <h6 class="chart-card-title">Pipeline Health</h6>
+          </div>
+          <div class="chart-body" id="pipelineBody">
+            <div class="chart-empty">
+              <i class="material-icons">settings</i>
+              <span>Loading pipeline data…</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ── Tooltip ── -->
+  <div id="tooltip" class="sp-tooltip"></div>
+
+  <!-- ── Scripts ── -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <script src="js/main1.js"></script>
+
+</body>
+</html>
