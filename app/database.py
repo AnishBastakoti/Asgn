@@ -26,16 +26,16 @@ def _build_engine():
         pool_timeout=30,
         echo=settings.DEBUG,
         pool_recycle=3600,  # Recycle connections every hour
-        pool_pre_ping=True,  # Check connection health before use
+        pool_pre_ping=True  # Check connection health before use
     )
 
     try:
         with engine.connect() as conn:
             result = conn.execute(text("SELECT version()"))
             version = result.scalar()
-            #logger.info(f"[{_AUTHOR}|SkillPulse:{_FP}] Connected to: {version[:50]}")
+            logger.info(f"[{_AUTHOR}|SkillPlus:{_FP}] Connected to: {version[:50]}")
     except Exception as e:
-       # logger.error(f"[{_AUTHOR}|SkillPulse:{_FP}] Database connection failed: {e}")
+        logger.error(f"[{_AUTHOR}|SkillPls:{_FP}] Database connection failed: {e}")
         raise
     
     return engine

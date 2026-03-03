@@ -126,8 +126,6 @@ async def startup_event():
     logger.info(f" Dashboard: http://localhost:8000")
     logger.info(f" API Docs:  http://localhost:8000/docs")
 
-
-app
 # ── Run directly ─
 if __name__ == "__main__":
     import uvicorn
