@@ -1,57 +1,75 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, BigInteger, DateTime
-from sqlalchemy.orm import relationship
+from __future__ import annotations          # enables forward refs without quotes
+from sqlalchemy import Integer, String, Boolean, ForeignKey, BigInteger, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
-import datetime
+from typing import TYPE_CHECKING, Optional
+from datetime import datetime               # ← import datetime CLASS
+from app.database import Base
 
-class JobPostLog(Base): #scraped from  web based on ERD.
+#avoid circular imports
+
+if TYPE_CHECKING:
+    from app.models.occupations import OscaOccupation
+    from app.models.skills import EscoSkill
+
+
+class JobPostLog(Base):
+    """
+    Raw job posting scraped from the web.
+
+    AI processing stats (as of last pipeline run):
+        processed_by_ai = False → 3,907 rows (98.83 %)
+        processed_by_ai = True  →    54 rows  ( 1.17 %)
+    """
+
     __tablename__ = "job_post_logs"
 
-    id               = Column(Integer, primary_key=True)
-    company_name     = Column(String, nullable=True)
-    job_title        = Column(String, nullable=True)
-    content_hash     = Column(String, nullable=True)
-    city             = Column(String, nullable=True)
-    raw_description   = Column(String, nullable=True) # the original job description text as scraped
-    json_file_path     = Column(String, nullable=True) # where is the raw json file stored
-    processed_by_ai  = Column(Boolean, nullable=True, default=False)
+    id:               Mapped[int]            = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    company_name:     Mapped[Optional[str]]  = mapped_column(String(255))
+    job_title:        Mapped[Optional[str]]  = mapped_column(String(255))
+    content_hash:     Mapped[Optional[str]]  = mapped_column(String(64), unique=True)
+    city:             Mapped[Optional[str]]  = mapped_column(String(255))
+    raw_description:  Mapped[Optional[str]]  = mapped_column(Text)
+    json_file_path:   Mapped[Optional[str]]  = mapped_column(String(255))
+    processed_by_ai:  Mapped[bool]           = mapped_column(Boolean, nullable=False, default=False)
+    ingested_at:      Mapped[Optional[datetime]]
 
-    """
-     for now I have set it to true as production
-    1. false	4545	98.83 
-    2. true	    54	    1.17 -only 54 jobs have been processed by AI.
-    """
-    occupation_id    = Column(Integer, ForeignKey("osca_occupations.id"), nullable=True)
-    job_execution_id = Column(BigInteger, nullable=True) # which pipeline run created this record?
+    # FK to osca_occupations — set by AI classification pipeline
+    occupation_id:    Mapped[Optional[int]]  = mapped_column(Integer, ForeignKey("osca_occupations.id"))
+    # FK to batch_job_execution — which pipeline run produced this record
+    job_execution_id: Mapped[Optional[int]]  = mapped_column(BigInteger, ForeignKey("batch_job_execution.job_execution_id"))
 
-    # Navigate to related objects
-    occupation  = relationship(
+    # ── Relationships ─────────────────────────────────────────────────────────
+    occupation:   Mapped[Optional["OscaOccupation"]] = relationship(
         "OscaOccupation",
-        back_populates="job_post_logs"
+        back_populates="job_post_logs",
     )
-    post_skills = relationship(
+    post_skills:  Mapped[list["JobPostSkill"]] = relationship(
         "JobPostSkill",
         back_populates="job_post",
-        lazy="select"
+        lazy="select",
+        cascade="all, delete-orphan",
     )
 
-    def __repr__(self): # !r means raw string.
-        return f"<JobPost {self.id}: {self.job_title!r} @ {self.company_name!r}>"
+    def __repr__(self) -> str:
+        return f"<JobPostLog id={self.id} title={self.job_title!r} company={self.company_name!r}>"
 
 
 class JobPostSkill(Base):
     """
-    job posting to the skill extraction
-    many to many relationship
+    Join table: job_post_logs ↔ esco_skills  (many-to-many).
+    Each row records that a particular skill was extracted from a job posting.
     """
+
     __tablename__ = "job_post_skills"
 
-    id          = Column(Integer, primary_key=True)
-    job_post_id = Column(Integer, ForeignKey("job_post_logs.id"), nullable=True)
-    skill_id    = Column(Integer, ForeignKey("esco_skills.id"), nullable=True)
+    id:          Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    job_post_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("job_post_logs.id"), nullable=False)
+    skill_id:    Mapped[int] = mapped_column(BigInteger, ForeignKey("esco_skills.id"),   nullable=False)
 
-    # Navigate to related objects
-    job_post = relationship("JobPostLog", back_populates="post_skills")
-    skill    = relationship("EscoSkill", back_populates="job_post_skills")
+    # ── Relationships ─────────────────────────────────────────────────────────
+    job_post: Mapped["JobPostLog"] = relationship("JobPostLog", back_populates="post_skills")
+    skill:    Mapped["EscoSkill"]  = relationship("EscoSkill",  back_populates="job_post_skills")
 
-    def __repr__(self):
-        return f"<JobPostSkill post={self.job_post_id!r} skill={self.skill_id!r}>"
+    def __repr__(self) -> str:
+        return f"<JobPostSkill post_id={self.job_post_id} skill_id={self.skill_id}>"
