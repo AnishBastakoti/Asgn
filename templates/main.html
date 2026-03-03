@@ -48,88 +48,92 @@
     </div>
   </div>
 </div>
+<!-- ── 3-column application layout ── -->
+<div class="sp-shell-layout">
 
-<!-- ── Two-column main layout ── -->
-<div class="row g-3 flex-grow-1 sp-main">
-  <!-- LEFT: filters + occupation list -->
-  <div class="col-lg-3 sp-occ-panel">
-    <div class="sp-fixed-panel">
+  <!-- LEFT SIDEBAR (Filters only) -->
+  <aside class="sp-left-panel">
 
-      <!-- Hierarchy filters -->
-      <div class="sp-card-section border-bottom">
-        <div class="sp-section-label">Filter by Hierarchy</div>
-        <div class="mb-2">
-          <div class="sp-select-wrap">
-            <i class="bi bi-diagram-3 sp-sel-icon"></i>
-            <select class="sp-select" id="filterMajor">
-              <option value="">All Major Groups</option>
-            </select>
-          </div>
-        </div>
-        <div class="mb-2">
-          <div class="sp-select-wrap">
-            <i class="bi bi-chevron-right sp-sel-icon"></i>
-            <select class="sp-select" id="filterSubMajor" disabled>
-              <option value="">All Sub-Major Groups</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <div class="sp-select-wrap">
-            <i class="bi bi-hash sp-sel-icon"></i>
-            <select class="sp-select" id="filterMinor" disabled>
-              <option value="">All Minor Groups</option>
-            </select>
-          </div>
+    <!-- Hierarchy -->
+    <div class="sp-card-section border-bottom">
+      <div class="sp-section-label">Filter by Hierarchy</div>
+
+      <div class="mb-2">
+        <div class="sp-select-wrap">
+          <i class="bi bi-diagram-3 sp-sel-icon"></i>
+          <select class="sp-select" id="filterMajor">
+            <option value="">All Major Groups</option>
+          </select>
         </div>
       </div>
 
-      <!-- Top N slider -->
-      <div class="sp-card-section border-bottom">
-        <div class="sp-section-label">Skills to Display</div>
-        <div class="d-flex align-items-center gap-3">
-          <input type="range" class="sp-slider flex-grow-1" id="topNSlider" min="5" max="50" value="20" step="5"/>
-          <span class="sp-slider-val" id="topNVal">20</span>
+      <div class="mb-2">
+        <div class="sp-select-wrap">
+          <i class="bi bi-chevron-right sp-sel-icon"></i>
+          <select class="sp-select" id="filterSubMajor" disabled>
+            <option value="">All Sub-Major Groups</option>
+          </select>
         </div>
       </div>
 
-      <!-- Search -->
-      <div class="sp-card-section border-bottom">
-        <div class="sp-section-label">Search Occupations</div>
-        <div class="sp-search-wrap">
-          <i class="bi bi-search sp-search-icon"></i>
-          <input type="text" class="sp-search-input" id="occSearch" placeholder="e.g. engineer, nurse…"/>
+      <div>
+        <div class="sp-select-wrap">
+          <i class="bi bi-hash sp-sel-icon"></i>
+          <select class="sp-select" id="filterMinor" disabled>
+            <option value="">All Minor Groups</option>
+          </select>
         </div>
       </div>
-  <div class="sp-divider">
-    <div class="sp-fixed-panel sp-occ-list-panel">
-        <!-- Occupation list -->
-        <div class="sp-occ-list flex-grow-1" id="occList">
-          <div class="sp-spinner-center"><div class="sp-spinner"></div></div>
-        </div>
-
     </div>
-  </div>
-</div> <!-- end col-lg-3 -->
-</div> <!-- end sp-fixed-panel filters -->
 
-  <!-- RIGHT: chart panel -->
-  <div class="col-lg-9 sp-chart-area">
-  <div class="sp-fixed-panel" id="chartPanel">
+    <!-- Top N -->
+    <div class="sp-card-section border-bottom">
+      <div class="sp-section-label">Skills to Display</div>
+      <div class="d-flex align-items-center gap-3">
+        <input type="range"
+               class="sp-slider flex-grow-1"
+               id="topNSlider"
+               min="5"
+               max="50"
+               value="20"
+               step="5"/>
+        <span class="sp-slider-val" id="topNVal">20</span>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="sp-card-section">
+      <div class="sp-section-label">Search Occupations</div>
+      <div class="sp-search-wrap">
+        <i class="bi bi-search sp-search-icon"></i>
+        <input type="text"
+               class="sp-search-input"
+               id="occSearch"
+               placeholder="e.g. engineer, nurse…"/>
+      </div>
+    </div>
+
+  </aside>
+
+
+  <!-- CENTER (Charts only) -->
+  <main class="sp-center-panel">
+
+    <div class="sp-chart-container" id="chartPanel">
 
       <!-- Welcome state -->
       <div class="sp-welcome" id="welcomeState">
         <div class="sp-welcome-graphic">
-          <svg width="72" height="72" viewBox="0 0 72 72" fill="none">
-            <circle cx="36" cy="36" r="36" fill="#EEF2FF"/>
-            <rect x="14" y="42" width="8" height="14" rx="3" fill="#6366F1" opacity="0.3"/>
-            <rect x="26" y="32" width="8" height="24" rx="3" fill="#6366F1" opacity="0.6"/>
-            <rect x="38" y="20" width="8" height="36" rx="3" fill="#6366F1"/>
-            <rect x="50" y="14" width="8" height="42" rx="3" fill="#6366F1" opacity="0.35"/>
-          </svg>
+          <!-- SVG unchanged -->
         </div>
+
         <h3 class="sp-welcome-title">Select an Occupation</h3>
-        <p class="sp-welcome-body">Choose from 1,200+ OSCA-classified occupations to explore real-time skill demand patterns across Australian job postings.</p>
+        <p class="sp-welcome-body">
+          Choose from 1,200+ OSCA-classified occupations
+          to explore real-time skill demand patterns
+          across Australian job postings.
+        </p>
+
         <div class="sp-chips">
           <span class="sp-chip" onclick="quickSearch('Software Engineer')">Software Engineer</span>
           <span class="sp-chip" onclick="quickSearch('Registered Nurse')">Registered Nurse</span>
@@ -138,7 +142,34 @@
         </div>
       </div>
 
-  </div>
+      <!-- Charts will be injected dynamically here -->
+      <div id="chartContent" class="d-none"></div>
+
+    </div>
+
+  </main>
+
+
+  <!-- RIGHT PANEL (Occupation List + Info) -->
+  <aside class="sp-right-panel">
+
+    <div class="sp-right-header">
+      Occupations
+    </div>
+
+    <div class="sp-occ-list" id="occList">
+      <div class="sp-spinner-center">
+        <div class="sp-spinner"></div>
+      </div>
+    </div>
+
+    <!-- Optional Occupation Info Box -->
+    <div class="sp-occ-info border-top d-none" id="occInfoBox">
+      <!-- dynamically filled -->
+    </div>
+
+  </aside>
+
 </div>
 
 <!-- Global tooltip -->
