@@ -263,28 +263,6 @@ def get_city_lead_indicator(db: Session, occupation_id: int) -> list[dict]:
         logger.error(f"[MSIT402|SP] get_city_lead_indicator failed: {e}")
         return []
 
-def get_cities_by_occupation(db: Session, occupation_id: int):
-    return db.query(
-        City.name.label("city"),
-        func.count(JobPost.id).label("job_count")
-    ).join(JobPost).filter(JobPost.occupation_id == occupation_id)\
-    .group_by(City.name).order_by(desc("job_count")).all()
-
-def get_skill_trends_by_occupation(db: Session, occupation_id: int):
-    # This logic groups skills by month to show demand over time
-    results = db.query(
-        Skill.name,
-        func.date_trunc('month', JobPost.posted_at).label("month"),
-        func.count(JobPost.id).label("count")
-    ).join(JobPostSkill, Skill.id == JobPostSkill.skill_id)\
-     .join(JobPost, JobPostSkill.job_post_id == JobPost.id)\
-     .filter(JobPost.occupation_id == occupation_id)\
-     .group_by(Skill.name, "month").all()
-
-    # Note: You'll need a helper to format this into your TrendPoint schema
-    # (Grouping the flat list into SkillTrendResponse objects)
-    return format_trends(results) 
-
 def get_top_companies(db: Session, occupation_id: int):
     return db.query(
         Company.name.label("company"),
