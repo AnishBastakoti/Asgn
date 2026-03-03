@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "index.html" %}
 {% block title %}Dashboard{% endblock %}
 {% block page_title %}Skills Dashboard{% endblock %}
 {% block page_sub %}Australian Occupation & Skills Demand Intelligence{% endblock %}
@@ -50,11 +50,10 @@
 </div>
 
 <!-- ── Two-column main layout ── -->
-<div class="row g-3 flex-grow-1">
-
+<div class="row g-3 flex-grow-1 sp-main">
   <!-- LEFT: filters + occupation list -->
-  <div class="col-lg-3">
-    <div class="sp-card h-100 d-flex flex-column" style="overflow:hidden">
+  <div class="col-lg-3 sp-occ-panel">
+    <div class="sp-fixed-panel">
 
       <!-- Hierarchy filters -->
       <div class="sp-card-section border-bottom">
@@ -102,18 +101,21 @@
           <input type="text" class="sp-search-input" id="occSearch" placeholder="e.g. engineer, nurse…"/>
         </div>
       </div>
-
-      <!-- Occupation list -->
-      <div class="sp-occ-list flex-grow-1" id="occList">
-        <div class="sp-spinner-center"><div class="sp-spinner"></div></div>
-      </div>
+  </div> <!-- end sp-fixed-panel filters -->
+  <div class="sp-divider">
+    <div class="sp-fixed-panel sp-occ-list-panel">
+        <!-- Occupation list -->
+        <div class="sp-occ-list flex-grow-1" id="occList">
+          <div class="sp-spinner-center"><div class="sp-spinner"></div></div>
+        </div>
 
     </div>
   </div>
+</div> <!-- end col-lg-3 -->
 
   <!-- RIGHT: chart panel -->
-  <div class="col-lg-9">
-    <div class="sp-card h-100 d-flex flex-column" id="chartPanel" style="overflow-y:auto">
+  <div class="col-lg-9 sp-chart-area">
+  <div class="sp-fixed-panel" id="chartPanel">
 
       <!-- Welcome state -->
       <div class="sp-welcome" id="welcomeState">
@@ -136,13 +138,14 @@
         </div>
       </div>
 
-    </div>
   </div>
+</div>
 
-</div><!-- /row -->
-
+<!-- Global tooltip -->
+<div id="spTooltip" class="sp-tooltip"></div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="/static/js/dashboard.js"></script>
+<script src="/templates/js/main.js"></script>
+<script src="/templates/js/dashboard.js"></script>
 {% endblock %}

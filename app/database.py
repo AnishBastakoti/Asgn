@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from sqlalchemy.orm import Session, sessionmaker, DeclarativeBase
 from sqlalchemy.pool import QueuePool
 from contextlib import contextmanager
 import logging
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 _AUTHOR = "MSIT402 CIM-10236"
 _FP = hashlib.sha256(F"{_AUTHOR}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()).hexdigest()[:12]
-_TAG = f"[{_AUTHOR}|SkillPulse:{_FP}]"
+#_TAG = f"[{_AUTHOR}|SkillPulse:{_FP}]"
 
 def _build_engine():
     #logger.info(f"[SkillPlus:{_FP}] Initialising databse engine...")
@@ -59,6 +59,10 @@ def get_db():
     start = time.perf_counter()
     try:
         yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
     finally:
         elapsed_ms = (time.perf_counter() - start) * 1000

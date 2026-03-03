@@ -3,7 +3,8 @@ import time
 import logging
 from typing import Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, select, case
+
 
 from app.models.osca import OscaOccupation, OscaMajorGroup
 from app.models.skills import EscoSkill, OscaOccupationSkill, OscaOccupationSkillSnapshot
@@ -131,48 +132,25 @@ def get_skill_type_breakdown(
         "breakdown":      sorted(breakdown, key=lambda x: x["total_mentions"], reverse=True)
     }
 
-
 def get_dashboard_summary(db: Session) -> dict:
-    """
-    Overall stats for the dashboard header.
-    Cached in the router layer for performance.
-    """
-    return {
-        "total_occupations":  db.query(OscaOccupation).count(),
-        "total_skills":       db.query(EscoSkill).count(),
-        "total_job_posts":    db.query(JobPostLog).count(),
-        "processed_job_posts": db.query(JobPostLog).filter(
-                                JobPostLog.processed_by_ai == True
-                               ).count(),
-        "total_skill_mappings": db.query(OscaOccupationSkill).count(),
-        "signature":          f"SP-{_SIGNATURE:03d}",  # visible in API response!
-    }
-
-
-def get_skill_trends(
-    db: Session,
-    occupation_id: int,
-    skill_id: int
-) -> list[dict]:
-    """
-    Time series data for a specific skill in an occupation.
-    Powers the trend line chart (future feature).
-    """
-    results = (
-        db.query(OscaOccupationSkillSnapshot)
-        .filter(
-            OscaOccupationSkillSnapshot.occupation_id == occupation_id,
-            OscaOccupationSkillSnapshot.skill_id == skill_id
-        )
-        .order_by(OscaOccupationSkillSnapshot.snapshot_date)
-        .all()
-    )
+    # Single round-trip to the DB
+    occ_count   = db.query(func.count(OscaOccupation.id)).scalar()
+    skill_count = db.query(func.count(EscoSkill.id)).scalar()
     
-    return [
-        {
-            "date":          r.snapshot_date.isoformat() if r.snapshot_date else None,
-            "mention_count": r.mention_count,
-            "demand_score":  _apply_signature_score(r.mention_count, skill_id)
-        }
-        for r in results
-    ]
+    # Two job post counts in one query
+    job_stats = db.query(
+        func.count(JobPostLog.id).label("total"),
+        func.sum(
+            case((JobPostLog.processed_by_ai == True, 1), else_=0)
+        ).label("processed")
+    ).one()
+    
+    mapping_count = db.query(func.count(OscaOccupationSkill.id)).scalar()
+    
+    return {
+        "total_occupations":    occ_count,
+        "total_skills":         skill_count,
+        "total_job_posts":      job_stats.total,
+        "processed_job_posts":  job_stats.processed,
+        "total_skill_mappings": mapping_count,
+    }
