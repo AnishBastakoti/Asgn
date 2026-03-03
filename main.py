@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from config import settings
 from app.routers import skills, occupations, analytics, jobs
@@ -62,16 +62,45 @@ templates = Jinja2Templates(directory="templates")
 
 # -- jinga2 templates setup for dynamic rendering
 
-@app.get("/", response_class=FileResponse, include_in_schema=False)
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def serve_frontend(request: Request):
     return templates.TemplateResponse("index.html", {
         "request": request,
+        "activate_page": "dashboard",
         "app_name": settings.APP_NAME,
         "app_version": settings.APP_VERSION
     })
 
+@app.get("/skills", response_class=HTMLResponse, include_in_schema=False)
+def skills_page(request: Request):
+    return templates.TemplateResponse("skills.html", {
+        "request": request,
+        "active_page": "skills"
+    })
 
-@app.get("/occupation/{occupation_id}", response_class=FileResponse, include_in_schema=False)
+@app.get("/occupations", response_class=HTMLResponse, include_in_schema=False)
+def occupations_page(request: Request):
+    return templates.TemplateResponse("occupations.html", {
+        "request": request,
+        "active_page": "occupations"
+    })
+
+@app.get("/analytics", response_class=HTMLResponse, include_in_schema=False)
+def analytics_page(request: Request):
+    return templates.TemplateResponse("analytics.html", {
+        "request": request,
+        "active_page": "analytics"
+    })
+
+@app.get("/pipeline", response_class=HTMLResponse, include_in_schema=False)
+def pipeline_page(request: Request):
+    return templates.TemplateResponse("pipeline.html", {
+        "request": request,
+        "active_page": "pipeline"
+    })
+
+
+@app.get("/occupation/{occupation_id}", response_class=HTMLResponse, include_in_schema=False)
 def occupation_dashboard(
     occupation_id: int,
     request: Request,
@@ -84,7 +113,7 @@ def occupation_dashboard(
         }
     )
 
-@app.get("/dashboard/hot-skills", response_class=FileResponse)
+@app.get("/dashboard/hot-skills", response_class=HTMLResponse)
 def hot_skills_page(request: Request):
     """
     Render dashboard HTML for hot skills.
@@ -92,7 +121,7 @@ def hot_skills_page(request: Request):
     return templates.TemplateResponse("hot_skills.html", {"request": request})
 
 
-@app.get("/dashboard/skill-decay/{osca_code}", response_class=FileResponse)
+@app.get("/dashboard/skill-decay/{osca_code}", response_class=HTMLResponse)
 def skill_decay_page(request: Request, osca_code: str):
     """
     Render dashboard HTML for skill decay of a specific occupation.
