@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -29,7 +30,8 @@ app = FastAPI(
     real job posting data and ESCO skill taxonomy.
     """,
     docs_url="/docs",      # Swagger UI at /docs
-    redoc_url="/redoc"     # ReDoc UI at /redoc
+    redoc_url="/redoc",     # ReDoc UI at /redoc
+
 )
 
 
@@ -58,78 +60,60 @@ app.include_router(analytics.router)
 app.mount("/templates", StaticFiles(directory="templates"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+
+def _render(request: Request, template: str, active_page: str, **extra):
+    """Thin wrapper so every template gets the standard context."""
+    return templates.TemplateResponse(
+        template,
+        {
+            "request":     request,
+            "active_page": active_page,
+            "app_name":    settings.APP_NAME,
+            "app_version": settings.APP_VERSION,
+            **extra,
+        },
+    )
+
 # ── Root Route ───
 
 # -- jinga2 templates setup for dynamic rendering
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def serve_frontend(request: Request):
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "activate_page": "dashboard",
-        "app_name": settings.APP_NAME,
-        "app_version": settings.APP_VERSION
-    })
+    return _render(request, "index.html", "dashboard")
 
 @app.get("/skills", response_class=HTMLResponse, include_in_schema=False)
-def skills_page(request: Request):
-    return templates.TemplateResponse("skills.html", {
-        "request": request,
-        "active_page": "skills"
-    })
+def serve_skills(request: Request):
+    return _render(request, "skills.html", "skills")
+
 
 @app.get("/occupations", response_class=HTMLResponse, include_in_schema=False)
-def occupations_page(request: Request):
-    return templates.TemplateResponse("occupations.html", {
-        "request": request,
-        "active_page": "occupations"
-    })
+def serve_occupations(request: Request):
+    return _render(request, "occupations.html", "occupations")
+
 
 @app.get("/analytics", response_class=HTMLResponse, include_in_schema=False)
-def analytics_page(request: Request):
-    return templates.TemplateResponse("analytics.html", {
-        "request": request,
-        "active_page": "analytics"
-    })
+def serve_analytics(request: Request):
+    return _render(request, "analytics.html", "analytics")
+
 
 @app.get("/pipeline", response_class=HTMLResponse, include_in_schema=False)
-def pipeline_page(request: Request):
-    return templates.TemplateResponse("pipeline.html", {
-        "request": request,
-        "active_page": "pipeline"
-    })
+def serve_pipeline(request: Request):
+    return _render(request, "pipeline.html", "pipeline")
 
 
-@app.get("/occupation/{occupation_id}", response_class=HTMLResponse, include_in_schema=False)
-def occupation_dashboard(
-    occupation_id: int,
-    request: Request,
-):
-  return templates.TemplateResponse(
+@app.get(
+    "/occupation/{occupation_id}",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+def serve_occupation_detail(request: Request, occupation_id: int):
+    return _render(
+        request,
         "occupation_analytics.html",
-        {
-            "request": request,
-            "occupation": None  # Default value if occupation is not found
-        }
+        "occupations",
+        occupation_id=occupation_id,
     )
-
-@app.get("/dashboard/hot-skills", response_class=HTMLResponse)
-def hot_skills_page(request: Request):
-    """
-    Render dashboard HTML for hot skills.
-    """
-    return templates.TemplateResponse("hot_skills.html", {"request": request})
-
-
-@app.get("/dashboard/skill-decay/{osca_code}", response_class=HTMLResponse)
-def skill_decay_page(request: Request, osca_code: str):
-    """
-    Render dashboard HTML for skill decay of a specific occupation.
-    """
-    return templates.TemplateResponse("skill_decay.html", {
-        "request": request,
-        "osca_code": osca_code
-    })
 
 # ── Health Check ─
 @app.get("/health", tags=["System"])

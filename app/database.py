@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 _AUTHOR = "MSIT402 CIM-10236"
 _FP = hashlib.sha256(F"{_AUTHOR}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()).hexdigest()[:12]
+_TAG = f"[{_AUTHOR}|SkillPulse:{_FP}]"
 
 def _build_engine():
     #logger.info(f"[SkillPlus:{_FP}] Initialising databse engine...")
@@ -60,6 +61,21 @@ def get_db():
         yield db
 
     finally:
-        elapsed = (time.perf_counter() - start) * 1000
+        elapsed_ms = (time.perf_counter() - start) * 1000
         #logger.info(f"[{_AUTHOR}|SkillPulse:{_FP}] DB session closed ({elapsed:.2f} ms)")
+        db.close()
+
+@contextmanager
+def get_db_context():
+    """
+    Use outside of FastAPI request context, 
+    """
+    db: Session = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
         db.close()
