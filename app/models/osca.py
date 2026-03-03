@@ -1,6 +1,6 @@
 # Matches exact database schema from ERD
 
-from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, Text, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -88,11 +88,11 @@ class OscaOccupation(Base):
 class OscaAlternativeTitle(Base):
     __tablename__ = "osca_alternative_titles"
 
-    id                = Column(Integer, primary_key=True)
+    id                = Column(BigInteger, primary_key=True)
     title             = Column(String, nullable=True)
-    is_specialisation = Column(String, nullable=True)
+    is_specialisation = Column(Boolean, nullable=True)
     # status            = Column(String, nullable=True)
-    occupation_id     = Column(Integer, ForeignKey("osca_occupations.id"))
+    occupation_id     = Column(BigInteger, ForeignKey("osca_occupations.id"))
 
     occupation = relationship("OscaOccupation", back_populates="alternative_titles")
 

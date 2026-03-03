@@ -6,19 +6,17 @@ import logging
 import hashlib
 import time
 
-from config import settings
+from config import settings  # ← only import, no redefinition
 
-# ----- to cache error
 logger = logging.getLogger(__name__)
 
-# -- Fingerpritnter
-
 _AUTHOR = "MSIT402 CIM-10236"
-_FP = hashlib.sha256(F"{_AUTHOR}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()).hexdigest()[:12]
-#_TAG = f"[{_AUTHOR}|SkillPulse:{_FP}]"
+_FP = hashlib.sha256(
+    f"{_AUTHOR}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
+
 
 def _build_engine():
-    #logger.info(f"[SkillPlus:{_FP}] Initialising databse engine...")
     engine = create_engine(
         settings.DATABASE_URL,
         poolclass=QueuePool,
@@ -26,34 +24,32 @@ def _build_engine():
         max_overflow=10,
         pool_timeout=30,
         echo=settings.DEBUG,
-        pool_recycle=3600,  # Recycle connections every hour
-        pool_pre_ping=True  # Check connection health before use
+        pool_recycle=3600,
+        pool_pre_ping=True
     )
-
     try:
         with engine.connect() as conn:
-            result = conn.execute(text("SELECT version()"))
-            version = result.scalar()
-            logger.info(f"[{_AUTHOR}|SkillPlus:{_FP}] Connected to: {version[:50]}")
+            version = conn.execute(text("SELECT version()")).scalar()
+            logger.info(f"[{_AUTHOR}|SkillPulse:{_FP}] Connected to: {version[:50]}")
     except Exception as e:
-        logger.error(f"[{_AUTHOR}|SkillPls:{_FP}] Database connection failed: {e}")
+        logger.error(f"[{_AUTHOR}|SkillPulse:{_FP}] Database connection failed: {e}")
         raise
-    
     return engine
 
-# ----- Engine and Session
-_engine = _build_engine()
-SessionLocal = sessionmaker(
-    bind=_engine, 
-    autocommit=False, # We want to control when to save changes
-    autoflush=False, # We want to control when to send changes to the DB
-    )
 
-# ----- Base class for models
+_engine = _build_engine()
+
+SessionLocal = sessionmaker(
+    bind=_engine,
+    autocommit=False,
+    autoflush=False,
+)
+
+
 class Base(DeclarativeBase):
     pass
 
-# ----- FASTAPI Dependency for getting DB session
+
 def get_db():
     db = SessionLocal()
     start = time.perf_counter()
@@ -63,18 +59,16 @@ def get_db():
     except Exception:
         db.rollback()
         raise
-
     finally:
         elapsed_ms = (time.perf_counter() - start) * 1000
-        #logger.info(f"[{_AUTHOR}|SkillPulse:{_FP}] DB session closed ({elapsed:.2f} ms)")
+        logger.debug(f"[{_AUTHOR}|SkillPulse:{_FP}] session closed ({elapsed_ms:.1f}ms)")
         db.close()
+
 
 @contextmanager
 def get_db_context():
-    """
-    Use outside of FastAPI request context, 
-    """
-    db: Session = SessionLocal()
+    """Use outside FastAPI request context — scripts, pipeline, etc."""
+    db = SessionLocal()
     try:
         yield db
         db.commit()

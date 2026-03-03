@@ -15,7 +15,7 @@ from app.database import Base
 class EscoSkill(Base):
     __tablename__ = "esco_skills"
 
-    id            = Column(Integer, primary_key=True)
+    id            = Column(BigInteger, primary_key=True)
     concept_uri   = Column(String, nullable=True)
     preferred_label = Column(String, nullable=False)# The main name of the skill, used for display and matching
     skill_type    = Column(String, nullable=True)
@@ -50,9 +50,9 @@ class EscoSkill(Base):
 class OscaOccupationSkill(Base):
     __tablename__ = "osca_occupation_skills"
 
-    id            = Column(Integer, primary_key=True)
+    id            = Column(BigInteger, primary_key=True)
     occupation_id = Column(Integer, ForeignKey("osca_occupations.id"))
-    skill_id      = Column(Integer, ForeignKey("esco_skills.id"))
+    skill_id      = Column(BigInteger, ForeignKey("esco_skills.id"))
     mention_count = Column(Integer, nullable=False, default=0) # bar chart, every ranking, every trend line from here 
     first_seen_at = Column(DateTime, nullable=True)
     last_seen_at  = Column(DateTime, nullable=True)
@@ -68,9 +68,9 @@ class OscaOccupationSkill(Base):
 class OscaOccupationSkillSnapshot(Base):
     __tablename__ = "osca_occupation_skill_snapshots"
 
-    id               = Column(Integer, primary_key=True)
-    occupation_id    = Column(Integer, ForeignKey("osca_occupations.id"))
-    skill_id         = Column(Integer, ForeignKey("esco_skills.id"))
+    id               = Column(BigInteger, primary_key=True)
+    occupation_id    = Column(BigInteger, ForeignKey("osca_occupations.id"))
+    skill_id         = Column(BigInteger, ForeignKey("esco_skills.id"))
     job_execution_id = Column(BigInteger, nullable=True)
     mention_count    = Column(Integer, nullable=False, default=0) # Every bar chart, every ranking, every trend line comes from here
     snapshot_date    = Column(DateTime, nullable=True)
