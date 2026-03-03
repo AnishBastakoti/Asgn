@@ -80,7 +80,7 @@ def _render(request: Request, template: str, active_page: str, **extra):
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def serve_frontend(request: Request):
-    return _render(request, "index.html", "dashboard")
+    return _render(request, "main.html", "dashboard")
 
 @app.get("/skills", response_class=HTMLResponse, include_in_schema=False)
 def serve_skills(request: Request):
