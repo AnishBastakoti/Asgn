@@ -1,4 +1,26 @@
 'use strict';
+
+/**
+ * jobs.js  —  Jobs Trends page
+ * SkillPulse | MSIT402
+ *
+ * Sections:
+ *   1. Global hot skills banner  → /api/analytics/hot-skills
+ *   2. Occupation picker         → /api/occupations/list
+ *   3. Tab management            (lazy-load per occupation)
+ *   4. City demand chart         → /api/jobs/cities/
+ *   5. Skill trends line chart   → /api/jobs/trends/
+ *   6. Skill overlap heatmap     → /api/jobs/overlap/
+ *   7. Top companies table       → /api/jobs/companies/
+ *
+ * Conventions:
+ *   - api(), fmt(), esc() are globals injected by main.js
+ *   - Chart instances are module-scoped so they can be destroyed before redraw
+ *   - jt.loaded flags are set BEFORE await to prevent double-fetch on fast clicks
+ *   - Every API response is null-checked; empty states explain WHY data is missing
+ */
+
+
 // ── Colour palette (matches CSS token --indigo, --emerald, etc.) ──────────────
 const JT_COLORS = [
   '#6366F1', // indigo
@@ -10,6 +32,34 @@ const JT_COLORS = [
   '#EC4899', // pink
   '#14B8A6', // teal
 ];
+
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+
+/**
+ * Converts a hex colour to rgba() so Chart.js canvas renderer
+ * handles transparency correctly across all browsers.
+ * 8-digit hex (#RRGGBBAA) is CSS4 but not reliably supported on canvas.
+ */
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+
+/**
+ * Debounces a function so it only fires after `ms` ms of inactivity.
+ * Used on the search input to avoid re-rendering 1,000 items on every keystroke.
+ */
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
 
 // ── Chart instances — module-scoped so we can destroy before redraw ────────────
 let _citiesChart = null;
@@ -23,12 +73,7 @@ const jt = {
   activeTab:   'cities',
   // Tracks which tabs have been loaded for the current occupation.
   // Resets to all-false when a new occupation is selected.
-  loaded: {
-    cities:    false,
-    trends:    false,
-    overlap:   false,
-    companies: false,
-  },
+  loaded: { cities: false, trends: false, overlap: false, companies: false },
 };
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
@@ -37,14 +82,13 @@ document.addEventListener('DOMContentLoaded', () => {
   loadOccupations();
   initTabs();
 
+// Debounced — avoids re-rendering 1,000 occupation items on every keystroke
   document.getElementById('jtOccSearch')
-    .addEventListener('input', e => filterOccupations(e.target.value));
+    .addEventListener('input', debounce(e => filterOccupations(e.target.value), 150));
 });
 
-/**
- * Called by the quick-search chips in the welcome state.
- * Fills the search box and filters the occupation list.
- */
+
+/** Called by quick-search chips in the welcome state. */
 window.jtQuickSearch = function(query) {
   const input = document.getElementById('jtOccSearch');
   if (input) input.value = query;
@@ -71,8 +115,7 @@ async function loadHotSkills() {
       return;
     }
 
-    const max = data[0].total_mentions || 1;
-
+    const max = data[0].total_mentions || 1; // avoid divide-by-zero; if no mentions, all bars will be 0% width
     const rows = data.slice(0, 12).map((skill, i) => {
       const barPct = Math.round((skill.total_mentions / max) * 100);
       return `
@@ -89,11 +132,11 @@ async function loadHotSkills() {
     wrap.innerHTML = `<div class="jt-hot-list">${rows}</div>`;
 
   } catch (err) {
-    wrap.innerHTML = `<div class="jt-empty">Could not load hot skills data.</div>`;
-    console.warn('[SkillPulse|JT] loadHotSkills failed:', err.message);
+    wrap.innerHTML = `<span style="font-size:var(--fs-xs);color:var(--muted)">
+      Could not load trending skills.</span>`;
+    console.warn('[SkillPulse|JT] loadHotSkills:', err.message);
   }
 }
-
 // ═════════════════════════════════════════════════════════════════════════════
 // 2. OCCUPATION LIST
 //    Source: /api/occupations/list?limit=1000
@@ -129,21 +172,17 @@ function renderOccList(list) {
   }
 
   wrap.innerHTML = list.map(o => {
-    const isActive  = jt.selected?.id === o.id;
-    const hasData   = o.has_data;
-    const levelBadge = hasData
-      ? `<span class="jt-occ-badge">Lv${o.skill_level || '?'}</span>`
-      : '';
-    const clickAttr = hasData ? `onclick="selectOccupation(this)"` : '';
-
+    const isActive = jt.selected?.id === o.id;
+    const badge    = o.has_data
+      ? `<span class="jt-occ-badge">Lv${o.skill_level || '?'}</span>` : '';
     return `
-      <div class="jt-occ-item ${hasData ? '' : 'no-data'} ${isActive ? 'active' : ''}"
-           ${clickAttr}
+      <div class="jt-occ-item ${o.has_data ? '' : 'no-data'} ${isActive ? 'active' : ''}"
+           ${o.has_data ? 'onclick="selectOccupation(this)"' : ''}
            data-id="${o.id}"
            data-title="${esc(o.title)}"
            data-level="${o.skill_level || ''}">
         <span class="occ-title">${esc(o.title)}</span>
-        ${levelBadge}
+        ${badge}
       </div>`;
   }).join('');
 }
@@ -202,6 +241,28 @@ async function loadTabData(tab) {
 
   // Mark loaded BEFORE await to prevent double-fetch if user clicks fast
   jt.loaded[tab] = true;
+  // Show spinner — for chart panes we MUST NOT overwrite .jt-chart-wrap
+  // because that destroys the <canvas> element inside it.
+  // Instead overlay a spinner above the chart, and only overwrite innerHTML
+  // for heatmap/companies panes that don't use a persistent canvas.
+  const pane = document.getElementById(`pane-${tab}`);
+  if (pane) {
+    if (tab === 'overlap' || tab === 'companies') {
+      // These panes use innerHTML directly — safe to overwrite
+      const target = pane.querySelector('#heatmapWrap, #companiesWrap');
+      if (target) target.innerHTML =
+        `<div class="jt-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading&hellip;</div>`;
+    } else {
+      // Chart panes — show spinner above the chart, preserve the canvas
+      const header = pane.querySelector('.jt-chart-sub');
+      if (header && !pane.querySelector('.jt-pane-spinner')) {
+        const spinner = document.createElement('div');
+        spinner.className = 'jt-pane-spinner';
+        spinner.innerHTML = `<div class="sp-spinner-sm"></div>`;
+        header.after(spinner);
+      }
+    }
+  }
 
   const id = jt.selected.id;
   if (tab === 'cities')    await renderCities(id);
@@ -216,21 +277,24 @@ async function loadTabData(tab) {
 //    Horizontal bars are better than vertical for city name labels.
 // ═════════════════════════════════════════════════════════════════════════════
 async function renderCities(occId) {
-  const pane = document.getElementById('pane-cities');
-  const chartWrap = pane.querySelector('.jt-chart-wrap');
-
+  let chartWrap;
   try {
+    const pane = document.getElementById('pane-cities');
+    if (!pane) throw new Error('pane-cities element not found in DOM');
+    chartWrap = pane.querySelector('.jt-chart-wrap');
+    if (!chartWrap) throw new Error('chart wrap not found inside pane-cities');
+
     const data = await api(`/api/jobs/cities/?occupation_id=${occId}`);
 
-    // Always destroy previous instance before new Chart() to prevent canvas reuse error
+    // Guard: occupation may have changed while this request was in flight
+    if (jt.selected?.id !== occId) return;
+
     if (_citiesChart) { _citiesChart.destroy(); _citiesChart = null; }
 
     if (!data || !data.length) {
-      chartWrap.innerHTML = `
-        <div class="jt-empty">
-          <i class="bi bi-geo-alt me-2"></i>
-          No city data yet for this occupation. More data will appear as the pipeline runs.
-        </div>`;
+      chartWrap.innerHTML = `<div class="jt-empty">
+        <i class="bi bi-geo-alt me-2"></i>
+        No city data yet for this occupation.</div>`;
       return;
     }
 
@@ -242,42 +306,36 @@ async function renderCities(occId) {
         datasets: [{
           label:           'Job Postings',
           data:            data.map(d => d.job_count),
-          backgroundColor: data.map((_, i) => JT_COLORS[i % JT_COLORS.length] + 'BB'),
-          borderColor:     data.map((_, i) => JT_COLORS[i % JT_COLORS.length]),
+          backgroundColor: data.map((_, i) => hexToRgba(JT_COLORS[i % JT_COLORS.length], 0.75)),
+          borderColor:     data.map((_, i) => hexToRgba(JT_COLORS[i % JT_COLORS.length], 1.0)),
           borderWidth:     1,
           borderRadius:    5,
         }],
       },
       options: {
-        indexAxis: 'y', // horizontal — city names read better on y-axis
+        indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => ` ${ctx.parsed.x} postings`,
-            },
-          },
+          tooltip: { callbacks: { label: c => ` ${c.parsed.x} postings` } },
         },
         scales: {
-          x: {
-            grid:       { color: '#E8ECF8' },
-            ticks:      { font: { size: 11 } },
-            beginAtZero: true,
-          },
-          y: {
-            grid:  { display: false },
-            ticks: { font: { size: 11 } },
-          },
+          x: { grid: { color: '#E8ECF8' }, ticks: { font: { size: 11, weight: "600" } }, beginAtZero: true },
+          y: { grid: { display: false }, ticks: { font: { size: 11, weight: "600" } } },
         },
       },
     });
 
   } catch (err) {
-    chartWrap.innerHTML = `<div class="jt-empty">Could not load city data.</div>`;
-    console.warn('[SkillPulse|JT] renderCities failed:', err.message);
-    jt.loaded.cities = false; // allow retry
+    console.error('[SkillPulse|JT] renderCities:', err);
+    if (chartWrap) chartWrap.innerHTML =
+      `<div class="jt-empty"><i class="bi bi-exclamation-triangle me-2"></i>` +
+      `City data unavailable. <small class="text-muted d-block mt-1">${err.message}</small></div>`;
+    jt.loaded.cities = false;
+  } finally {
+    // Remove loading spinner overlay regardless of success or failure
+    document.querySelector('#pane-cities .jt-pane-spinner')?.remove();
   }
 }
 
@@ -288,35 +346,54 @@ async function renderCities(occId) {
 //    from the velocity score computed by numpy linear regression in the backend.
 // ═════════════════════════════════════════════════════════════════════════════
 async function renderTrends(occId) {
-  const pane      = document.getElementById('pane-trends');
-  const chartWrap = pane.querySelector('.jt-chart-wrap');
-
+  let chartWrap;
   try {
+    const pane = document.getElementById('pane-trends');
+    if (!pane) throw new Error('pane-trends element not found in DOM');
+    chartWrap = pane.querySelector('.jt-chart-wrap');
+    if (!chartWrap) throw new Error('chart wrap not found inside pane-trends');
+
     const data = await api(`/api/jobs/trends/?occupation_id=${occId}`);
 
-    if (_trendsChart) { _trendsChart.destroy(); _trendsChart = null; }
+    // Guard: occupation may have changed while this request was in flight
+    if (jt.selected?.id !== occId) return;
 
+    if (_trendsChart) { _trendsChart.destroy(); _trendsChart = null; }
     if (!data || !data.length) {
-      chartWrap.innerHTML = `
-        <div class="jt-empty">
-          <i class="bi bi-graph-up me-2"></i>
-          No trend data yet. Snapshot history will build up as the pipeline runs weekly.
-        </div>`;
+      chartWrap.innerHTML = `<div class="jt-empty">
+        <i class="bi bi-graph-up me-2"></i>
+        No skill trend data yet for this occupation.</div>`;
       return;
     }
+    // Filter out skills with no points — prevents ghost legend entries with strikethrough
+    const validSkills = data
+    .filter(s => s.points && s.points.length > 0)
+    .sort((a,b) =>
+      b.points.reduce((t,p)=>t+p.count,0) -
+      a.points.reduce((t,p)=>t+p.count,0)
+   )
+   .slice(0,5); // limit to top 5 skills for readability
+    // Compute the max mention count across all skills and points
+    // Used to set a sensible y-axis max and force integer steps
+    const allCounts = validSkills.flatMap(s => s.points.map(p => p.count));
+    const maxCount  = Math.max(...allCounts, 1); // at least 1 to avoid empty axis
 
     const ctx = document.getElementById('chartTrends').getContext('2d');
     _trendsChart = new Chart(ctx, {
       type: 'line',
       data: {
-        datasets: data.map((skill, i) => ({
+        //labels: labels,
+        datasets: validSkills.map((skill, i) => ({
           label:            skill.skill_name,
-          data:             skill.points.map(p => ({ x: p.date, y: p.count })),
-          borderColor:      JT_COLORS[i % JT_COLORS.length],
-          backgroundColor:  JT_COLORS[i % JT_COLORS.length] + '15',
+          data: skill.points.map(p => ({ x: p.date, y: p.count })),
+          borderColor:      hexToRgba(JT_COLORS[i % JT_COLORS.length], 1.0),
+          backgroundColor:  hexToRgba(JT_COLORS[i % JT_COLORS.length], 0.08),
           borderWidth:      2.5,
           pointRadius:      4,
+          snapGap:          0.4, // allows tooltip to show for points that are slightly off the line
           pointHoverRadius: 7,
+          cubicInterpolationMode: 'monotone',
+          pointBackgroundColor: hexToRgba(JT_COLORS[i % JT_COLORS.length], 1.0),
           tension:          0.35,
           fill:             false,
         })),
@@ -328,32 +405,86 @@ async function renderTrends(occId) {
         plugins: {
           legend: {
             position: 'bottom',
-            labels:   { font: { size: 11 }, padding: 16, usePointStyle: true },
+            labels: {
+              font: { size: 11, weight: '600' },
+              padding: 16,
+              usePointStyle: true,
+              pointStyle: 'circle',
+              pointStyleWidth: 10,
+            },
           },
           tooltip: {
+            backgroundColor: 'rgba(17,24,39,0.92)',  // near-black, not solid black
+            titleColor:      '#A5B4FC',               // indigo-300 — matches brand
+            bodyColor:       '#E5E7EB',               // neutral-200
+            borderColor:     'rgba(99,102,241,0.3)',
+            borderWidth:     1,
+            padding:         12,
+            cornerRadius:    10,
+            titleFont:       { size: 13, weight: '700' },
+            bodyFont:        { size: 13, weight: '500' },
+            usePointStyle:   true,
             callbacks: {
-              label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} mentions`,
-              // Appends trend direction from backend velocity score
+              // Format ISO date in tooltip title
+              title: items => {
+                if (!items.length) return '';
+                const raw = items[0].label.replace(' ', 'T');
+                const d   = new Date(raw);
+                return isNaN(d)
+                  ? items[0].label   // fallback to raw if parse fails
+                  : d.toLocaleDateString('en-AU', {
+                      weekday: 'short', day: 'numeric',
+                      month: 'long',   year: 'numeric',
+                    });
+              },
+              // Fix "1 mentions" grammar + clean formatting
+              label: ctx => {
+                const count = ctx.parsed.y;
+                const noun  = count === 1 ? 'mention' : 'mentions';
+                return `  ${ctx.dataset.label}: ${count} ${noun}`;
+              },
+              // Only show trend direction if meaningful (velocity != 0)
               afterLabel: ctx => {
-                const skill = data[ctx.datasetIndex];
+                const skill = validSkills[ctx.datasetIndex];
                 if (!skill) return '';
                 const arrow = skill.trend === 'growing'   ? '▲ Growing'
                             : skill.trend === 'declining' ? '▼ Declining'
                             : '→ Stable';
-                return `  ${arrow} (velocity: ${skill.velocity})`;
+                return arrow ? `  ${arrow}  (velocity: ${skill.velocity})` : '';
               },
             },
           },
         },
         scales: {
           x: {
-            type:  'category',
-            grid:  { display: false },
-            ticks: { font: { size: 11 } },
+            //type: 'category',
+            grid: { display: false },
+            border: { display: true },
+            ticks: {
+              font: { size: 11, weight: '600' },
+              color: '#6B7280',
+              callback: function(val) {
+                const raw = this.getLabelForValue(val).replace(' ', 'T');
+                const d   = new Date(raw);
+                return isNaN(d)
+                  ? val
+                  : d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+              },
+            },
           },
           y: {
-            grid:        { color: '#E8ECF8' },
-            ticks:       { font: { size: 11 } },
+            grid:  { color: '#F3F4F6', drawBorder: false },
+            border: { display: true },
+            min: 0,
+            max: maxCount < 5 ? 5 : undefined, // if counts are low, set max to 5 for better scaling
+            ticks: {
+              font: { size: 11, weight: '600' },
+              color: '#6B7280',
+              stepSize: 1,
+              // integers only, max 6 ticks — keeps axis clean when counts are small
+              precision:     0,
+              maxTicksLimit: 6,
+            },
             beginAtZero: true,
           },
         },
@@ -361,9 +492,13 @@ async function renderTrends(occId) {
     });
 
   } catch (err) {
-    chartWrap.innerHTML = `<div class="jt-empty">Could not load trend data.</div>`;
-    console.warn('[SkillPulse|JT] renderTrends failed:', err.message);
+    console.error('[SkillPulse|JT] renderTrends:', err);
+    if (chartWrap) chartWrap.innerHTML =
+      `<div class="jt-empty"><i class="bi bi-exclamation-triangle me-2"></i>` +
+      `Trend data unavailable. <small class="text-muted d-block mt-1">${err.message}</small></div>`;
     jt.loaded.trends = false;
+  } finally {
+    document.querySelector('#pane-trends .jt-pane-spinner')?.remove();
   }
 }
 

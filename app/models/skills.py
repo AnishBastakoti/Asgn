@@ -21,10 +21,10 @@ class EscoSkill(Base):
     skill_type    = Column(String, nullable=True)
     content_hash  = Column(String, nullable=True) 
     #embedding     = Column(String, nullable=True)  # Store as JSON string or base64-encoded vector
-    """
-    hash of the skill content, used to detect duplicates
-    this is a fingerprinting technique for data
-    """
+
+    #hash of the skill content, used to detect duplicates
+    #this is a fingerprinting technique for data
+    
 
     # Relationships
     occupation_skills = relationship(
