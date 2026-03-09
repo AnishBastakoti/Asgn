@@ -14,7 +14,7 @@ _AUTHOR_KEY = "MSIT402 CIM-10236"
 _SIGNATURE  = int(hashlib.md5(_AUTHOR_KEY.encode()).hexdigest(), 16) % 1000
 
 
-# ── 1. City Demand ─────────────────────────────────────────
+# ── City Demand ─────────────────────────────────────────
 def get_cities_by_occupation(db: Session, occupation_id: int) -> list[dict]:
     """
     Get Australian cities where this occupation has job demand.
@@ -40,7 +40,7 @@ def get_cities_by_occupation(db: Session, occupation_id: int) -> list[dict]:
         return []
 
 
-# ── 2. Skill Trends Over Time ──────────────────────────────
+# ── Skill Trends Over Time ──────────────────────────────
 def get_skill_trends_by_occupation(db: Session, occupation_id: int) -> list[dict]:
     """
     Get skill demand trends over time using snapshot data.
@@ -110,7 +110,7 @@ def get_skill_trends_by_occupation(db: Session, occupation_id: int) -> list[dict
         return []
 
 
-# ── 3. Skill Overlap ───────────────────────────────────────
+# ── Skill Overlap ───────────────────────────────────────
 def get_skill_overlap(db: Session, occupation_id: int) -> dict:
     """
     Find occupations that share skills with the selected occupation.
@@ -195,7 +195,7 @@ def get_skill_overlap(db: Session, occupation_id: int) -> dict:
         return {"skills": [], "occupations": [], "matrix": []}
 
 
-# ── 4. Top Companies ───────────────────────────────────────
+# ── Top Companies ───────────────────────────────────────
 def get_top_companies(db: Session, occupation_id: int) -> list[dict]:
     """
     Get top hiring companies for this occupation.
@@ -224,7 +224,7 @@ def get_top_companies(db: Session, occupation_id: int) -> list[dict]:
         return []
 
 
-# ── 5. City Lead Indicator ─────────────────────────────────
+# ── City Lead Indicator ─────────────────────────────────
 def get_city_lead_indicator(db: Session, occupation_id: int) -> list[dict]:
     """
     Identify which Australian cities are lead indicators for skill demand.
@@ -262,35 +262,3 @@ def get_city_lead_indicator(db: Session, occupation_id: int) -> list[dict]:
     except Exception as e:
         logger.error(f"[MSIT402|SP] get_city_lead_indicator failed: {e}")
         return []
-
-def get_top_companies(db: Session, occupation_id: int):
-    return db.query(
-        Company.name.label("company"),
-        func.count(JobPost.id).label("postings")
-    ).join(JobPost).filter(JobPost.occupation_id == occupation_id)\
-    .group_by(Company.name).order_by(desc("postings")).limit(10).all()
-
-def get_city_lead_indicator(db: Session, occupation_id: int):
-    """
-    Finds which cities saw a job posting for this occupation first.
-    Calculates if a city is a 'Lead' based on the earliest 'posted_at' date.
-    """
-    subquery = db.query(
-        City.name.label("city"),
-        func.min(JobPost.posted_at).label("first_seen"),
-        func.count(JobPost.id).label("total_postings")
-    ).join(JobPost).filter(JobPost.occupation_id == occupation_id)\
-    .group_by(City.name).subquery()
-
-    # Get the global 'first seen' date for this occupation
-    min_date = db.query(func.min(JobPost.posted_at)).filter(JobPost.occupation_id == occupation_id).scalar()
-
-    leads = db.query(
-        subquery.c.city,
-        subquery.c.first_seen,
-        subquery.c.total_postings,
-        (subquery.c.first_seen == min_date).label("is_lead")
-    ).order_by(desc(subquery.c.total_postings)).all()
-    
-    # Add ranking in Python for simplicity
-    return [{"rank": i+1, **row._asdict()} for i, row in enumerate(leads)]
