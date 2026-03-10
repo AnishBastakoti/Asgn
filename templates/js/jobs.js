@@ -83,17 +83,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initTabs();
 
 // Debounced — avoids re-rendering 1,000 occupation items on every keystroke
-  document.getElementById('jtOccSearch')
-    .addEventListener('input', debounce(e => filterOccupations(e.target.value), 150));
+  document.getElementById('occSearch')
+    .addEventListener('input', debounce(e => filterAndRender(e.target.value), 150));
 });
-
-
-/** Called by quick-search chips in the welcome state. */
-window.jtQuickSearch = function(query) {
-  const input = document.getElementById('jtOccSearch');
-  if (input) input.value = query;
-  filterOccupations(query);
-};
 
 // ═════════════════════════════════════════════════════════════════════════════
 // 1. GLOBAL HOT SKILLS BANNER
@@ -136,55 +128,6 @@ async function loadHotSkills() {
       Could not load trending skills.</span>`;
     console.warn('[SkillPulse|JT] loadHotSkills:', err.message);
   }
-}
-// ═════════════════════════════════════════════════════════════════════════════
-// 2. OCCUPATION LIST
-//    Source: /api/occupations/list?limit=1000
-//    Renders full scrollable list with search filtering.
-//    Occupations with no skill data (has_data=false) are dimmed and unclickable.
-// ═════════════════════════════════════════════════════════════════════════════
-async function loadOccupations() {
-  const wrap = document.getElementById('jtOccList');
-  try {
-    jt.occupations = await api('/api/occupations/list?limit=1000');
-    jt.filtered    = jt.occupations;
-    renderOccList(jt.filtered);
-  } catch (err) {
-    wrap.innerHTML = `<div class="jt-empty">Could not load occupations.</div>`;
-    console.warn('[SkillPulse|JT] loadOccupations failed:', err.message);
-  }
-}
-
-function filterOccupations(query) {
-  const term = query.trim().toLowerCase();
-  jt.filtered = term
-    ? jt.occupations.filter(o => o.title.toLowerCase().includes(term))
-    : jt.occupations;
-  renderOccList(jt.filtered);
-}
-
-function renderOccList(list) {
-  const wrap = document.getElementById('jtOccList');
-
-  if (!list.length) {
-    wrap.innerHTML = `<div class="jt-empty">No occupations match your search.</div>`;
-    return;
-  }
-
-  wrap.innerHTML = list.map(o => {
-    const isActive = jt.selected?.id === o.id;
-    const badge    = o.has_data
-      ? `<span class="jt-occ-badge">Lv${o.skill_level || '?'}</span>` : '';
-    return `
-      <div class="jt-occ-item ${o.has_data ? '' : 'no-data'} ${isActive ? 'active' : ''}"
-           ${o.has_data ? 'onclick="selectOccupation(this)"' : ''}
-           data-id="${o.id}"
-           data-title="${esc(o.title)}"
-           data-level="${o.skill_level || ''}">
-        <span class="occ-title">${esc(o.title)}</span>
-        ${badge}
-      </div>`;
-  }).join('');
 }
 
 // Called when user clicks an occupation row

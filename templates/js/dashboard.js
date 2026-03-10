@@ -5,7 +5,8 @@ const state = {
   occupations: [],
   filtered: [],
   selected: null,
-  topN: 20
+  topN: 20,
+  searchIndex: [] // for quick search
 };
 
 // ── DOM Ready ──
@@ -26,7 +27,7 @@ async function initDashboard() {
     if (state.selected) renderDashboard();
   });
 
-  $('occSearch')?.addEventListener('input', e => filterAndRender(e.target.value));
+  //$('occSearch')?.addEventListener('input', e => filterAndRender(e.target.value));
 
   $('filterMajor')?.addEventListener('change', async e => {
     await loadSubMajorGroups(e.target.value);
@@ -39,14 +40,24 @@ async function initDashboard() {
   });
 
   $('filterMinor')?.addEventListener('change', () => filterAndRender($('occSearch')?.value || ''));
+
+  let searchTimeout;
+  $('occSearch')?.addEventListener('input', e => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      filterAndRender(e.target.value);
+    }, 200); // Wait 200ms after user stops typing
+  });
 }
 
 // ── Quick search helper ──
 window.quickSearch = q => {
-  if ($('occSearch')) $('occSearch').value = q;
-  filterAndRender(q);
+  const input = $('occSearch');
+  if (input) {
+    input.value = q;
+    filterAndRender(q); // Call directly for instant result
+  }
 };
-
 // ── Load KPI cards ──
 async function loadKpiCards() {
   try {
@@ -125,32 +136,60 @@ async function loadOccupations() {
   list.innerHTML = '<div class="sp-spinner-center"><div class="sp-spinner"></div></div>';
 
   try {
-    const occs = await api('/api/occupations/list?limit=500');
+    const occs = await api('/api/occupations/list');
     state.occupations = occs;
+    
+    // Step 1: Create the Index
+    state.searchIndex = occs.map(o => ({
+      id: String(o.id),
+      title: (o.title || "").toLowerCase(),
+      skillIds: o.skill_ids || [], // In case it's missing
+      original: o // Keep reference to original object
+    }));
+
     state.filtered = occs;
-    renderOccList(occs);
+    renderOccList(occs.slice(0, 50)); // Step 4: Limit initial render
   } catch (err) {
     list.innerHTML = '<div class="sp-occ-empty">Failed to load</div>';
     console.warn('Failed to load occupations:', err.message);
   }
 }
-
 // ── Filter occupations ──
 function filterAndRender(search) {
-  let occs = state.occupations;
-  const minorId = $('filterMinor')?.value;
-  if (minorId) occs = occs.filter(o => o.minor_group_id == minorId);
-  if (search && search.length >= 2) {
-    const q = search.toLowerCase();
-    occs = occs.filter(o => o.title.toLowerCase().includes(q));
+  const query = search.trim().toLowerCase();
+  let results = state.searchIndex;
+
+  if (query.length > 0) {
+    results = results.filter(item => {
+
+      const matchTitle = item.title.includes(query);
+
+      const matchOccId = item.id.includes(query);
+
+      const matchSkillId = (item.skillIds || []).some(
+        sid => String(sid).includes(query)
+      );
+
+      return matchTitle || matchOccId || matchSkillId;
+    });
   }
-  state.filtered = occs;
-  renderOccList(occs);
+
+  state.filtered = results.map(r => r.original);
+
+  if (state.filtered.length === 0) {
+    $('occList').innerHTML =
+      '<div class="sp-occ-empty">No occupations found</div>';
+    return;
+  }
+
+  renderOccList(state.filtered.slice(0, 50));
 }
 
 // ── Render occupation list ──
 function renderOccList(occs) {
   const list = $('occList');
+  //if (minorId) occs = occs.filter(o => o.unit_group_id == minorId);
+
   if (!list) return;
 
   if (!occs.length) {
@@ -158,10 +197,12 @@ function renderOccList(occs) {
     return;
   }
 
+  // The 'occs' passed here is already sliced to 50 in filterAndRender
   list.innerHTML = occs.map(o =>
     `<div class="sp-occ-item${o.has_data?'':' no-data'}${state.selected && state.selected.id===o.id?' active':''}" 
           data-id="${o.id}" data-title="${esc(o.title)}" data-level="${o.skill_level||'--'}" data-skills="${o.skill_count}">
       <div class="sp-occ-name">${esc(o.title)}</div>
+      
       <div class="sp-occ-meta">
         <span class="sp-occ-tag${o.has_data?' has-data':''}">${o.skill_count} skills</span>
         ${o.skill_level ? `<span class="sp-occ-tag">Lv ${o.skill_level}</span>` : ''}
@@ -182,6 +223,7 @@ function renderOccList(occs) {
     });
   });
 }
+
 
 // ── Render dashboard charts ──
 async function renderDashboard() {

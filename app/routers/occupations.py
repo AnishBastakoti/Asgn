@@ -250,24 +250,20 @@ def get_minor_groups(
 
 @router.get("/list")
 def list_occupations(
-    limit:              int = Query(500, le=1000),
+    #limit:              int = Query(2000, le=2000),
     major_group_id:     Optional[int] = Query(None),
     sub_major_group_id: Optional[int] = Query(None),
     minor_group_id:     Optional[int] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """
-    Flat list of occupations for the sidebar occupation list.
-    Includes skill_count and has_data flag so the UI can dim
-    occupations with no skill data.
-
-    Filters cascade: major → sub-major → minor group.
-    """
-    # Count skills per occupation in one subquery
-    skill_counts = (
+    
+    #Aggregate Skill IDs instead of just counting them
+    # Using array_agg to get a list of skill IDs for each occupation
+    skill_data = (
         db.query(
             OscaOccupationSkill.occupation_id,
-            func.count(OscaOccupationSkill.skill_id).label("skill_count")
+            func.count(OscaOccupationSkill.skill_id).label("skill_count"),
+            func.array_agg(OscaOccupationSkill.skill_id).label("skill_ids") 
         )
         .group_by(OscaOccupationSkill.occupation_id)
         .subquery()
@@ -278,11 +274,21 @@ def list_occupations(
             OscaOccupation.id,
             OscaOccupation.principal_title.label("title"),
             OscaOccupation.skill_level,
-            func.coalesce(skill_counts.c.skill_count, 0).label("skill_count")
+            OscaOccupation.unit_group_id,
+            func.coalesce(skill_data.c.skill_count, 0).label("skill_count"),
+            func.coalesce(skill_data.c.skill_ids, []).label("skill_ids")
         )
-        .outerjoin(skill_counts, skill_counts.c.occupation_id == OscaOccupation.id)
+        .outerjoin(skill_data, skill_data.c.occupation_id == OscaOccupation.id)
         .join(OscaUnitGroup, OscaUnitGroup.id == OscaOccupation.unit_group_id)
     )
+    """
+    Flat list of occupations for the sidebar occupation list.
+    Includes skill_count and has_data flag so the UI can dim
+    occupations with no skill data.
+
+    Filters cascade: major → sub-major → minor group.Count skills per occupation in one subquery
+
+    """
 
     # Apply hierarchy filters
     if minor_group_id:
@@ -297,7 +303,7 @@ def list_occupations(
              .join(OscaSubMajorGroup, OscaSubMajorGroup.id == OscaMinorGroup.sub_major_group_id)
              .filter(OscaSubMajorGroup.major_group_id == major_group_id))
 
-    rows = q.order_by(OscaOccupation.principal_title).limit(limit).all()
+    rows = q.order_by(OscaOccupation.principal_title).all()
 
     return [
         {
@@ -305,6 +311,8 @@ def list_occupations(
             "title":       r.title,
             "skill_level": r.skill_level,
             "skill_count": r.skill_count,
+            "unit_group_id": r.unit_group_id,
+            "skill_ids":   [str(s) for s in r.skill_ids] if r.skill_ids else [], # Convert to strings for easier JS searching
             "has_data":    r.skill_count > 0,
         }
         for r in rows
