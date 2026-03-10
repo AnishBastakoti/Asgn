@@ -47,20 +47,15 @@ function hexToRgba(hex, alpha) {
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${alpha})`;
 }
-
-
-/**
- * Debounces a function so it only fires after `ms` ms of inactivity.
- * Used on the search input to avoid re-rendering 1,000 items on every keystroke.
- */
-function debounce(fn, ms) {
-  let timer;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), ms);
-  };
-}
-
+// Debounce utility to limit how often a function can run — used for search input
+let searchTimeout;
+document.getElementById('occSearch')
+    .addEventListener('input', e => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            filterAndRender(e.target.value);
+        }, 200);
+    });
 // ── Chart instances — module-scoped so we can destroy before redraw ────────────
 let _citiesChart = null;
 let _trendsChart = null;
@@ -333,7 +328,6 @@ async function renderTrends(occId) {
           backgroundColor:  hexToRgba(JT_COLORS[i % JT_COLORS.length], 0.08),
           borderWidth:      2.5,
           pointRadius:      4,
-          snapGap:          0.4, // allows tooltip to show for points that are slightly off the line
           pointHoverRadius: 7,
           cubicInterpolationMode: 'monotone',
           pointBackgroundColor: hexToRgba(JT_COLORS[i % JT_COLORS.length], 1.0),
