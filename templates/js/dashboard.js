@@ -221,12 +221,13 @@ function renderOccList(occs) {
       list.querySelectorAll('.sp-occ-item').forEach(e => e.classList.remove('active'));
       el.classList.add('active');
 
-      //check page
       if (document.getElementById('chartPanel')) {
-        renderDashboard();                    // main dashboard page
-    } else if (document.getElementById('jtChartContent')) {
-        selectOccupation(el);                 // skills/jobs page — corrected name
-    }
+          renderDashboard();    // dashboard page
+      } else if (document.getElementById('jtChartContent')) {
+          selectOccupation(el); // skills/jobs page
+      } else if (document.getElementById('anPanels')) {
+          selectOccupation(el);    // analytics page
+      }
 
     });
   });
