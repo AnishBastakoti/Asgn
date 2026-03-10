@@ -398,7 +398,7 @@ body { background: transparent; overflow: hidden; height: 100%; }
   font-family: var(--mono);
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--muted);
+  color: var(--text);
   margin-bottom: 0.5rem;
 }
 

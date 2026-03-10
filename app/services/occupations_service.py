@@ -2,7 +2,7 @@ import logging
 import hashlib
 from typing import Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import String, func
 
 from app.models.osca import (
     OscaMajorGroup,
@@ -126,7 +126,7 @@ def get_occupations(
 
     Args:
         unit_group_id — filter by unit group
-        search        — search by title (case insensitive)
+        search        — search by title (case insensitive) and OSCA ID
         limit         — max results to return
     """
     query = db.query(
@@ -147,7 +147,8 @@ def get_occupations(
     if search:
         # Case insensitive search
         query = query.filter(
-            OscaOccupation.principal_title.ilike(f"%{search}%")
+            OscaOccupation.principal_title.ilike(f"%{search}%")|
+            (OscaOccupation.id.cast(String).ilike(f"%{search}%"))
         )
 
     occupations = (
