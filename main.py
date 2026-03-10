@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from config import settings
-from app.routers import skills, occupations, analytics, jobs
+from app.routers import skills, occupations, analytics, jobs, pipeline
 
 # ── Logging Setup 
 # Configure logging once here — all other files use getLogger()
@@ -53,6 +53,7 @@ app.include_router(skills.router)
 app.include_router(occupations.router)
 app.include_router(jobs.router)
 app.include_router(analytics.router)
+app.include_router(pipeline.router)
 
 
 # ── Static Files ─
