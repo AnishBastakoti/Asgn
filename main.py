@@ -3,11 +3,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from config import settings
 from app.routers import skills, occupations, analytics, jobs, pipeline
 
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
+#from slowapi.errors import _rate_limit_exceeded_handler
+
+from core.rate_limiter import limiter
 # ── Logging Setup 
 # Configure logging once here — all other files use getLogger()
 
@@ -29,21 +34,32 @@ app = FastAPI(
     Analyses skill demand across OSCA occupations using
     real job posting data and ESCO skill taxonomy.
     """,
-    docs_url="/docs",      # Swagger UI at /docs
-    redoc_url="/redoc",     # ReDoc UI at /redoc
-
+    
+    docs_url=None,      # Swagger UI at /docs
+    redoc_url=None,     # ReDoc UI at /redoc
+    # Register limiter
 )
+app.state.limiter = limiter
+#app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 
+# Global exception handler for rate limits
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Rate limit exceeded. Please try again later."}
+    )
 # ── CORS Middleware 
 # CORS = Cross Origin Resource Sharing
 # Allows our frontend (port) to call our API (port) without browser blocking
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
+    allow_methods=settings.CORS_ALLOW_METHODS,
+    allow_headers=settings.CORS_ALLOW_HEADERS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
 )
 
 
