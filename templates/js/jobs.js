@@ -47,15 +47,6 @@ function hexToRgba(hex, alpha) {
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${alpha})`;
 }
-// Debounce utility to limit how often a function can run — used for search input
-let searchTimeout;
-document.getElementById('occSearch')
-    .addEventListener('input', e => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            filterAndRender(e.target.value);
-        }, 200);
-    });
 // ── Chart instances — module-scoped so we can destroy before redraw ────────────
 let _citiesChart = null;
 let _trendsChart = null;
@@ -77,11 +68,16 @@ document.addEventListener('DOMContentLoaded', () => {
   loadOccupations();
   initTabs();
 
-// Debounced — avoids re-rendering 1,000 occupation items on every keystroke
+  // Debounce utility to limit how often a function can run — used for search input
+  let searchTimeout;
   document.getElementById('occSearch')
-    .addEventListener('input', debounce(e => filterAndRender(e.target.value), 150));
-});
-
+      .addEventListener('input', e => {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => {
+              filterAndRender(e.target.value);
+          }, 200);
+      });
+    });
 // ═════════════════════════════════════════════════════════════════════════════
 // 1. GLOBAL HOT SKILLS BANNER
 //    Source: /api/analytics/hot-skills?days=30
@@ -203,7 +199,10 @@ async function loadTabData(tab) {
   }
 
   const id = jt.selected.id;
-  if (tab === 'cities')    await renderCities(id);
+  if (tab === 'cities') {
+    await renderCities(id);
+    await renderLeadIndicator(id);
+  }
   if (tab === 'trends')    await renderTrends(id);
   if (tab === 'overlap')   await renderOverlap(id);
   if (tab === 'companies') await renderCompanies(id);
@@ -274,6 +273,42 @@ async function renderCities(occId) {
   } finally {
     // Remove loading spinner overlay regardless of success or failure
     document.querySelector('#pane-cities .jt-pane-spinner')?.remove();
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// 4b. CITY LEAD INDICATOR
+//     Source: /api/jobs/lead-cities/?occupation_id=X
+// ═══════════════════════════════════════════════════════
+async function renderLeadIndicator(occId) {
+  const insightBox = document.getElementById('cityLeadInsight');
+  if (!insightBox) return;
+
+  try {
+    const data = await api(`/api/jobs/lead-cities/?occupation_id=${occId}`);
+
+    if (!data || !data.length) {
+      insightBox.style.display = 'none';
+      return;
+    }
+
+    const lead = data.find(d => d.is_lead) || data[0];
+    insightBox.style.display = 'block';
+    insightBox.innerHTML = `
+      <div class="d-flex align-items-center gap-3 p-3 rounded border border-primary-subtle bg-primary-subtle">
+        <span class="badge bg-primary">
+          <i class="bi bi-lightning-fill me-1"></i>Lead Market
+        </span>
+        <div class="small text-secondary">
+          <strong class="text-dark">${esc(lead.city)}</strong>
+          was the first city to trend for this role
+          <span class="text-muted">(detected: ${lead.first_seen})</span>
+        </div>
+      </div>`;
+
+  } catch (err) {
+    console.warn('[SkillPulse|JT] renderLeadIndicator failed:', err.message);
+    insightBox.style.display = 'none';
   }
 }
 
@@ -497,7 +532,7 @@ async function renderOverlap(occId) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 7. TOP COMPANIES — ranked table with inline bar
+// 7. COMPANIES — ranked table with inline bar
 //    Source: /api/jobs/companies/?occupation_id=X
 //    Bar width is relative to the top company (max = 100%).
 // ═════════════════════════════════════════════════════════════════════════════

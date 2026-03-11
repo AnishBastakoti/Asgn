@@ -28,19 +28,23 @@ async function initDashboard() {
     if (state.selected) renderDashboard();
   });
 
-  //$('occSearch')?.addEventListener('input', e => filterAndRender(e.target.value));
 
   $('filterMajor')?.addEventListener('change', async e => {
     await loadSubMajorGroups(e.target.value);
+    await loadOccupations(); // reload occupations to apply new filters
     filterAndRender($('occSearch')?.value || '');
   });
 
   $('filterSubMajor')?.addEventListener('change', async e => {
     await loadMinorGroups(e.target.value);
+    await loadOccupations(); // reload occupations to apply new filters
     filterAndRender($('occSearch')?.value || '');
   });
 
-  $('filterMinor')?.addEventListener('change', () => filterAndRender($('occSearch')?.value || ''));
+  $('filterMinor')?.addEventListener('change', async() => {
+    await loadOccupations(); // reload occupations to apply new filters
+    filterAndRender($('occSearch')?.value || '');
+  });
 
   let searchTimeout;
   $('occSearch')?.addEventListener('input', e => {
@@ -132,12 +136,26 @@ async function loadMinorGroups(subMajorId) {
 
 // ── Load occupations ──
 async function loadOccupations() {
+  // console.log('[loadOccupations called]');
   const list = $('occList');
+  // console.log('[occList]', list);
   if (!list) return;
   list.innerHTML = '<div class="sp-spinner-center"><div class="sp-spinner"></div></div>';
 
+  // ── Read current filter values ──
+  const majorId    = $('filterMajor')?.value    || '';
+  const subMajorId = $('filterSubMajor')?.value || '';
+  const minorId    = $('filterMinor')?.value    || '';
+
+  const params = new URLSearchParams();
+  if (minorId)         params.set('minor_group_id',     minorId);
+  else if (subMajorId) params.set('sub_major_group_id', subMajorId);
+  else if (majorId)    params.set('major_group_id',     majorId);
+  
+  const url = '/api/occupations/list' + (params.toString() ? '?' + params.toString() : '');
+
   try {
-    const occs = await api('/api/occupations/list');
+    const occs = await api(url);
     state.occupations = occs;
     
     // Step 1: Create the Index
@@ -145,6 +163,7 @@ async function loadOccupations() {
       id: String(o.id),
       title: (o.title || "").toLowerCase(),
       skillIds: o.skill_ids || [], // In case it's missing
+      altTitles: o.alt_titles || [], // Include alternative titles
       original: o // Keep reference to original object
     }));
 
@@ -170,8 +189,11 @@ function filterAndRender(search) {
       const matchSkillId = (item.skillIds || []).some(
         sid => String(sid).includes(query)
       );
+      const matchAltTitle = (item.altTitles || []).some(
+        alt => alt.toLowerCase().includes(query)
+      );
 
-      return matchTitle || matchOccId || matchSkillId;
+      return matchTitle || matchOccId || matchSkillId || matchAltTitle;
     });
   }
 
@@ -189,8 +211,7 @@ function filterAndRender(search) {
 // ── Render occupation list ──
 function renderOccList(occs) {
   const list = $('occList');
-  //if (minorId) occs = occs.filter(o => o.unit_group_id == minorId);
-
+  
   if (!list) return;
 
   if (!occs.length) {
@@ -221,12 +242,13 @@ function renderOccList(occs) {
       list.querySelectorAll('.sp-occ-item').forEach(e => e.classList.remove('active'));
       el.classList.add('active');
 
-      //check page
       if (document.getElementById('chartPanel')) {
-        renderDashboard();                    // main dashboard page
-    } else if (document.getElementById('jtChartContent')) {
-        selectOccupation(el);                 // skills/jobs page — corrected name
-    }
+          renderDashboard();    // dashboard page
+      } else if (document.getElementById('jtChartContent')) {
+          selectOccupation(el); // skills/jobs page
+      } else if (document.getElementById('anPanels')) {
+          selectOccupation(el);    // analytics page
+      }
 
     });
   });

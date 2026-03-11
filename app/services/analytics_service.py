@@ -44,7 +44,7 @@ def get_hot_skills(db: Session, days: int = 30) -> list[dict]:
 
         return [
             {
-                "skill_name":     r.skill_name,
+                "skill_name":     r.skill_name.title() if r.skill_name else r.skill_name,
                 "total_mentions": r.total_mentions,
                 "share_pct":      round((r.total_mentions / max_mentions) * 100, 2)
             }
