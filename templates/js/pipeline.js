@@ -87,6 +87,7 @@ function renderTable(data) {
     const exitBadge   = exitBadgeHtml(r.exit_code);
     const duration    = r.duration_seconds != null ? formatDuration(r.duration_seconds) : '—';
     const hasError    = r.exit_message && r.exit_message.trim().length > 0;
+    const safeMsg = btoa(r.exit_message || ''); // Base64 encode to hide quotes from HTML
 
     html += `
       <tr>
@@ -100,19 +101,29 @@ function renderTable(data) {
         <td>${statusBadge}</td>
         <td>${exitBadge}</td>
         <td>
-          ${hasError
-            ? `<button class="btn btn-sm btn-outline-danger py-0 px-2"
-                       style="font-size:11px;"
-                       onclick='showError(${r.job_execution_id}, ${JSON.stringify(r.start_time)}, ${JSON.stringify(r.exit_message)})'>
-                 <i class="bi bi-file-text me-1"></i>Logs
-               </button>`
-            : ''}
+          ${hasError 
+      ? `<button class="btn btn-sm btn-outline-danger py-0 px-2" 
+                 style="font-size:11px;"
+                 onclick="handleLogClick(this)"
+                 data-id="${r.job_execution_id}"
+                 data-start="${r.start_time}"
+                 data-msg="${safeMsg}">
+           <i class="bi bi-file-text me-1"></i>Logs
+         </button>` 
+      : ''}
         </td>
       </tr>`;
   });
 
   html += `</tbody></table></div>`;
   document.getElementById('pipelineTableWrap').innerHTML = html;
+}
+// ── Log modal handler ─────────────────────────────────────────────────────────
+
+function handleLogClick(btn) {
+    // This pulls the data out of the button that was clicked
+    const msg = atob(btn.dataset.msg); // Decodes the Base64 string
+    showError(btn.dataset.id, btn.dataset.start, msg);
 }
 
 // ── Error modal ───────────────────────────────────────────────────────────────
@@ -154,4 +165,25 @@ function formatDuration(seconds) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}m ${s}s`;
+}
+
+
+// a variable to hold the modal instance globally
+let errorModalInstance = null;
+
+function showError(execId, startTime, message) {
+    const modalEl = document.getElementById('errorModal');
+    if (!modalEl) return;
+
+    // Update the content
+    document.getElementById('errorModalMeta').textContent = 
+        `Execution #${execId}  ·  Started: ${startTime ? startTime.replace('T', ' ').slice(0, 19) : '—'}`;
+    document.getElementById('errorModalBody').textContent = message || 'No error message recorded.';
+
+    // Reuse the instance if it exists, otherwise create it
+    if (!errorModalInstance) {
+        errorModalInstance = new bootstrap.Modal(modalEl);
+    }
+    
+    errorModalInstance.show();
 }

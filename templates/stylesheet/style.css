@@ -488,9 +488,7 @@ body { background: transparent; overflow: hidden; height: 100%; }
 /* Occupation list */
 .sp-occ-list {
   overflow-y: auto;
-  /* min-height: 0;*/
-  /* will fill parent fixed-panel height */
-}
+  }
 .sp-occ-list::-webkit-scrollbar { width: 4px; }
 .sp-occ-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 
@@ -811,4 +809,12 @@ body { background: transparent; overflow: hidden; height: 100%; }
 .sp-occ-info {
   padding: 1rem;
   background: var(--shell-bg);
+}
+
+#errorModalBody {
+    background: #0d1117; /* GitHub dark theme style */
+    color: #ff7b72;    /* Soft red for error text */
+    border: 1px solid #30363d;
+    tab-size: 4;
+    overflow-x: auto;
 }

@@ -6,7 +6,7 @@ from typing import Optional
 from app.database import get_db
 from app.models.osca import (
     OscaMajorGroup, OscaSubMajorGroup, OscaMinorGroup,
-    OscaUnitGroup, OscaOccupation
+    OscaUnitGroup, OscaOccupation, OscaAlternativeTitle
 )
 from app.models.skills import OscaOccupationSkill
 
@@ -70,7 +70,7 @@ def get_minor_groups(
 
 @router.get("/list")
 def list_occupations(
-    #limit:              int = Query(2000, le=2000),
+    # limit:              int = Query(2000, le=2000),
     major_group_id:     Optional[int] = Query(None),
     sub_major_group_id: Optional[int] = Query(None),
     minor_group_id:     Optional[int] = Query(None),
@@ -124,6 +124,17 @@ def list_occupations(
              .filter(OscaSubMajorGroup.major_group_id == major_group_id))
 
     rows = q.order_by(OscaOccupation.principal_title).all()
+    
+    # alternative title search
+    occ_ids = [r.id for r in rows]
+    alt_rows = (
+        db.query(OscaAlternativeTitle.occupation_id, OscaAlternativeTitle.title)
+        .filter(OscaAlternativeTitle.occupation_id.in_(occ_ids))
+        .all()
+    )
+    alt_map = {}
+    for a in alt_rows:
+        alt_map.setdefault(a.occupation_id, []).append(a.title.lower())
 
     return [
         {
@@ -134,6 +145,7 @@ def list_occupations(
             "unit_group_id": r.unit_group_id,
             "skill_ids":   [str(s) for s in r.skill_ids] if r.skill_ids else [], # Convert to strings for easier JS searching
             "has_data":    r.skill_count > 0,
+            "alt_titles":  alt_map.get(r.id, [])
         }
         for r in rows
     ]
