@@ -1,5 +1,4 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
 from functools import lru_cache
 
 
@@ -14,7 +13,15 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
 
-    DATABASE_URL: str = "postgresql://postgres:newpassword@localhost:5432/skillplus"
+    SECRET_KEY: str
+    API_KEY: str
+    FINGERPRINT_SALT: str
+   # Loaded from .env
+    DB_HOST: str
+    DB_PORT: int
+    DB_USER: str
+    DB_PASSWORD: str
+    DB_NAME: str
 
     API_PREFIX: str = "/api"
     ALLOWED_ORIGINS: list[str] = [
@@ -24,19 +31,25 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5500",
     ]
 
+    CORS_ALLOW_METHODS: list[str] = [
+        "GET",
+        "POST",
+    ]
+
+    CORS_ALLOW_HEADERS: list[str] = [
+        "Content-Type",
+        "Authorization",
+    ]
+
     EMBEDDING_DIM: int = 1536
     UMAP_N_NEIGHBORS: int = 15
     UMAP_MIN_DIST: float = 0.1
     SIMILARITY_THRESHOLD: float = 0.75
     TOP_N_SKILLS: int = 20
-    FINGERPRINT_SALT: str = "sp_v1_adl"
 
-    @field_validator("DATABASE_URL")
-    @classmethod
-    def fix_db_url_schema(cls, v: str) -> str:
-        if v.startswith("postgres://"):
-            v = v.replace("postgres://", "postgresql://", 1)
-        return v
+    @property
+    def DATABASE_URL(self) -> str:
+        return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
 
 @lru_cache()
