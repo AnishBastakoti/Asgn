@@ -93,7 +93,9 @@
     </div>
   </div>
 </div>
+{% endblock %}
 
+{% block modals %}
 <!-- ── Error Detail Modal ── -->
 <div class="modal fade" id="errorModal" tabindex="-1">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -116,6 +118,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
 <script src="/templates/js/pipeline.js"></script>
 {% endblock %}
