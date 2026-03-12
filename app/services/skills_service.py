@@ -62,6 +62,11 @@ def get_top_skills_for_occupation(
                 EscoSkill.id.label("skill_id"),
                 EscoSkill.preferred_label.label("skill_name"),
                 EscoSkill.skill_type,
+
+                EscoSkill.description,          
+                EscoSkill.alt_labels,           
+                EscoSkill.skill_card, 
+
                 OscaOccupationSkill.mention_count,
                 OscaOccupationSkill.first_seen_at,
                 OscaOccupationSkill.last_seen_at,
@@ -84,6 +89,11 @@ def get_top_skills_for_occupation(
                 "demand_score":  demand_score,
                 "first_seen":    row.first_seen_at.isoformat() if row.first_seen_at else None,
                 "last_seen":     row.last_seen_at.isoformat() if row.last_seen_at else None,
+
+                #--- new column ---
+                "description":   row.description,
+                "alt_labels":    row.alt_labels,
+                "skill_card":    row.skill_card,
             })
 
         elapsed = (time.perf_counter() - start) * 1000

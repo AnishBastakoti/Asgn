@@ -20,6 +20,13 @@ class EscoSkill(Base):
     preferred_label = Column(String, nullable=False)# The main name of the skill, used for display and matching
     skill_type    = Column(String, nullable=True)
     content_hash  = Column(String, nullable=True) 
+
+    #-- new columns 
+    alt_labels   = Column(Text,   nullable=True)
+    description  = Column(Text,   nullable=True)
+    embedding    = Column(Text,    nullable=True)
+    skill_card   = Column(String, nullable=True)
+    created_at   = Column(String, nullable=True)
     #embedding     = Column(String, nullable=True)  # Store as JSON string or base64-encoded vector
 
     #hash of the skill content, used to detect duplicates

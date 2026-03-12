@@ -64,6 +64,9 @@ def get_top_skills(
             OscaOccupationSkill.mention_count,
             OscaOccupationSkill.first_seen_at.label("first_seen"),
             OscaOccupationSkill.last_seen_at.label("last_seen"),
+            EscoSkill.description,     
+            EscoSkill.alt_labels,      
+            EscoSkill.skill_card, 
         )
         .join(EscoSkill, EscoSkill.id == OscaOccupationSkill.skill_id)
         .filter(OscaOccupationSkill.occupation_id == occupation_id)
@@ -85,6 +88,9 @@ def get_top_skills(
             "demand_score":  round((r.mention_count / max_count) * 100, 1),
             "first_seen":    r.first_seen.isoformat() if r.first_seen else None,
             "last_seen":     r.last_seen.isoformat()  if r.last_seen  else None,
+            #"description":   r.description,
+            "alt_labels":    r.alt_labels,
+            "skill_card":    r.skill_card,
         }
         for r in rows
     ]
