@@ -151,6 +151,36 @@ def list_occupations(
     ]
 
 
+@router.get("/{occupation_id}")
+def get_occupation_detail(
+    occupation_id: int,
+    db: Session = Depends(get_db)
+):
+    """Full detail for a single occupation including information_card and breadcrumb."""
+    occupation = (
+        db.query(OscaOccupation)
+        .filter(OscaOccupation.id == occupation_id)
+        .first()
+    )
+
+    if not occupation:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Occupation not found")
+
+    return {
+        "id":                occupation.id,
+        "title":             occupation.principal_title,
+        "skill_level":       occupation.skill_level,
+        "lead_statement":    occupation.lead_statement,
+        "caveats":           occupation.caveats,
+        "licensing":         occupation.licensing,
+        "nec_category":      occupation.nec_category,
+        "skill_attributes":  occupation.skill_attributes,
+        "specialisations":   occupation.specialisations,
+        "main_tasks":        occupation.main_tasks,
+        "information_card":  occupation.information_card,
+    }
+
 # debug 
 @router.get("/debug/data-coverage")
 def data_coverage(db: Session = Depends(get_db)):

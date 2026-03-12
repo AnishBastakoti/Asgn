@@ -239,6 +239,7 @@ function renderOccList(occs) {
         level: el.dataset.level,
         skills: +el.dataset.skills
       };
+      //highlight active class
       list.querySelectorAll('.sp-occ-item').forEach(e => e.classList.remove('active'));
       el.classList.add('active');
 
@@ -292,6 +293,93 @@ async function renderDashboard() {
     panel.innerHTML = `<div class="sp-error-bar">${esc(err.message)}</div>`;
   }
 }
+// ── Load occupation info card ──
+async function loadOccupationInfo(occId) {
+  //console.log('[loadOccupationInfo] occId:', occId); // debug
+  const backdropEl = document.getElementById('occModalBackdrop');
+  const modalEl = document.getElementById('occDetailModal');
+  const body    = $('occModalBody');
+  const title   = $('occModalTitle');
+
+  if (!modalEl || !backdropEl) { 
+    console.error('Modal elements not found!'); 
+    return; 
+  }
+
+  body.innerHTML = `<div class="sp-spinner-center"><div class="sp-spinner"></div></div>`;
+  modalEl.style.display  = 'block';
+  backdropEl.style.display = 'block';
+  // close on backdrop click
+  modalEl.onclick = (e) => {
+    if (e.target === modalEl) modalEl.style.display = 'none';
+  };
+
+  try {
+    const d = await api(`/api/occupations/${occId}`);
+    title.textContent = d.title;
+
+    let html = ``;
+
+    // Skill level badge
+    if (d.skill_level) {
+      html += `<span class="badge mb-3" style="background:var(--indigo)">Skill Level ${d.skill_level}</span>`;
+    }
+
+    // Lead statement
+    if (d.lead_statement) {
+      html += `<p class="text-muted" style="font-size:13px;">${esc(d.lead_statement)}</p>`;
+    }
+
+    // Info rows
+    const fields = [
+      { label: 'NEC Category',     value: d.nec_category },
+      { label: 'Licensing',        value: d.licensing },
+      { label: 'Caveats',          value: d.caveats },
+      { label: 'Skill Attributes', value: d.skill_attributes },
+    ];
+
+    fields.forEach(f => {
+      if (!f.value) return;
+      html += `
+        <div class="mb-2 p-2 rounded" style="background:#f8f9fa; font-size:12.5px;">
+          <div class="fw-semibold text-dark mb-1">${esc(f.label)}</div>
+          <div class="text-muted">${esc(f.value)}</div>
+        </div>`;
+    });
+
+    // Main tasks
+    if (d.main_tasks) {
+      const tasks = d.main_tasks.split(';').map(t => t.trim()).filter(Boolean);
+      html += `
+        <div class="mt-3">
+          <div class="fw-semibold text-dark mb-2" style="font-size:12.5px;">
+            <i class="bi bi-list-check me-1" style="color:var(--indigo)"></i>MAIN TASKS
+          </div>
+          <ul class="ps-3 text-muted" style="font-size:12.5px;">
+            ${tasks.map(t => `<li class="mb-1">${esc(t)}</li>`).join('')}
+          </ul>
+        </div>`;
+    }
+
+    // Specialisations
+    if (d.specialisations) {
+      html += `
+        <div class="mt-3 p-2 rounded border" style="font-size:12.5px;">
+          <div class="fw-semibold text-dark mb-1">
+            <i class="bi bi-stars me-1" style="color:var(--indigo)"></i>SPECIALISATIONS
+          </div>
+          <div class="text-muted">${esc(d.specialisations)}</div>
+        </div>`;
+    }
+
+    body.innerHTML = html;
+
+  } catch (err) {
+    body.innerHTML = `<div class="text-muted small">
+      <i class="bi bi-exclamation-triangle me-1"></i>Could not load details.
+    </div>`;
+  }
+}
 
 // ── Header builder ──
 function buildHeader(occ, count) {
@@ -304,6 +392,10 @@ function buildHeader(occ, count) {
     <div class="sp-chart-badges">
       <span class="sp-cbadge sp-cbadge--indigo">${count} skills</span>
       <span class="sp-cbadge">${occ.level !== '--' ? 'Level ' + occ.level : 'Level N/A'}</span>
+      <button onclick="loadOccupationInfo(${occ.id})"
+          class="info">
+        <i class="bi bi-info-circle me-1"></i>Info
+      </button>
     </div>`;
   return d;
 }

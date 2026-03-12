@@ -50,6 +50,16 @@ body { background: transparent; overflow: hidden; height: 100%; }
   background: linear-gradient(135deg, var(--page-bg-a) 0%, var(--page-bg-b) 100%);
   z-index: 0;
 }
+button.info{
+    background: #4f11da99;
+    border-radius: 8px;
+    padding: revert-layer;
+    border: 2px solid #ddd;
+} 
+button.info:hover{
+    color: #f2e9eb;
+    background: blue;
+}
 
 /* Decorative background blobs */
 .bg-blob {
