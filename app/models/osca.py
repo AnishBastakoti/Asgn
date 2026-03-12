@@ -77,17 +77,15 @@ class OscaOccupation(Base):
     lead_statement        = Column(Text, nullable=True)
       
     # added new tables from new ERD:
-    difficulty_score      = Column(Float,   nullable=True)
     content_hash          = Column(String,  nullable=True)
     embedding             = Column(Text,    nullable=True)
     caveats               = Column(Text,    nullable=True)
     licensing             = Column(Text,    nullable=True)
-    res_category          = Column(String,  nullable=True)
-    occupational_interests= Column(Text,    nullable=True)
+    nes_category          = Column(String,  nullable=True)
+    skill_attributes      = Column(Text,    nullable=True)
     specialisations       = Column(Text,    nullable=True)
     main_tasks            = Column(Text,    nullable=True)
-    new_description       = Column(Text,    nullable=True)
-    skill_diversity       = Column(Float,   nullable=True)
+    information_card      = Column(Text,    nullable=True)
 
     unit_group         = relationship("OscaUnitGroup", back_populates="occupations")
     alternative_titles = relationship("OscaAlternativeTitle", back_populates="occupation", lazy="select")

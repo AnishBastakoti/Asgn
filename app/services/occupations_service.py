@@ -219,21 +219,21 @@ def get_occupation_detail(
         "skill_level":   occupation.skill_level,
         "lead_statement": occupation.lead_statement,
         
-        #  new columns ---
-
-        "difficulty_score":        occupation.difficulty_score,
-        "caveats":                 occupation.caveats,
-        "licensing":               occupation.licensing,
-        "res_category":            occupation.res_category,
-        "occupational_interests":  occupation.occupational_interests,
-        "specialisations":         occupation.specialisations,
-        "main_tasks":              occupation.main_tasks,
+        # ── NEW columns ──
+        "caveats":           occupation.caveats,
+        "licensing":         occupation.licensing,
+        "nec_category":      occupation.nec_category,
+        "skill_attributes":  occupation.skill_attributes,
+        "specialisations":   occupation.specialisations,
+        "main_tasks":        occupation.main_tasks,
+        "information_card":  occupation.information_card,
+        # content_hash, embedding excluded — internal/too large
         "breadcrumb": [
-            {"level": "major",     "title": major.title      if major     else None},
-            {"level": "sub_major", "title": sub_major.title  if sub_major else None},
-            {"level": "minor",     "title": minor_group.title if minor_group else None},
-            {"level": "unit",      "title": unit_group.title  if unit_group else None},
-            {"level": "occupation","title": occupation.principal_title},
+            {"level": "major",      "title": major.title        if major       else None},
+            {"level": "sub_major",  "title": sub_major.title    if sub_major   else None},
+            {"level": "minor",      "title": minor_group.title  if minor_group else None},
+            {"level": "unit",       "title": unit_group.title   if unit_group  else None},
+            {"level": "occupation", "title": occupation.principal_title},
         ],
         "signature": f"SP-{_SIGNATURE:03d}"
     }
