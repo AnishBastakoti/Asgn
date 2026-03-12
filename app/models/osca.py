@@ -81,7 +81,7 @@ class OscaOccupation(Base):
     embedding             = Column(Text,    nullable=True)
     caveats               = Column(Text,    nullable=True)
     licensing             = Column(Text,    nullable=True)
-    nes_category          = Column(String,  nullable=True)
+    nec_category          = Column(String,  nullable=True)
     skill_attributes      = Column(Text,    nullable=True)
     specialisations       = Column(Text,    nullable=True)
     main_tasks            = Column(Text,    nullable=True)
