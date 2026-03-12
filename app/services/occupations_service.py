@@ -218,6 +218,16 @@ def get_occupation_detail(
         "title":         occupation.principal_title,
         "skill_level":   occupation.skill_level,
         "lead_statement": occupation.lead_statement,
+        
+        #  new columns ---
+
+        "difficulty_score":        occupation.difficulty_score,
+        "caveats":                 occupation.caveats,
+        "licensing":               occupation.licensing,
+        "res_category":            occupation.res_category,
+        "occupational_interests":  occupation.occupational_interests,
+        "specialisations":         occupation.specialisations,
+        "main_tasks":              occupation.main_tasks,
         "breadcrumb": [
             {"level": "major",     "title": major.title      if major     else None},
             {"level": "sub_major", "title": sub_major.title  if sub_major else None},

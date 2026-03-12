@@ -1,6 +1,6 @@
 # Matches exact database schema from ERD
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, ForeignKey, BigInteger
+from sqlalchemy import Boolean, Column, Float, Integer, String, Text, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 from app.database import Base
 
@@ -70,11 +70,24 @@ class OscaUnitGroup(Base):
 class OscaOccupation(Base):
     __tablename__ = "osca_occupations"
 
-    id              = Column(Integer, primary_key=True)
-    principal_title = Column(String, nullable=False)
-    skill_level     = Column(Integer, nullable=True)
-    unit_group_id   = Column(Integer, ForeignKey("osca_unit_groups.id"))
-    lead_statement  = Column(Text, nullable=True)
+    id                    = Column(Integer, primary_key=True)
+    principal_title       = Column(String, nullable=False)
+    skill_level           = Column(Integer, nullable=True)
+    unit_group_id         = Column(Integer, ForeignKey("osca_unit_groups.id"))
+    lead_statement        = Column(Text, nullable=True)
+      
+    # added new tables from new ERD:
+    difficulty_score      = Column(Float,   nullable=True)
+    content_hash          = Column(String,  nullable=True)
+    embedding             = Column(Text,    nullable=True)
+    caveats               = Column(Text,    nullable=True)
+    licensing             = Column(Text,    nullable=True)
+    res_category          = Column(String,  nullable=True)
+    occupational_interests= Column(Text,    nullable=True)
+    specialisations       = Column(Text,    nullable=True)
+    main_tasks            = Column(Text,    nullable=True)
+    new_description       = Column(Text,    nullable=True)
+    skill_diversity       = Column(Float,   nullable=True)
 
     unit_group         = relationship("OscaUnitGroup", back_populates="occupations")
     alternative_titles = relationship("OscaAlternativeTitle", back_populates="occupation", lazy="select")
