@@ -7,6 +7,7 @@
  if it has changed then we can update the embedding for that skill.
 
  '''
+from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 from app.database import Base

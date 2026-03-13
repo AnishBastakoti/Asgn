@@ -79,6 +79,22 @@
           </div>
         </div>
       </div>
+<!-- Predictive Demand Forecast Card -->
+      <div class="card border shadow-sm mt-3">
+        <div class="card-header bg-white py-3">
+            <div class="fw-bold text-dark small">
+                <i class="bi bi-magic me-2 text-primary"></i>
+                Predictive Demand Forecast
+            </div>
+            <div class="text-muted" style="font-size:11.5px;">
+                Regression analysis based on current job counts and emerging shadow skill signals.
+            </div>
+        </div>
+        <div class="card-body">
+            <canvas id="forecastChart" style="max-height: 250px;"></canvas>
+        </div>
+    </div>
+
 
     </div>
   </div>
@@ -88,5 +104,6 @@
 
 {% block extra_js %}
 <script src="/templates/js/dashboard.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="/templates/js/analytics.js"></script>
 {% endblock %}
