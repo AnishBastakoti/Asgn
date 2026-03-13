@@ -78,7 +78,7 @@ def list_occupations(
     from sqlalchemy import text
 
     t0 = time.time()
-
+    
     sql = """
         SELECT 
             o.id, o.principal_title as title,

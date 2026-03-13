@@ -23,7 +23,7 @@ def _build_engine():
         pool_size=5,
         max_overflow=10,
         pool_timeout=30,
-        echo=settings.DEBUG,
+        echo=False,
         pool_recycle=3600,
         pool_pre_ping=True
     )
