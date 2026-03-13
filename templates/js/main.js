@@ -59,6 +59,10 @@ window.showTip = showTip;
 window.moveTip = moveTip;
 window.hideTip = hideTip;
 
+function toggleSidebar() {
+  document.querySelector('.sp-shell').classList.toggle('sidebar-collapsed');
+}
+
 /* ════════════════════════════════════════════════════
    GLOBAL SUMMARY STATS
    Loads /api/skills/summary and populates:

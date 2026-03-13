@@ -70,6 +70,47 @@
 .jt-heatmap-table .row-label { text-align: left; white-space: nowrap; font-weight: 500; color: var(--text2); padding-right: 14px; }
 .hm-cell-1 { background: #6366F1; color: white; font-weight: 700; }
 .hm-cell-0 { background: var(--indigo-l); color: var(--muted); }
+
+/* ── Picker Toggle ── */
+.jt-picker-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 8px;
+  background: var(--shell-bg);
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  letter-spacing: 0.05em;
+}
+.jt-picker-toggle:hover { background: var(--indigo-l); color: var(--indigo); }
+.jt-picker-toggle .toggle-icon { transition: transform 0.25s ease; display: inline-block; }
+
+/* Collapsed state */
+.jt-layout.picker-collapsed {
+  grid-template-columns: 38px 1fr;
+}
+.jt-layout.picker-collapsed .jt-picker-header,
+.jt-layout.picker-collapsed .sp-right-header,
+.jt-layout.picker-collapsed .sp-occ-list {
+  display: none;
+}
+.jt-layout.picker-collapsed .jt-picker-toggle .toggle-icon {
+  transform: rotate(180deg);
+}
+.jt-layout.picker-collapsed .jt-picker {
+  align-items: center;
+  justify-content: center;
+}
+
+/* Smooth transition */
+.jt-layout { transition: grid-template-columns 0.25s ease; }
 </style>
 {% endblock %}
 
@@ -91,12 +132,14 @@
 
   <!-- LEFT: Occupation Picker -->
   <div class="jt-picker">
+    <button class="jt-picker-toggle" onclick="togglePicker()" title="Toggle panel">
+    <span class="toggle-icon">«</span>
+    </button>
     <div class="jt-picker-header">
       <!-- Search -->
        {% include "search.html" %}
     </div>
   <aside class="sp-right-panel">
-
     <div class="sp-right-header">
       Occupations
     </div>
