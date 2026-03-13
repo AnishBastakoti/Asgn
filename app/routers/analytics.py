@@ -9,7 +9,9 @@ from app.services.analytics_service import (
     get_shadow_skills,
     get_skill_decay, 
     get_city_demand_detail,
-    get_city_demand_summary
+    get_city_demand_summary,
+    get_skill_velocity,
+    get_market_saturation
 )
 #from main import Limiter
 
@@ -44,6 +46,31 @@ class CityDemandDetailResponse(BaseModel):
     total_jobs:       int
     demand_pct:       float
 
+
+
+class SkillVelocityItem(BaseModel):
+    skill_name:   str
+    latest_count: int
+    slope:        float
+    status:       str
+ 
+class SkillVelocityResponse(BaseModel):
+    snapshot_count: int
+    rising:         List[SkillVelocityItem]
+    falling:        List[SkillVelocityItem]
+    stable:         List[SkillVelocityItem]
+ 
+class MarketSaturationResponse(BaseModel):
+    status:               str
+    saturation_score:     float
+    demand_ratio:         float
+    complexity_ratio:     float
+    occ_demand:           int
+    platform_avg_demand:  float
+    occ_skill_count:      int
+    platform_avg_skills:  float
+    label:                str
+    insight:              str
 
 # ══════════════════════════════════════════════════════════════════════════════
 # RESPONSE MODELS FOR ANALYTICS ENDPOINTS
@@ -127,3 +154,33 @@ def predict_occ_demand(
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="No demand data found")
     return prediction
+
+
+# 7. SKILL VELOCITY — rising/falling skills for an occupation
+@router.get("/skill-velocity/{occupation_id}", response_model=SkillVelocityResponse)
+#@limiter.limit("20/minute")
+def skill_velocity(
+    request: Request,
+    occupation_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Rising and falling skills for this occupation based on snapshot history.
+    Returns stable list if only one snapshot exists.
+    """
+    return get_skill_velocity(db, occupation_id)
+ 
+ 
+# 8. MARKET SATURATION — supply/demand balance for an occupation
+@router.get("/market-saturation/{occupation_id}", response_model=MarketSaturationResponse)
+#@limiter.limit("20/minute")
+def market_saturation(
+    request: Request,
+    occupation_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Determines if occupation is undersupplied (hot), saturated,
+    or balanced relative to platform averages.
+    """
+    return get_market_saturation(db, occupation_id)

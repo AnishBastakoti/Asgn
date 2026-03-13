@@ -377,36 +377,44 @@ def get_occupation_features(db: Session, occupation_id: int):
 
 def get_occupation_prediction(db: Session, occupation_id: int):
     """
-    Ridge Regression Logic: Predicts future demand based on market momentum.
+    Advanced Forecast: Uses Market Velocity (Current vs Historical Mean) 
+    and Skill Density to predict future demand.
     """
+    # 1. Fetch current demand and title
     current_val, shadow_val, title = get_occupation_features(db, occupation_id)
-    # # fetch title to adjust the API schema
-    # occ = db.query(SkillpulseCityOccupationDemand.occupation_title).filter(
-    #     SkillpulseCityOccupationDemand.occupation_id == occupation_id
-    # ).first()
-    #title = occ.occupation_title if occ else "Unknown"
+    
     if current_val == 0:
         return None
 
+    # 2. Fetch Historical Baseline (Average demand for this occupation in the past)
+    # This acts as our "Steady State" reference
+    avg_historical = db.query(func.avg(SkillpulseCityOccupationDemand.job_count))\
+        .filter(SkillpulseCityOccupationDemand.occupation_id == occupation_id)\
+        .scalar() or current_val
+    
+    # 3. Calculate Velocity (Is the market accelerating or slowing down?)
+    # If current > average, momentum is positive.
+    velocity = (float(current_val) - float(avg_historical)) / float(avg_historical) if avg_historical > 0 else 0
+    
+    # 4. Apply a Growth Multiplier 
+    # We use a 5% baseline + the Velocity adjustment + a small 'Shadow Signal' bonus
+    # This is a basic form of 'Momentum Forecasting'
+    momentum_factor = 1.05 + (velocity * 0.5) 
+    shadow_bonus = (shadow_val * 0.1) # Unmapped skills still suggest emerging interest
+    
+    predicted_demand = int((float(current_val) * momentum_factor) + shadow_bonus)
+    
+    # Calculate final rate for the frontend
+    growth_rate = round(((predicted_demand - current_val) / current_val) * 100, 2)
 
-    current_val_float = float(current_val)
-    shadow_val_float = float(shadow_val)
-    
-    # Ridge Regression Formula: Predicted = (Current * β1) + (Shadow_Signals * β2)
-    # β1 (1.05) represents baseline growth; β2 (0.3) represents shadow skill impact
-    prediction = int((current_val_float * 1.05) + (shadow_val_float * 0.3))
-    
-    growth_rate = round(((prediction - current_val_float) / current_val_float) * 100, 2)
-    
     return {
         "occupation_id": occupation_id,
         "occupation_title": title,
-        "current_demand": current_val,
-        "predicted_demand": prediction,
+        "current_demand": int(current_val),
+        "predicted_demand": predicted_demand,
         "growth_rate": growth_rate,
-        "confidence_score": 0.88 if shadow_val > 0 else 0.70
+        "confidence_score": 0.90 if velocity != 0 else 0.65
     }
-
 
 def get_demand_forecast(db: Session, city: str):
     """
@@ -459,3 +467,244 @@ def get_demand_forecast(db: Session, city: str):
         })
     
     return sorted(forecasts, key=lambda x: x['growth_trend'], reverse=True)
+
+
+# ─────────────────────────────────────────────
+# 7. SKILL VELOCITY
+# Measures whether each skill for an occupation is rising or falling
+# in demand over time using snapshot data.
+# If only one snapshot exists, returns ranked skills with "stable" status.
+# Automatically becomes meaningful as more pipeline runs accumulate.
+# ─────────────────────────────────────────────
+
+def get_skill_velocity(db: Session, occupation_id: int) -> dict:
+    """
+    Calculates demand velocity (slope) per skill using snapshot history.
+    Returns rising skills, falling skills, and the snapshot count available.
+
+    Slope > 0  → Rising demand
+    Slope < 0  → Falling demand
+    Slope = 0  → Stable / single snapshot
+    """
+    try:
+        # Fetch all snapshots for this occupation ordered by date
+        rows = (
+            db.query(
+                OscaOccupationSkillSnapshot.skill_id,
+                OscaOccupationSkillSnapshot.mention_count,
+                OscaOccupationSkillSnapshot.snapshot_date
+            )
+            .filter(OscaOccupationSkillSnapshot.occupation_id == occupation_id)
+            .order_by(OscaOccupationSkillSnapshot.snapshot_date)
+            .all()
+        )
+
+        if not rows:
+            return {"snapshot_count": 0, "rising": [], "falling": [], "stable": []}
+
+        # Build per-skill timeline: {skill_id: [(date_index, mention_count), ...]}
+        from collections import defaultdict
+        skill_timelines = defaultdict(list)
+        all_dates = sorted(set(r.snapshot_date for r in rows))
+        date_index = {d: i for i, d in enumerate(all_dates)}
+        snapshot_count = len(all_dates)
+
+        for r in rows:
+            skill_timelines[r.skill_id].append(
+                (date_index[r.snapshot_date], r.mention_count)
+            )
+
+        # Fetch skill labels in one query
+        skill_ids = list(skill_timelines.keys())
+        label_map = {
+            s.id: s.preferred_label
+            for s in db.query(EscoSkill.id, EscoSkill.preferred_label)
+                       .filter(EscoSkill.id.in_(skill_ids))
+                       .all()
+        }
+
+        rising, falling, stable = [], [], []
+
+        for sid, timeline in skill_timelines.items():
+            name = label_map.get(sid, f"skill_{sid}")
+            latest_count = timeline[-1][1]
+
+            if snapshot_count < 2 or len(timeline) < 2:
+                # Not enough data to calculate slope — rank by current count
+                stable.append({
+                    "skill_name":    name,
+                    "latest_count":  latest_count,
+                    "slope":         0.0,
+                    "status":        "stable"
+                })
+                continue
+
+            # Simple linear slope: (last - first) / time_span
+            first_t, first_c = timeline[0]
+            last_t,  last_c  = timeline[-1]
+            time_span = last_t - first_t or 1
+            slope = round((last_c - first_c) / time_span, 4)
+
+            entry = {
+                "skill_name":   name,
+                "latest_count": latest_count,
+                "slope":        slope,
+                "status":       "rising" if slope > 0 else "falling"
+            }
+
+            if slope > 0:
+                rising.append(entry)
+            else:
+                falling.append(entry)
+
+        # Sort each group
+        rising  = sorted(rising,  key=lambda x: x["slope"],  reverse=True)[:15]
+        falling = sorted(falling, key=lambda x: x["slope"])[:15]
+        stable  = sorted(stable,  key=lambda x: x["latest_count"], reverse=True)[:15]
+
+        return {
+            "snapshot_count": snapshot_count,
+            "rising":         rising,
+            "falling":        falling,
+            "stable":         stable
+        }
+
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_skill_velocity failed: {e}")
+        return {"snapshot_count": 0, "rising": [], "falling": [], "stable": []}
+
+
+# ─────────────────────────────────────────────
+# 8. MARKET SATURATION
+# Determines if an occupation is undersupplied (hot) or
+# oversupplied (saturated) relative to the platform average.
+#
+# Formula:
+#   demand_ratio    = occupation_demand / platform_avg_demand
+#   complexity_ratio = occupation_skills / platform_avg_skills
+#   saturation_score = demand_ratio / complexity_ratio
+#
+#   score > 1.2  → HOT  (high demand, relatively low skill barrier)
+#   score < 0.8  → SATURATED (low demand, high skill barrier)
+#   otherwise    → BALANCED
+# ─────────────────────────────────────────────
+
+def get_market_saturation(db: Session, occupation_id: int) -> dict:
+    """
+    Compares an occupation's job demand and skill complexity against
+    platform averages to determine if it is undersupplied or saturated.
+    """
+    try:
+        from sqlalchemy import text
+
+        # 1. Total job demand for this occupation across all cities
+        occ_demand = (
+            db.query(func.sum(SkillpulseCityOccupationDemand.job_count))
+            .filter(SkillpulseCityOccupationDemand.occupation_id == occupation_id)
+            .scalar() or 0
+        )
+
+        if occ_demand == 0:
+            return {
+                "status":          "no_data",
+                "saturation_score": 0.0,
+                "demand_ratio":     0.0,
+                "complexity_ratio": 0.0,
+                "occ_demand":       0,
+                "platform_avg_demand": 0,
+                "occ_skill_count":  0,
+                "platform_avg_skills": 0,
+                "label":           "Insufficient Data",
+                "insight":         "No job posting data found for this occupation yet."
+            }
+
+        # 2. Platform average demand per occupation
+        platform_avg_demand = (
+            db.query(func.avg(
+                db.query(func.sum(SkillpulseCityOccupationDemand.job_count))
+                  .group_by(SkillpulseCityOccupationDemand.occupation_id)
+                  .subquery()
+                  .c[0]
+            ))
+            .scalar()
+        )
+
+        # Fallback using raw SQL if ORM subquery avg is tricky
+        if platform_avg_demand is None:
+            result = db.execute(text(
+                "SELECT AVG(total) FROM "
+                "(SELECT SUM(job_count) as total FROM skillpulse_city_occupation_demand "
+                " GROUP BY occupation_id) sub"
+            )).scalar()
+            platform_avg_demand = float(result) if result else float(occ_demand)
+
+        platform_avg_demand = float(platform_avg_demand) or 1.0
+
+        # 3. Skill count for this occupation
+        occ_skill_count = (
+            db.query(func.count(OscaOccupationSkill.skill_id))
+            .filter(OscaOccupationSkill.occupation_id == occupation_id)
+            .scalar() or 0
+        )
+
+        # 4. Platform average skill count per occupation
+        platform_avg_skills_result = db.execute(text(
+            "SELECT AVG(cnt) FROM "
+            "(SELECT COUNT(skill_id) as cnt FROM osca_occupation_skills "
+            " GROUP BY occupation_id) sub"
+        )).scalar()
+        platform_avg_skills = float(platform_avg_skills_result) if platform_avg_skills_result else 1.0
+
+        # 5. Calculate ratios
+        demand_ratio     = round(float(occ_demand) / platform_avg_demand, 3)
+        complexity_ratio = round(float(occ_skill_count) / platform_avg_skills, 3) if platform_avg_skills > 0 else 1.0
+        saturation_score = round(demand_ratio / complexity_ratio, 3) if complexity_ratio > 0 else demand_ratio
+
+        # 6. Classify
+        if saturation_score >= 1.2:
+            status  = "hot"
+            label   = "Undersupplied — High Demand"
+            insight = (
+                f"This occupation has {round(demand_ratio * 100)}% of platform average demand "
+                f"but only {round(complexity_ratio * 100)}% of average skill complexity. "
+                f"More jobs than qualified candidates — strong hiring conditions."
+            )
+        elif saturation_score <= 0.8:
+            status  = "saturated"
+            label   = "Saturated — Competitive Market"
+            insight = (
+                f"Demand is below average relative to skill complexity. "
+                f"The market may have more qualified candidates than open roles. "
+                f"Upskilling into adjacent roles could improve career mobility."
+            )
+        else:
+            status  = "balanced"
+            label   = "Balanced Market"
+            insight = (
+                f"Supply and demand appear roughly aligned for this occupation. "
+                f"Demand is at {round(demand_ratio * 100)}% of platform average "
+                f"with {round(complexity_ratio * 100)}% of average skill complexity."
+            )
+
+        return {
+            "status":               status,
+            "saturation_score":     saturation_score,
+            "demand_ratio":         demand_ratio,
+            "complexity_ratio":     complexity_ratio,
+            "occ_demand":           int(occ_demand),
+            "platform_avg_demand":  round(platform_avg_demand, 1),
+            "occ_skill_count":      occ_skill_count,
+            "platform_avg_skills":  round(platform_avg_skills, 1),
+            "label":                label,
+            "insight":              insight
+        }
+
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_market_saturation failed: {e}")
+        return {
+            "status": "error", "saturation_score": 0.0,
+            "demand_ratio": 0.0, "complexity_ratio": 0.0,
+            "occ_demand": 0, "platform_avg_demand": 0.0,
+            "occ_skill_count": 0, "platform_avg_skills": 0.0,
+            "label": "Error", "insight": "Could not compute saturation."
+        }

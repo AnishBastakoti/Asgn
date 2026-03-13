@@ -1,0 +1,271 @@
+/* ══════════════════════════════════════════════════════
+   SkillPulse — Analytics Page Styles
+   analytics.css
+   ══════════════════════════════════════════════════════ */
+
+/* ── Occupation Header ─────────────────────────────── */
+.an-occ-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px 12px 0 0;
+  border-bottom: none;
+}
+
+.an-occ-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.an-occ-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ── Forecast Card ─────────────────────────────────── */
+.an-forecast-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-top: none;
+  padding: 16px 20px;
+}
+
+.an-forecast-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.an-forecast-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.an-forecast-sub {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.an-forecast-body {
+  height: 220px;
+}
+
+/* ── Tab Bar ───────────────────────────────────────── */
+.an-tab-bar {
+  display: flex;
+  gap: 0;
+  background: #F9FAFB;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-bottom: none;
+  padding: 10px 16px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.an-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.an-tab:hover {
+  background: #fff;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.an-tab.active {
+  background: #fff;
+  border-color: var(--indigo);
+  color: var(--indigo);
+  box-shadow: 0 1px 4px rgba(99,102,241,0.12);
+}
+
+/* ── Tab Badge ─────────────────────────────────────── */
+.an-tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #E5E7EB;
+  color: #6B7280;
+}
+
+.an-tab-badge.danger { background: #FEE2E2; color: #B91C1C; }
+.an-tab-badge.amber  { background: #FEF3C7; color: #B45309; }
+.an-tab-badge.sky    { background: #E0F2FE; color: #0369A1; }
+
+/* ── Tab Content ───────────────────────────────────── */
+.an-tab-content {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  min-height: 200px;
+}
+
+.an-tab-panel {
+  display: none;
+  padding: 20px;
+  animation: anFadeIn 0.2s ease;
+}
+
+.an-tab-panel.active {
+  display: block;
+}
+
+@keyframes anFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.an-panel-desc {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #F3F4F6;
+  line-height: 1.6;
+}
+
+/* ── Loading / Empty States ────────────────────────── */
+.an-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  gap: 8px;
+  color: #9CA3AF;
+  font-size: 13px;
+}
+
+.an-empty {
+  padding: 24px;
+  color: #9CA3AF;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ── Velocity Styles ───────────────────────────────── */
+.an-velocity-notice {
+  background: rgba(99,102,241,0.06);
+  border: 1px solid rgba(99,102,241,0.15);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: #4B5563;
+  margin-bottom: 14px;
+}
+
+.an-vel-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.an-vel-col-head {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.an-vel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid #F9FAFB;
+  font-size: 12px;
+}
+
+.an-vel-rank  { width:18px; text-align:right; color:#9CA3AF; font-weight:700; flex-shrink:0; }
+.an-vel-name  { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.an-vel-count { color:#6B7280; flex-shrink:0; }
+.an-vel-badge {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.an-vel-badge.rising   { background:#DCFCE7; color:#15803D; }
+.an-vel-badge.falling  { background:#FEF2F2; color:#B91C1C; }
+.an-vel-badge.stable   { background:#F3F4F6; color:#6B7280; }
+
+/* ── Saturation Gauge ──────────────────────────────── */
+.an-gauge-track {
+  position: relative;
+  height: 12px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: #F3F4F6;
+  display: flex;
+}
+
+.an-gauge-zone.saturated { background: rgba(239,68,68,0.15); }
+.an-gauge-zone.balanced  { background: rgba(99,102,241,0.15); }
+.an-gauge-zone.hot       { background: rgba(16,185,129,0.15); }
+
+.an-gauge-needle {
+  position: absolute;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  transform: translateX(-50%);
+  transition: left 0.6s cubic-bezier(0.4,0,0.2,1);
+  z-index: 2;
+}
+
+/* ── Saturation Stats Grid ─────────────────────────── */
+.an-sat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.an-sat-stat {
+  background: #F9FAFB;
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.an-sat-val { font-size: 18px; font-weight: 700; color: #111827; }
+.an-sat-lbl { font-size: 10px; color: #9CA3AF; margin-top: 2px; }
+
+/* ── Insight Box ───────────────────────────────────── */
+.an-insight-box {
+  background: rgba(245,158,11,0.06);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  color: #4B5563;
+  line-height: 1.6;
+}
