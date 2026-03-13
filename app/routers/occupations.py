@@ -67,65 +67,60 @@ def get_minor_groups(
     )
     return [{"id": r.id, "title": r.title} for r in rows]
 
-
 @router.get("/list")
 def list_occupations(
-    # limit:              int = Query(2000, le=2000),
     major_group_id:     Optional[int] = Query(None),
     sub_major_group_id: Optional[int] = Query(None),
     minor_group_id:     Optional[int] = Query(None),
     db: Session = Depends(get_db)
 ):
-    
-    #Aggregate Skill IDs instead of just counting them
-    # Using array_agg to get a list of skill IDs for each occupation
-    skill_data = (
-        db.query(
-            OscaOccupationSkill.occupation_id,
-            func.count(OscaOccupationSkill.skill_id).label("skill_count"),
-            func.array_agg(OscaOccupationSkill.skill_id).label("skill_ids") 
-        )
-        .group_by(OscaOccupationSkill.occupation_id)
-        .subquery()
-    )
+    import time
+    from sqlalchemy import text
 
-    q = (
-        db.query(
-            OscaOccupation.id,
-            OscaOccupation.principal_title.label("title"),
-            OscaOccupation.skill_level,
-            OscaOccupation.unit_group_id,
-            func.coalesce(skill_data.c.skill_count, 0).label("skill_count"),
-            func.coalesce(skill_data.c.skill_ids, []).label("skill_ids")
-        )
-        .outerjoin(skill_data, skill_data.c.occupation_id == OscaOccupation.id)
-        .join(OscaUnitGroup, OscaUnitGroup.id == OscaOccupation.unit_group_id)
-    )
-    """
-    Flat list of occupations for the sidebar occupation list.
-    Includes skill_count and has_data flag so the UI can dim
-    occupations with no skill data.
+    t0 = time.time()
 
-    Filters cascade: major → sub-major → minor group.Count skills per occupation in one subquery
-
+    sql = """
+        SELECT 
+            o.id, o.principal_title as title,
+            o.skill_level, o.unit_group_id,
+            COALESCE(s.skill_count, 0) as skill_count,
+            COALESCE(s.skill_ids, ARRAY[]::bigint[]) as skill_ids
+        FROM osca_occupations o
+        LEFT JOIN (
+            SELECT occupation_id,
+                   COUNT(skill_id) as skill_count,
+                   array_agg(skill_id) as skill_ids
+            FROM osca_occupation_skills
+            GROUP BY occupation_id
+        ) s ON s.occupation_id = o.id
+        LEFT JOIN osca_unit_groups ug ON ug.id = o.unit_group_id
     """
 
-    # Apply hierarchy filters
+    params = {}
+
     if minor_group_id:
-        q = q.filter(OscaUnitGroup.minor_group_id == minor_group_id)
+        sql += " WHERE ug.minor_group_id = :minor_id"
+        params['minor_id'] = minor_group_id
     elif sub_major_group_id:
-        q = (q
-             .join(OscaMinorGroup, OscaMinorGroup.id == OscaUnitGroup.minor_group_id)
-             .filter(OscaMinorGroup.sub_major_group_id == sub_major_group_id))
+        sql += """
+            JOIN osca_minor_groups mg ON mg.id = ug.minor_group_id
+            WHERE mg.sub_major_group_id = :sub_major_id
+        """
+        params['sub_major_id'] = sub_major_group_id
     elif major_group_id:
-        q = (q
-             .join(OscaMinorGroup, OscaMinorGroup.id == OscaUnitGroup.minor_group_id)
-             .join(OscaSubMajorGroup, OscaSubMajorGroup.id == OscaMinorGroup.sub_major_group_id)
-             .filter(OscaSubMajorGroup.major_group_id == major_group_id))
+        sql += """
+            JOIN osca_minor_groups mg ON mg.id = ug.minor_group_id
+            JOIN osca_sub_major_groups smg ON smg.id = mg.sub_major_group_id
+            WHERE smg.major_group_id = :major_id
+        """
+        params['major_id'] = major_group_id
 
-    rows = q.order_by(OscaOccupation.principal_title).all()
-    
-    # alternative title search
+    sql += " ORDER BY o.principal_title"
+
+    rows = db.execute(text(sql), params).fetchall()
+    print(f"[TIMING] DB query: {time.time()-t0:.3f}s")
+
+    t1 = time.time()
     occ_ids = [r.id for r in rows]
     alt_rows = (
         db.query(OscaAlternativeTitle.occupation_id, OscaAlternativeTitle.title)
@@ -135,30 +130,44 @@ def list_occupations(
     alt_map = {}
     for a in alt_rows:
         alt_map.setdefault(a.occupation_id, []).append(a.title.lower())
+    print(f"[TIMING] Alt titles: {time.time()-t1:.3f}s")
 
-    return [
+    t2 = time.time()
+    result = [
         {
-            "id":          r.id,
-            "title":       r.title,
-            "skill_level": r.skill_level,
-            "skill_count": r.skill_count,
+            "id":            r.id,
+            "title":         r.title,
+            "skill_level":   r.skill_level,
+            "skill_count":   r.skill_count,
             "unit_group_id": r.unit_group_id,
-            "skill_ids":   [str(s) for s in r.skill_ids] if r.skill_ids else [], # Convert to strings for easier JS searching
-            "has_data":    r.skill_count > 0,
-            "alt_titles":  alt_map.get(r.id, [])
+            "skill_ids":     [str(s) for s in r.skill_ids] if r.skill_ids else [],
+            "has_data":      r.skill_count > 0,
+            "alt_titles":    alt_map.get(r.id, [])
         }
         for r in rows
     ]
+    print(f"[TIMING] Serialization: {time.time()-t2:.3f}s")
+    print(f"[TIMING] TOTAL: {time.time()-t0:.3f}s")
 
+    return result
 
 @router.get("/{occupation_id}")
-def get_occupation_detail(
-    occupation_id: int,
-    db: Session = Depends(get_db)
-):
-    """Full detail for a single occupation including information_card and breadcrumb."""
+def get_occupation_detail(occupation_id: int, db: Session = Depends(get_db)):
     occupation = (
-        db.query(OscaOccupation)
+        db.query(
+            OscaOccupation.id,
+            OscaOccupation.principal_title,
+            OscaOccupation.skill_level,
+            OscaOccupation.lead_statement,
+            OscaOccupation.caveats,
+            OscaOccupation.licensing,
+            OscaOccupation.nec_category,
+            OscaOccupation.skill_attributes,
+            OscaOccupation.specialisations,
+            OscaOccupation.main_tasks,
+            OscaOccupation.information_card,
+            # embedding deliberately excluded
+        )
         .filter(OscaOccupation.id == occupation_id)
         .first()
     )
@@ -179,7 +188,7 @@ def get_occupation_detail(
         "specialisations":   occupation.specialisations,
         "main_tasks":        occupation.main_tasks,
         "information_card":  occupation.information_card,
-    }
+}
 
 # debug 
 @router.get("/debug/data-coverage")
