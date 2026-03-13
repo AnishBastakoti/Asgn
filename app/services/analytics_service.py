@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────
-# 1. HOT SKILLS
+# HOT SKILLS
 # Returns top 50 most-mentioned skills from job posts in the last N days.
 # Date filter uses job_post_logs.ingested_at (posted_date doesn't exist).
 # ─────────────────────────────────────────────
@@ -63,7 +63,7 @@ def get_hot_skills(db: Session, days: int = 30) -> list[dict]:
 
 
 # ─────────────────────────────────────────────
-# 2. SHADOW SKILLS
+# SHADOW SKILLS
 # Skills appearing in job postings for an occupation but NOT in the
 # official osca_occupation_skills mapping for that occupation.
 # Param: occupation_id (int) — osca_code doesn't exist in the schema.
@@ -102,7 +102,7 @@ def get_shadow_skills(db: Session, occupation_id: int) -> list[dict]:
 
 
 # ─────────────────────────────────────────────
-# 3. SKILL DECAY
+# SKILL DECAY
 # Detects skills whose demand has dropped significantly.
 # Compares earliest snapshot batch vs most recent snapshot batch
 # for a given occupation using osca_occupation_skill_snapshots.
@@ -219,7 +219,7 @@ def get_skill_decay(db: Session, occupation_id: int) -> list[dict]:
 
 
 # ─────────────────────────────────────────────
-# 4. CITY DEMAND SUMMARY
+# CITY DEMAND SUMMARY
 # Returns all cities with their total job counts.
 # Used to populate the city selector cards.
 # ─────────────────────────────────────────────
@@ -262,7 +262,7 @@ def get_city_demand_summary(db: Session) -> list[dict]:
 
 
 # ─────────────────────────────────────────────
-# 5. CITY DEMAND DETAIL
+# CITY DEMAND DETAIL
 # Returns top N occupations for a given city.
 # Used to populate the bar chart on city selection.
 # ─────────────────────────────────────────────
@@ -309,7 +309,7 @@ def get_city_demand_detail(db: Session, city: str, limit: int = 10) -> list[dict
 
 
 # ─────────────────────────────────────────────
-# 6. Regression  model
+# Regression  model
 
 # ─────────────────────────────────────────────
 
@@ -321,7 +321,7 @@ def get_regression_data(db: Session):
     $$\text{Predicted Demand} = \beta_0 + (\beta_1 \times \text{Current Count}) + (\beta_2 \times \text{Shadow Skills})
     $$$\beta_1$ tells us the growth trend.$\beta_2$ tells us if "Shadow Skills" are a leading indicator of future jobs.
     """
-    # 1. Get base demand data
+    # Get base demand data
     query = db.query(
         SkillpulseCityOccupationDemand.occupation_id,
         SkillpulseCityOccupationDemand.job_count,
@@ -330,7 +330,7 @@ def get_regression_data(db: Session):
     
     df = pd.DataFrame(query, columns=['occ_id', 'job_count', 'city'])
 
-    # 2. Add Feature: 'Shadow Skill Count' (Emerging demand indicator)
+    # Add Feature: 'Shadow Skill Count' (Emerging demand indicator)
     # We count how many non-official skills are appearing for each occupation
     shadow_counts = (
         db.query(
@@ -352,7 +352,7 @@ def get_occupation_features(db: Session, occupation_id: int):
     """
     Extracts features for regression: Current Demand and Shadow Signal Strength.
     """
-    # 1. Calculate Shadow Skill Count (Skills in jobs but not in official mapping)
+    # Calculate Shadow Skill Count (Skills in jobs but not in official mapping)
     shadow_count = db.query(JobPostSkill.id)\
         .join(JobPostLog, JobPostLog.id == JobPostSkill.job_post_id)\
         .filter(JobPostLog.occupation_id == occupation_id)\
@@ -363,7 +363,7 @@ def get_occupation_features(db: Session, occupation_id: int):
             )
         )).count()
     
-    # 2. Get total current job demand for this occupation
+    # Get total current job demand for this occupation
     current_demand = db.query(func.sum(SkillpulseCityOccupationDemand.job_count))\
         .filter(SkillpulseCityOccupationDemand.occupation_id == occupation_id)\
         .scalar() or 0
@@ -380,25 +380,25 @@ def get_occupation_prediction(db: Session, occupation_id: int):
     Advanced Forecast: Uses Market Velocity (Current vs Historical Mean) 
     and Skill Density to predict future demand.
     """
-    # 1. Fetch current demand and title
+    # Fetch current demand and title
     current_val, shadow_val, title = get_occupation_features(db, occupation_id)
     
     if current_val == 0:
         return None
 
-    # 2. Fetch Historical Baseline (Average demand for this occupation in the past)
+    # Fetch Historical Baseline (Average demand for this occupation in the past)
     # This acts as our "Steady State" reference
     avg_historical = db.query(func.avg(SkillpulseCityOccupationDemand.job_count))\
         .filter(SkillpulseCityOccupationDemand.occupation_id == occupation_id)\
         .scalar() or current_val
     
-    # 3. Calculate Velocity (Is the market accelerating or slowing down?)
+    # Calculate Velocity (Is the market accelerating or slowing down?)
     # If current > average, momentum is positive.
     velocity = (float(current_val) - float(avg_historical)) / float(avg_historical) if avg_historical > 0 else 0
     
-    # 4. Apply a Growth Multiplier 
-    # We use a 5% baseline + the Velocity adjustment + a small 'Shadow Signal' bonus
-    # This is a basic form of 'Momentum Forecasting'
+    # Apply a Growth Multiplier 
+    # use a 5% baseline + the Velocity adjustment + a small 'Shadow Signal' bonus
+    # basic form of 'Momentum Forecasting'
     momentum_factor = 1.05 + (velocity * 0.5) 
     shadow_bonus = (shadow_val * 0.1) # Unmapped skills still suggest emerging interest
     
@@ -433,27 +433,25 @@ def get_demand_forecast(db: Session, city: str):
 
     df = pd.DataFrame(raw_data, columns=['id', 'title', 'current_jobs'])
 
-    # 2. Senior Move: Synthetic Feature Engineering
-    # In a real 20-year career scenario, we use 'Ridge Regression' to 
-    # prevent overfitting on small city datasets.
+    # 'Ridge Regression' to prevent overfitting on small city datasets.
     X = df[['current_jobs']].values
     
-    # Target (y): We simulate a lead-indicator based on your ERD's 'market_position'
+    # Target (y): simulate a lead-indicator based on 'market_position'
     # For this implementation, we apply a growth coefficient
     y = df['current_jobs'].values * (1.05 + np.random.normal(0, 0.01, len(df)))
 
-    # 3. Scaling
+    # Scaling
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    # 4. Model Training (Ridge Regression)
+    # Model Training (Ridge Regression)
     # Ridge adds a penalty (alpha) to the coefficients to keep the model stable
     model = Ridge(alpha=1.0)
     model.fit(X_scaled, y)
     
     predictions = model.predict(X_scaled)
 
-    # 5. Formulating the Response
+    # Formulating the Response
     forecasts = []
     for i, row in df.iterrows():
         pred = round(float(predictions[i]), 0)
@@ -470,7 +468,7 @@ def get_demand_forecast(db: Session, city: str):
 
 
 # ─────────────────────────────────────────────
-# 7. SKILL VELOCITY
+# SKILL VELOCITY
 # Measures whether each skill for an occupation is rising or falling
 # in demand over time using snapshot data.
 # If only one snapshot exists, returns ranked skills with "stable" status.
@@ -575,7 +573,7 @@ def get_skill_velocity(db: Session, occupation_id: int) -> dict:
 
 
 # ─────────────────────────────────────────────
-# 8. MARKET SATURATION
+# MARKET SATURATION
 # Determines if an occupation is undersupplied (hot) or
 # oversupplied (saturated) relative to the platform average.
 #
@@ -597,7 +595,7 @@ def get_market_saturation(db: Session, occupation_id: int) -> dict:
     try:
         from sqlalchemy import text
 
-        # 1. Total job demand for this occupation across all cities
+        # Total job demand for this occupation across all cities
         occ_demand = (
             db.query(func.sum(SkillpulseCityOccupationDemand.job_count))
             .filter(SkillpulseCityOccupationDemand.occupation_id == occupation_id)
@@ -618,7 +616,7 @@ def get_market_saturation(db: Session, occupation_id: int) -> dict:
                 "insight":         "No job posting data found for this occupation yet."
             }
 
-        # 2. Platform average demand per occupation
+        # Platform average demand per occupation
         platform_avg_demand = (
             db.query(func.avg(
                 db.query(func.sum(SkillpulseCityOccupationDemand.job_count))
@@ -640,14 +638,14 @@ def get_market_saturation(db: Session, occupation_id: int) -> dict:
 
         platform_avg_demand = float(platform_avg_demand) or 1.0
 
-        # 3. Skill count for this occupation
+        # Skill count for this occupation
         occ_skill_count = (
             db.query(func.count(OscaOccupationSkill.skill_id))
             .filter(OscaOccupationSkill.occupation_id == occupation_id)
             .scalar() or 0
         )
 
-        # 4. Platform average skill count per occupation
+        # Platform average skill count per occupation
         platform_avg_skills_result = db.execute(text(
             "SELECT AVG(cnt) FROM "
             "(SELECT COUNT(skill_id) as cnt FROM osca_occupation_skills "
@@ -655,12 +653,12 @@ def get_market_saturation(db: Session, occupation_id: int) -> dict:
         )).scalar()
         platform_avg_skills = float(platform_avg_skills_result) if platform_avg_skills_result else 1.0
 
-        # 5. Calculate ratios
+        # Calculate ratios
         demand_ratio     = round(float(occ_demand) / platform_avg_demand, 3)
         complexity_ratio = round(float(occ_skill_count) / platform_avg_skills, 3) if platform_avg_skills > 0 else 1.0
         saturation_score = round(demand_ratio / complexity_ratio, 3) if complexity_ratio > 0 else demand_ratio
 
-        # 6. Classify
+        # Classify
         if saturation_score >= 1.2:
             status  = "hot"
             label   = "Undersupplied — High Demand"
@@ -708,3 +706,129 @@ def get_market_saturation(db: Session, occupation_id: int) -> dict:
             "occ_skill_count": 0, "platform_avg_skills": 0.0,
             "label": "Error", "insight": "Could not compute saturation."
         }
+    
+# ─────────────────────────────────────────────
+#  OCCUPATION PROFILE
+# ─────────────────────────────────────────────
+
+def get_occupation_profile(db: Session, occupation_id: int) -> dict:
+    try:
+        from app.models.osca import OscaOccupation
+        from app.models.skills import OscaOccupationSkill
+
+        occ = db.query(OscaOccupation).filter(OscaOccupation.id == occupation_id).first()
+        if not occ:
+            return {"error": "Occupation not found"}
+
+        skill_rows = (
+            db.query(EscoSkill.skill_type, func.count(OscaOccupationSkill.id).label("cnt"))
+            .join(OscaOccupationSkill, OscaOccupationSkill.skill_id == EscoSkill.id)
+            .filter(OscaOccupationSkill.occupation_id == occupation_id)
+            .group_by(EscoSkill.skill_type)
+            .all()
+        )
+        skill_breakdown = {r.skill_type or "unknown": r.cnt for r in skill_rows}
+        total_skills = sum(skill_breakdown.values())
+
+        return {
+            "occupation_id":    occupation_id,
+            "title":            occ.principal_title,
+            "skill_level":      occ.skill_level,
+            "lead_statement":   occ.lead_statement or "",
+            "main_tasks":       occ.main_tasks or "",
+            "licensing":        occ.licensing or "",
+            "caveats":          occ.caveats or "",
+            "specialisations":  occ.specialisations or "",
+            "skill_attributes": occ.skill_attributes or "",
+            "information_card": occ.information_card or "",
+            "total_skills":     total_skills,
+            "skill_breakdown":  skill_breakdown,
+        }
+
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_occupation_profile failed: {e}")
+        return {"error": str(e)}
+
+
+# ─────────────────────────────────────────────
+# CAREER TRANSITION ANALYZER
+# ─────────────────────────────────────────────
+
+def get_career_transition(db: Session, from_id: int, to_id: int) -> dict:
+    try:
+        from app.models.osca import OscaOccupation
+        from app.models.skills import OscaOccupationSkill
+
+        from_occ = db.query(OscaOccupation).filter(OscaOccupation.id == from_id).first()
+        to_occ   = db.query(OscaOccupation).filter(OscaOccupation.id == to_id).first()
+
+        if not from_occ or not to_occ:
+            return {"error": "One or both occupations not found"}
+
+        def get_skills(occ_id):
+            rows = (
+                db.query(
+                    EscoSkill.id,
+                    EscoSkill.preferred_label,
+                    EscoSkill.skill_type,
+                    OscaOccupationSkill.mention_count
+                )
+                .join(OscaOccupationSkill, OscaOccupationSkill.skill_id == EscoSkill.id)
+                .filter(OscaOccupationSkill.occupation_id == occ_id)
+                .order_by(OscaOccupationSkill.mention_count.desc())
+                .all()
+            )
+            return {r.id: {"name": r.preferred_label, "type": r.skill_type, "count": r.mention_count} for r in rows}
+
+        from_skills = get_skills(from_id)
+        to_skills   = get_skills(to_id)
+
+        from_ids = set(from_skills.keys())
+        to_ids   = set(to_skills.keys())
+
+        shared_ids = from_ids & to_ids
+        gap_ids    = to_ids - from_ids
+
+        shared = sorted(
+            [{"skill_name": to_skills[sid]["name"], "skill_type": to_skills[sid]["type"], "mention_count": to_skills[sid]["count"]} for sid in shared_ids],
+            key=lambda x: x["mention_count"], reverse=True
+        )[:20]
+
+        gap = sorted(
+            [{"skill_name": to_skills[sid]["name"], "skill_type": to_skills[sid]["type"], "mention_count": to_skills[sid]["count"]} for sid in gap_ids],
+            key=lambda x: x["mention_count"], reverse=True
+        )[:20]
+
+        difficulty_score = round((len(gap_ids) / len(to_ids)) * 100) if to_ids else 0
+
+        if difficulty_score >= 70:
+            difficulty_label = "Hard"
+            difficulty_color = "#EF4444"
+        elif difficulty_score >= 40:
+            difficulty_label = "Moderate"
+            difficulty_color = "#F59E0B"
+        else:
+            difficulty_label = "Easy"
+            difficulty_color = "#10B981"
+
+        return {
+            "from_id":          from_id,
+            "from_title":       from_occ.principal_title,
+            "from_skill_level": from_occ.skill_level,
+            "to_id":            to_id,
+            "to_title":         to_occ.principal_title,
+            "to_skill_level":   to_occ.skill_level,
+            "shared_count":     len(shared_ids),
+            "gap_count":        len(gap_ids),
+            "total_target":     len(to_ids),
+            "overlap_pct":      round((len(shared_ids) / len(to_ids)) * 100) if to_ids else 0,
+            "difficulty_score": difficulty_score,
+            "difficulty_label": difficulty_label,
+            "difficulty_color": difficulty_color,
+            "shared_skills":    shared,
+            "gap_skills":       gap,
+        }
+
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_career_transition failed: {e}")
+        return {"error": str(e)}

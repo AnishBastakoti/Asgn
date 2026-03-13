@@ -136,6 +136,15 @@ def serve_occupation_detail(request: Request, occupation_id: int):
 async def occupations_page(request: Request):
     return templates.TemplateResponse("occupations.html", {"request": request})
 
+@app.get("/pipeline", response_class=HTMLResponse, include_in_schema=False)
+def serve_pipeline(request: Request):
+    return _render(request, "pipeline.html", "pipeline")
+
+
+@app.get("/career", response_class=HTMLResponse, include_in_schema=False)
+def serve_career(request: Request):
+    return _render(request, "career.html", "career")
+
 # ── Health Check ─
 @app.get("/health", tags=["System"])
 def health_check():

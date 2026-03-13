@@ -69,6 +69,11 @@
           Market Saturation
           <span class="an-tab-badge sky" id="saturationStatusBadge">—</span>
         </button>
+
+        <button class="an-tab" data-tab="profile" onclick="switchTab('profile')">
+          <i class="bi bi-person-lines-fill me-2" style="color:#0EA5E9"></i>
+          Occupation Profile
+        </button>
       </div>
 
       <!-- ── Tab Panels ── -->
@@ -121,6 +126,15 @@
           </div>
           <div style="height:220px;">
             <canvas id="forecastChart"></canvas>
+          </div>
+        </div>
+         <!-- Occupation Profile -->
+        <div class="an-tab-panel" id="tab-profile">
+          <div class="an-panel-desc">
+            Official occupation profile — tasks, licensing requirements, specialisations and skill breakdown.
+          </div>
+          <div id="profileBody">
+            <div class="an-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>
           </div>
         </div>
 
