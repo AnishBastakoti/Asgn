@@ -34,7 +34,7 @@ def _apply_signature_score(mention_count: int, skill_id: int) -> float:
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. TOP SKILLS FOR OCCUPATION
-#    Primary data source for the skills bar chart on the Occupations page.
+#    Primary data source for the skills bar chart on the Skill page.
 # ══════════════════════════════════════════════════════════════════════════════
 def get_top_skills_for_occupation(
     db: Session,
