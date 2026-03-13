@@ -132,6 +132,10 @@ def serve_occupation_detail(request: Request, occupation_id: int):
         occupation_id=occupation_id,
     )
 
+@app.get("/occupations", response_class=HTMLResponse)
+async def occupations_page(request: Request):
+    return templates.TemplateResponse("occupations.html", {"request": request})
+
 # ── Health Check ─
 @app.get("/health", tags=["System"])
 def health_check():

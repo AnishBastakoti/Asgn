@@ -87,3 +87,14 @@ class OscaOccupationSkillSnapshot(Base):
 
     def __repr__(self):
         return f"<Snapshot occ={self.occupation_id} skill={self.skill_id} date={self.snapshot_date}>"
+
+
+class SkillpulseCityOccupationDemand(Base):
+    __tablename__ = "skillpulse_city_occupation_demand"
+
+    id               = Column(Integer, primary_key=True)
+    city             = Column(String,  nullable=False)
+    computed_at      = Column(String,  nullable=True)
+    job_count        = Column(Integer, nullable=True)
+    occupation_id    = Column(Integer, nullable=True)
+    occupation_title = Column(String,  nullable=True)
