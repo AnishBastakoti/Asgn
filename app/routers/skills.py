@@ -24,10 +24,12 @@ def get_summary(db: Session = Depends(get_db)):
     KPI cards in the header.
     Returns counts + your fingerprint signature.
     """
-    total_occupations   = db.query(OscaOccupation).count()
-    total_skills        = db.query(EscoSkill).count()
-    total_job_posts     = db.query(JobPostLog).count()
-    total_skill_mappings = db.query(OscaOccupationSkill).count()
+    # Using func.count() for efficiency, since we don't need the actual records.
+    from sqlalchemy import func
+    total_occupations = db.query(func.count(OscaOccupation.id)).scalar()
+    total_skills        = db.query(func.count(EscoSkill.id)).scalar()
+    total_job_posts     = db.query(func.count(JobPostLog.id)).scalar()
+    total_skill_mappings = db.query(func.count(OscaOccupationSkill.id)).scalar()
 
     return {
         "total_occupations":    total_occupations,
