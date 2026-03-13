@@ -7,7 +7,9 @@ from app.database import get_db
 from app.services.analytics_service import (
     get_hot_skills,
     get_shadow_skills,
-    get_skill_decay
+    get_skill_decay, 
+    get_city_demand_detail,
+    get_city_demand_summary
 )
 #from main import Limiter
 
@@ -30,6 +32,17 @@ class SkillDecayResponse(BaseModel):
     decline:          int
     decline_pct:      float
 
+class CityDemandSummaryResponse(BaseModel):
+    city:             str
+    total_jobs:       int
+    occupation_count: int
+    demand_pct:       float
+
+class CityDemandDetailResponse(BaseModel):
+    occupation_title: str
+    occupation_id:    int
+    total_jobs:       int
+    demand_pct:       float
 
 # ── Endpoints ────────────────────────────────────────────
 
@@ -61,3 +74,25 @@ def skill_decay(request: Request, occupation_id: int, db: Session = Depends(get_
     comparing earliest vs most recent snapshot batch.
     """
     return get_skill_decay(db, occupation_id)
+
+
+
+# 4. CITY DEMAND SUMMARY — all cities with total job counts
+@router.get("/city-demand", response_model=List[CityDemandSummaryResponse])
+@limiter.limit("20/minute")
+def city_demand_summary(request: Request, db: Session = Depends(get_db)):
+    """All cities with total job counts for city selector cards."""
+    return get_city_demand_summary(db)
+
+
+# 5. CITY DEMAND DETAIL — top N occupations for a specific city
+@router.get("/city-demand/{city}", response_model=List[CityDemandDetailResponse])
+@limiter.limit("20/minute")
+def city_demand_detail(
+    request: Request,
+    city: str,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    """Top N occupations demanded in a specific city."""
+    return get_city_demand_detail(db, city, limit)

@@ -1,0 +1,324 @@
+{% extends "index.html" %}
+
+{% block title %}City Demand — AUS Skills Intel{% endblock %}
+{% block page_title %}City Demand{% endblock %}
+{% block page_sub %}Australian Job Market Demand by Region{% endblock %}
+
+{% block content %}
+
+<!-- ── Summary stat cards ── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-xl-3">
+    <div class="sp-card sp-kpi sp-kpi--indigo">
+      <div class="sp-kpi-icon"><i class="bi bi-geo-alt-fill"></i></div>
+      <div class="sp-kpi-body">
+        <div class="sp-kpi-val" id="kpiCities">—</div>
+        <div class="sp-kpi-lbl">Cities Tracked</div>
+      </div>
+      <div class="sp-kpi-badge">LIVE</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="sp-card sp-kpi sp-kpi--emerald">
+      <div class="sp-kpi-icon"><i class="bi bi-briefcase-fill"></i></div>
+      <div class="sp-kpi-body">
+        <div class="sp-kpi-val" id="kpiTotalJobs">—</div>
+        <div class="sp-kpi-lbl">Total Job Posts</div>
+      </div>
+      <div class="sp-kpi-badge">SCRAPED</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="sp-card sp-kpi sp-kpi--violet">
+      <div class="sp-kpi-icon"><i class="bi bi-building"></i></div>
+      <div class="sp-kpi-body">
+        <div class="sp-kpi-val" id="kpiTopCity">—</div>
+        <div class="sp-kpi-lbl">Highest Demand City</div>
+      </div>
+      <div class="sp-kpi-badge">RANKED</div>
+    </div>
+  </div>
+  <div class="col-6 col-xl-3">
+    <div class="sp-card sp-kpi sp-kpi--sky">
+      <div class="sp-kpi-icon"><i class="bi bi-bar-chart-fill"></i></div>
+      <div class="sp-kpi-body">
+        <div class="sp-kpi-val" id="kpiSelectedJobs">—</div>
+        <div class="sp-kpi-lbl">Jobs in Selected City</div>
+      </div>
+      <div class="sp-kpi-badge">SELECTED</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Main Layout ── -->
+<div class="cd-layout">
+
+  <!-- ── CITY SELECTOR PANEL ── -->
+  <aside class="cd-left-panel">
+    <div class="sp-card-section border-bottom">
+      <div class="sp-section-label">Select Region</div>
+    </div>
+
+    <!-- City list -->
+    <div class="cd-city-list" id="cityList">
+      <div class="sp-spinner-center"><div class="sp-spinner"></div></div>
+    </div>
+
+    <!-- Top N slider -->
+    <div class="sp-card-section border-top">
+      <div class="sp-section-label">Occupations to Display</div>
+      <div class="d-flex align-items-center gap-3">
+        <input type="range"
+               class="sp-slider flex-grow-1"
+               id="cdTopNSlider"
+               min="5" max="30" value="10" step="5"/>
+        <span class="sp-slider-val" id="cdTopNVal">10</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── CHART PANEL ── -->
+  <main class="cd-main-panel">
+
+    <!-- Welcome state -->
+    <div id="cdWelcome" class="cd-welcome">
+      <div class="cd-welcome-icon"><i class="bi bi-geo-alt"></i></div>
+      <div class="cd-welcome-title">Select a City</div>
+      <div class="cd-welcome-sub">Choose a region from the left panel to explore occupation demand</div>
+    </div>
+
+    <!-- Chart content -->
+    <div id="cdChartContent" class="d-none">
+
+      <!-- Chart header -->
+      <div class="cd-chart-header" id="cdChartHeader"></div>
+
+      <!-- Bars -->
+      <div class="cd-bars-wrap" id="cdBarsWrap"></div>
+
+    </div>
+
+  </main>
+
+</div>
+
+<!-- ── Inline styles specific to this page ── -->
+<style>
+/* ── Layout ── */
+.cd-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 0;
+  background: var(--surface);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  min-height: 600px;
+}
+
+/* ── Left Panel ── */
+.cd-left-panel {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+}
+
+.cd-city-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 480px;
+}
+
+/* ── City Item ── */
+.cd-city-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+  position: relative;
+}
+
+.cd-city-item:hover {
+  background: rgba(99,102,241,0.04);
+}
+
+.cd-city-item.active {
+  background: rgba(99,102,241,0.08);
+  border-left: 3px solid var(--indigo);
+}
+
+.cd-city-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cd-city-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.cd-city-jobs {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.cd-city-bar-track {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.cd-city-bar-fill {
+  height: 100%;
+  background: var(--indigo);
+  border-radius: 2px;
+  transition: width 0.6s ease;
+  width: 0%;
+}
+
+/* ── Main Panel ── */
+.cd-main-panel {
+  padding: 24px;
+  background: #fff;
+  position: relative;
+}
+
+/* ── Welcome State ── */
+.cd-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 400px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.cd-welcome-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.3;
+}
+
+.cd-welcome-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.cd-welcome-sub {
+  font-size: 13px;
+  max-width: 280px;
+}
+
+/* ── Chart Header ── */
+.cd-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cd-chart-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.cd-chart-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.cd-chart-badges {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ── Bars ── */
+.cd-bars-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cd-bar-row {
+  display: grid;
+  grid-template-columns: 24px 1fr 120px 60px;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  transform: translateX(-8px);
+  animation: cdBarIn 0.3s forwards;
+}
+
+@keyframes cdBarIn {
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.cd-bar-rank {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+  text-align: right;
+}
+
+.cd-bar-label {
+  font-size: 12.5px;
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cd-bar-track {
+  height: 10px;
+  background: var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.cd-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  width: 0%;
+  transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--indigo);
+}
+
+.cd-bar-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  text-align: right;
+}
+
+.cd-bar-count-sub {
+  font-size: 10px;
+  color: var(--muted);
+  display: block;
+  text-align: right;
+}
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="/templates/js/occupations.js"></script>
+{% endblock %}
