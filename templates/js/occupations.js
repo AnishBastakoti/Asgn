@@ -17,6 +17,8 @@ const cdState = {
   cities:       [],   // full city summary list
   selectedCity: null, // currently selected city name
   topN:         10,   // current slider value
+  FormData:     null, // filters
+  toDate:       null, //  date range
 };
 
 // ── DOM helpers (reuse global $ from main.js) ──────────
@@ -63,7 +65,11 @@ async function loadCitySummary() {
   if (!list) return;
 
   try {
-    const cities = await api('/api/analytics/city-demand');
+    const params = new URLSearchParams();
+    if (cdState.fromDate) params.append('from_date', cdState.fromDate);
+    if (cdState.toDate)   params.append('to_date',   cdState.toDate);
+    const cities = await api(`/api/analytics/city-demand?${params}`);
+
     cdState.cities = cities;
 
     // ── KPI cards ──
@@ -80,7 +86,14 @@ async function loadCitySummary() {
 
     // ── Auto-select first city ──
     if (cities.length > 0) {
-      selectCity(cities[0].city);
+      const currentCity = cdState.selectedCity;
+      const cityStillExists = cities.some(c => c.city === currentCity);
+      if (cityStillExists) {
+        // Keep current selection
+        loadCityDetail(currentCity);
+      } else {
+        selectCity(cities[0].city);
+      }
     }
 
   } catch (err) {
@@ -145,13 +158,18 @@ async function loadCityDetail(cityName) {
 
   if (!content) return;
 
+  console.log('Loading city detail for:', cityName, 'with dates:', cdState.fromDate, cdState.toDate);
+
   // Show loading state
   welcome.classList.add('d-none');
   content.classList.remove('d-none');
   bars.innerHTML = `<div class="sp-spinner-center"><div class="sp-spinner"></div></div>`;
 
   try {
-    const data = await api(`/api/analytics/city-demand/${encodeURIComponent(cityName)}?limit=${cdState.topN}`);
+    const params = new URLSearchParams({ limit: cdState.topN });
+    if (cdState.fromDate) params.append('from_date', cdState.fromDate);
+    if (cdState.toDate)   params.append('to_date',   cdState.toDate);
+    const data = await api(`/api/analytics/city-demand/${encodeURIComponent(cityName)}?${params}`);
 
     if (!data.length) {
       bars.innerHTML = `<div class="sp-occ-empty">No occupation data available for ${esc(cityName)}</div>`;
@@ -227,4 +245,20 @@ async function loadCityDetail(cityName) {
 function setKpi(id, value) {
   const el = cdEl(id);
   if (el) el.textContent = value;
+}
+// -- date filter handlers --
+function applyDateFilter() {
+  cdState.fromDate = document.getElementById('cdFromDate')?.value || null;
+  cdState.toDate   = document.getElementById('cdToDate')?.value   || null;
+  console.log('Applying date filter:', cdState.fromDate, cdState.toDate);
+  loadCitySummary();
+}
+
+function clearDateFilter() {
+  cdState.fromDate = null;
+  cdState.toDate   = null;
+  document.getElementById('cdFromDate').value = '';
+  document.getElementById('cdToDate').value   = '';
+  console.log('Clearing date filter');
+  loadCitySummary();
 }

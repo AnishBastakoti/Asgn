@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.linear_model import Ridge # Ridge handles multicollinearity better than OLS
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, not_, exists
 
@@ -27,7 +27,7 @@ def get_hot_skills(db: Session, days: int = 30) -> list[dict]:
     Ranks by raw mention count across all occupations.
     """
     try:
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
         rows = (
             db.query(
@@ -223,29 +223,38 @@ def get_skill_decay(db: Session, occupation_id: int) -> list[dict]:
 # Returns all cities with their total job counts.
 # Used to populate the city selector cards.
 # ─────────────────────────────────────────────
-
-def get_city_demand_summary(db: Session) -> list[dict]:
-    """
-    All cities with total job counts, sorted by demand descending.
-    Used to render the city selector cards on the occupations page.
-    """
+def get_city_demand_summary(db: Session, from_date: str = None, to_date: str = None) -> list[dict]:
     try:
-        rows = (
-            db.query(
-                SkillpulseCityOccupationDemand.city,
-                func.sum(SkillpulseCityOccupationDemand.job_count).label("total_jobs"),
-                func.count(SkillpulseCityOccupationDemand.occupation_id).label("occupation_count")
+        if from_date or to_date:
+            # Query live job_post_logs with date filter
+            q = db.query(
+                JobPostLog.city,
+                func.count(JobPostLog.id).label("total_jobs"),
+                func.count(func.distinct(JobPostLog.occupation_id)).label("occupation_count")
+            ).filter(JobPostLog.city.isnot(None))
+
+            if from_date:
+                q = q.filter(JobPostLog.ingested_at >= datetime.fromisoformat(from_date))
+            if to_date:
+                q = q.filter(JobPostLog.ingested_at <= datetime.fromisoformat(to_date + "T23:59:59"))
+
+            rows = q.group_by(JobPostLog.city).order_by(func.count(JobPostLog.id).desc()).all()
+        else:
+            rows = (
+                db.query(
+                    SkillpulseCityOccupationDemand.city,
+                    func.sum(SkillpulseCityOccupationDemand.job_count).label("total_jobs"),
+                    func.count(SkillpulseCityOccupationDemand.occupation_id).label("occupation_count")
+                )
+                .group_by(SkillpulseCityOccupationDemand.city)
+                .order_by(func.sum(SkillpulseCityOccupationDemand.job_count).desc())
+                .all()
             )
-            .group_by(SkillpulseCityOccupationDemand.city)
-            .order_by(func.sum(SkillpulseCityOccupationDemand.job_count).desc())
-            .all()
-        )
 
         if not rows:
             return []
 
         max_jobs = rows[0].total_jobs or 1
-
         return [
             {
                 "city":             r.city,
@@ -255,7 +264,6 @@ def get_city_demand_summary(db: Session) -> list[dict]:
             }
             for r in rows
         ]
-
     except Exception as e:
         logger.error(f"[MSIT402|SP] get_city_demand_summary failed: {e}")
         return []
@@ -267,32 +275,42 @@ def get_city_demand_summary(db: Session) -> list[dict]:
 # Used to populate the bar chart on city selection.
 # ─────────────────────────────────────────────
 
-def get_city_demand_detail(db: Session, city: str, limit: int = 10) -> list[dict]:
-    """
-    Top N occupations demanded in a specific city, ranked by job count.
-    """
+def get_city_demand_detail(db: Session, city: str, limit: int = 10, from_date: str = None, to_date: str = None) -> list[dict]:
     try:
-        rows = (
-            db.query(
-                SkillpulseCityOccupationDemand.occupation_title,
-                SkillpulseCityOccupationDemand.occupation_id,
-                func.sum(SkillpulseCityOccupationDemand.job_count).label("total_jobs")
+        if from_date or to_date:
+            from app.models.osca import OscaOccupation
+            q = db.query(
+                OscaOccupation.principal_title.label("occupation_title"),
+                JobPostLog.occupation_id,
+                func.count(JobPostLog.id).label("total_jobs")
+            ).join(OscaOccupation, JobPostLog.occupation_id == OscaOccupation.id)\
+             .filter(JobPostLog.city == city, JobPostLog.occupation_id.isnot(None))
+
+            if from_date:
+                q = q.filter(JobPostLog.ingested_at >= datetime.fromisoformat(from_date))
+            if to_date:
+                q = q.filter(JobPostLog.ingested_at <= datetime.fromisoformat(to_date + "T23:59:59"))
+
+            rows = q.group_by(JobPostLog.occupation_id, OscaOccupation.principal_title)\
+                    .order_by(func.count(JobPostLog.id).desc())\
+                    .limit(limit).all()
+        else:
+            rows = (
+                db.query(
+                    SkillpulseCityOccupationDemand.occupation_title,
+                    SkillpulseCityOccupationDemand.occupation_id,
+                    func.sum(SkillpulseCityOccupationDemand.job_count).label("total_jobs")
+                )
+                .filter(SkillpulseCityOccupationDemand.city == city)
+                .group_by(SkillpulseCityOccupationDemand.occupation_title, SkillpulseCityOccupationDemand.occupation_id)
+                .order_by(func.sum(SkillpulseCityOccupationDemand.job_count).desc())
+                .limit(limit).all()
             )
-            .filter(SkillpulseCityOccupationDemand.city == city)
-            .group_by(
-                SkillpulseCityOccupationDemand.occupation_title,
-                SkillpulseCityOccupationDemand.occupation_id
-            )
-            .order_by(func.sum(SkillpulseCityOccupationDemand.job_count).desc())
-            .limit(limit)
-            .all()
-        )
 
         if not rows:
             return []
 
         max_jobs = rows[0].total_jobs or 1
-
         return [
             {
                 "occupation_title": r.occupation_title,
@@ -302,12 +320,9 @@ def get_city_demand_detail(db: Session, city: str, limit: int = 10) -> list[dict
             }
             for r in rows
         ]
-
     except Exception as e:
         logger.error(f"[MSIT402|SP] get_city_demand_detail failed: {e}")
         return []
-
-
 # ─────────────────────────────────────────────
 # Regression  model
 
