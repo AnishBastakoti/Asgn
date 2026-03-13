@@ -133,24 +133,29 @@ def skill_decay(request: Request, occupation_id: int, db: Session = Depends(get_
 # CITY DEMAND SUMMARY — all cities with total job counts
 @router.get("/city-demand", response_model=List[CityDemandSummaryResponse])
 @limiter.limit("20/minute")
-def city_demand_summary(request: Request, db: Session = Depends(get_db)):
-    """All cities with total job counts for city selector cards."""
-    return get_city_demand_summary(db)
-
+def city_demand_summary(
+    request: Request,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    return get_city_demand_summary(db, from_date, to_date)
 
 # CITY DEMAND DETAIL — top N occupations for a specific city
+
 @router.get("/city-demand/{city}", response_model=List[CityDemandDetailResponse])
 @limiter.limit("20/minute")
 def city_demand_detail(
     request: Request,
     city: str,
     limit: int = 10,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """Top N occupations demanded in a specific city."""
-    return get_city_demand_detail(db, city, limit)
+    return get_city_demand_detail(db, city, limit, from_date, to_date)
 
-
+    
 # DEMAND FORECAST — Regression-based prediction for a city
 @router.get("/predict-demand-by-occ/{occupation_id}", response_model=DemandPredictionResponse)
 @limiter.limit("20/minute")
