@@ -197,13 +197,40 @@ button.info:hover{
 }
 
 /* Footer */
-.sp-sidebar-footer {
+/* ── Sidebar Toggle Button ── */
+.sp-sidebar-toggle {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.875rem 1rem;
+  justify-content: center;
+  width: 100%;
+  padding: 0.6rem;
+  background: rgba(255,255,255,0.05);
+  border: none;
   border-top: 1px solid rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.4);
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+  flex-shrink: 0;
 }
+.sp-sidebar-toggle:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+/* ── Collapsed state ── */
+.sp-shell.sidebar-collapsed {
+  grid-template-columns: 54px 1fr;
+}
+.sp-shell.sidebar-collapsed .sp-logo-text,
+.sp-shell.sidebar-collapsed .sp-nav-link span,
+.sp-shell.sidebar-collapsed .sp-sig-text {
+  display: none;
+}
+/* Smooth transition */
+.sp-shell { transition: grid-template-columns 0.25s ease; }
+.sp-sidebar { transition: width 0.25s ease; }
+.sp-sidebar-toggle .toggle-icon { transition: transform 0.25s ease; display: inline-block; }
 .sp-avatar {
   width: 32px; height: 32px;
   border-radius: 50%;
@@ -735,6 +762,13 @@ button.info:hover{
 .sp-no-data-icon { font-size: 2.25rem; margin-bottom: 0.5rem; }
 .sp-error-bar { margin: 1rem 1.25rem; padding: 0.75rem 1rem; background: #FFF1F2; border: 1px solid #FECDD3; border-left: 3px solid var(--coral); border-radius: var(--rad-sm); color: #BE123C; font-size: 0.76rem; }
 
+/* footer */
+.sp-sidebar-footer{
+  display: inline-flex;
+  padding: 10px;
+}
+}
+
 /* ── Tooltip ── */
 .sp-tooltip {
   position: fixed;
@@ -828,3 +862,4 @@ button.info:hover{
     tab-size: 4;
     overflow-x: auto;
 }
+

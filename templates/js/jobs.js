@@ -78,6 +78,11 @@ document.addEventListener('DOMContentLoaded', () => {
           }, 200);
       });
     });
+
+
+function togglePicker() {
+  document.querySelector('.jt-layout').classList.toggle('picker-collapsed');
+}
 // ═════════════════════════════════════════════════════════════════════════════
 // 1. GLOBAL HOT SKILLS BANNER
 //    Source: /api/analytics/hot-skills?days=30
