@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// ── Called by dashboard.js when occupation is clicked ────────────────────────
+// // ── Called by dashboard.js when occupation is clicked ────────────────────────
 window.selectOccupation = function(el) {
   const id    = parseInt(el.dataset.id, 10);
   const title = el.dataset.title;
@@ -34,6 +34,9 @@ window.selectOccupation = function(el) {
   loadShadowSkills(id);
   loadSkillDecay(id); 
   updateForecast(id); // Trigger the forecast chart update
+  loadOccupationProfile(id); // Load the new occupation profile data
+  loadSkillVelocity(id);      
+  loadMarketSaturation(id);
 };
 
 // ── Shadow Skills ─────────────────────────────────────────────────────────────
@@ -138,28 +141,7 @@ function switchTab(tabName) {
   });
 }
 
-
-// 1. Ensure selectOccupation triggers the forecast
-window.selectOccupation = function(el) {
-  const id    = parseInt(el.dataset.id, 10);
-  const title = el.dataset.title;
-  const level = el.dataset.level;
-
-  an.selected = { id, title, level };
-
-  document.getElementById('anWelcome').style.display = 'none';
-  document.getElementById('anPanels').style.display  = 'flex';
-  document.getElementById('anOccName').textContent   = title;
-  document.getElementById('anOccLevel').textContent  = level ? `Level ${level}` : 'Level —';
-
-  loadShadowSkills(id);
-  loadSkillDecay(id);
-  updateForecast(id); // <--- Add this line to trigger the chart
-  loadSkillVelocity(id);      
-  loadMarketSaturation(id);
-};
-
-// 2. Optimized Forecast Loader
+// Optimized Forecast Loader
 async function updateForecast(occupationId) {
     const canvas = document.getElementById('forecastChart');
     if (!canvas) return; // Safety check
@@ -406,5 +388,82 @@ async function loadMarketSaturation(occId) {
       <i class="bi bi-exclamation-triangle me-2"></i>Could not load saturation data.
     </div>`;
     console.warn('[SkillPulse|AN] loadMarketSaturation:', err.message);
+  }
+}
+
+
+async function loadOccupationProfile(occId) {
+  const body = document.getElementById('profileBody');
+  body.innerHTML = `<div class="an-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>`;
+ 
+  try {
+    const d = await api(`/api/analytics/occupation-profile/${occId}`);
+ 
+    if (d.error) {
+      body.innerHTML = `<div class="an-empty text-danger">${esc(d.error)}</div>`;
+      return;
+    }
+ 
+    // Skill type breakdown bar
+    const total = d.total_skills || 1;
+    const typeColors = {
+      'skill':     '#6366F1',
+      'knowledge': '#10B981',
+      'attitude':  '#F59E0B',
+      'unknown':   '#9CA3AF',
+    };
+ 
+    const breakdownHtml = Object.entries(d.skill_breakdown).map(([type, cnt]) => {
+      const pct   = Math.round((cnt / total) * 100);
+      const color = typeColors[type.toLowerCase()] || '#9CA3AF';
+      const label = type.replace('http://data.europa.eu/esco/skill-type/', '');
+      return `
+        <div style="margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px;">
+            <span style="text-transform:capitalize; font-weight:600; color:var(--text2);">${esc(label)}</span>
+            <span style="font-family:var(--mono); color:var(--muted);">${cnt} (${pct}%)</span>
+          </div>
+          <div style="height:6px; background:var(--shell-bg); border-radius:99px; overflow:hidden; border:1px solid var(--border);">
+            <div style="height:100%; width:${pct}%; background:${color}; border-radius:99px; transition:width 0.6s ease;"></div>
+          </div>
+        </div>`;
+    }).join('');
+ 
+    // Section helper
+    const section = (icon, color, title, content) => {
+      if (!content || content.trim() === '') return '';
+      return `
+        <div style="margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid #F3F4F6;">
+          <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;
+                      color:${color}; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+            <i class="bi ${icon}"></i> ${title}
+          </div>
+          <div style="font-size:12.5px; color:var(--text2); line-height:1.7;">${esc(content)}</div>
+        </div>`;
+    };
+ 
+    body.innerHTML = `
+      <!-- Skill type breakdown -->
+      <div style="margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #F3F4F6;">
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;
+                    color:var(--indigo); margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+          <i class="bi bi-pie-chart-fill"></i> Skill Composition (${total} total)
+        </div>
+        ${breakdownHtml || '<div style="color:var(--muted);font-size:12px;">No skill data.</div>'}
+      </div>
+ 
+      ${section('bi-card-text',         '#6366F1', 'Overview',         d.lead_statement)}
+      ${section('bi-list-check',        '#10B981', 'Main Tasks',       d.main_tasks)}
+      ${section('bi-award-fill',        '#F59E0B', 'Specialisations',  d.specialisations)}
+      ${section('bi-shield-lock-fill',  '#0EA5E9', 'Licensing',        d.licensing)}
+      ${section('bi-exclamation-circle','#EF4444', 'Caveats',          d.caveats)}
+      ${section('bi-stars',             '#8B5CF6', 'Skill Attributes',  d.skill_attributes)}
+    `;
+ 
+  } catch (err) {
+    body.innerHTML = `<div class="an-empty text-danger">
+      <i class="bi bi-exclamation-triangle me-2"></i>Could not load profile data.
+    </div>`;
+    console.warn('[SkillPulse|AN] loadOccupationProfile:', err.message);
   }
 }

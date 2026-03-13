@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from core.rate_limiter import limiter
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -11,7 +11,9 @@ from app.services.analytics_service import (
     get_city_demand_detail,
     get_city_demand_summary,
     get_skill_velocity,
-    get_market_saturation
+    get_market_saturation,
+    get_occupation_profile,
+    get_career_transition
 )
 #from main import Limiter
 
@@ -72,6 +74,18 @@ class MarketSaturationResponse(BaseModel):
     label:                str
     insight:              str
 
+class OccupationProfileResponse(BaseModel):
+    occupation_id:    int
+    title:            str
+    skill_level:      Optional[int]
+    lead_statement:   str
+    main_tasks:       str
+    licensing:        str
+    caveats:          str
+    specialisations:  str
+    skill_attributes: str
+    total_skills:     int
+    skill_breakdown:  dict
 # ══════════════════════════════════════════════════════════════════════════════
 # RESPONSE MODELS FOR ANALYTICS ENDPOINTS
 
@@ -85,7 +99,7 @@ class DemandPredictionResponse(BaseModel):
 
 # ── Endpoints ────────────────────────────────────────────
 
-# 1. HOT SKILLS — no occupation filter, across all job posts
+# HOT SKILLS — no occupation filter, across all job posts
 @router.get("/hot-skills", response_model=List[HotSkillResponse])
 @limiter.limit("10/minute")
 def hot_skills(request: Request, days: int = 30, db: Session = Depends(get_db)):
@@ -93,7 +107,7 @@ def hot_skills(request: Request, days: int = 30, db: Session = Depends(get_db)):
     return get_hot_skills(db, days)
 
 
-# 2. SHADOW SKILLS — FIX: was osca_code:str, real PK is occupation_id:int
+# SHADOW SKILLS — FIX: was osca_code:str, real PK is occupation_id:int
 @router.get("/shadow-skills/{occupation_id}", response_model=List[ShadowSkillResponse])
 @limiter.limit("10/minute")
 def shadow_skills(request: Request, occupation_id: int, db: Session = Depends(get_db)):
@@ -104,7 +118,7 @@ def shadow_skills(request: Request, occupation_id: int, db: Session = Depends(ge
     return get_shadow_skills(db, occupation_id)
 
 
-# 3. SKILL DECAY — FIX: was osca_code:str, real PK is occupation_id:int
+# SKILL DECAY — FIX: was osca_code:str, real PK is occupation_id:int
 @router.get("/skill-decay/{occupation_id}", response_model=List[SkillDecayResponse])
 @limiter.limit("10/minute")
 def skill_decay(request: Request, occupation_id: int, db: Session = Depends(get_db)):
@@ -116,7 +130,7 @@ def skill_decay(request: Request, occupation_id: int, db: Session = Depends(get_
 
 
 
-# 4. CITY DEMAND SUMMARY — all cities with total job counts
+# CITY DEMAND SUMMARY — all cities with total job counts
 @router.get("/city-demand", response_model=List[CityDemandSummaryResponse])
 @limiter.limit("20/minute")
 def city_demand_summary(request: Request, db: Session = Depends(get_db)):
@@ -124,7 +138,7 @@ def city_demand_summary(request: Request, db: Session = Depends(get_db)):
     return get_city_demand_summary(db)
 
 
-# 5. CITY DEMAND DETAIL — top N occupations for a specific city
+# CITY DEMAND DETAIL — top N occupations for a specific city
 @router.get("/city-demand/{city}", response_model=List[CityDemandDetailResponse])
 @limiter.limit("20/minute")
 def city_demand_detail(
@@ -137,7 +151,7 @@ def city_demand_detail(
     return get_city_demand_detail(db, city, limit)
 
 
-# 6. DEMAND FORECAST — Regression-based prediction for a city
+# DEMAND FORECAST — Regression-based prediction for a city
 @router.get("/predict-demand-by-occ/{occupation_id}", response_model=DemandPredictionResponse)
 @limiter.limit("20/minute")
 def predict_occ_demand(
@@ -156,7 +170,7 @@ def predict_occ_demand(
     return prediction
 
 
-# 7. SKILL VELOCITY — rising/falling skills for an occupation
+# SKILL VELOCITY — rising/falling skills for an occupation
 @router.get("/skill-velocity/{occupation_id}", response_model=SkillVelocityResponse)
 #@limiter.limit("20/minute")
 def skill_velocity(
@@ -171,7 +185,7 @@ def skill_velocity(
     return get_skill_velocity(db, occupation_id)
  
  
-# 8. MARKET SATURATION — supply/demand balance for an occupation
+# MARKET SATURATION — supply/demand balance for an occupation
 @router.get("/market-saturation/{occupation_id}", response_model=MarketSaturationResponse)
 #@limiter.limit("20/minute")
 def market_saturation(
@@ -184,3 +198,22 @@ def market_saturation(
     or balanced relative to platform averages.
     """
     return get_market_saturation(db, occupation_id)
+
+# OCCUPATION PROFILE — official profile details for an occupation
+@router.get("/occupation-profile/{occupation_id}", response_model=dict)
+@limiter.limit("30/minute")
+def occupation_profile(request: Request, occupation_id: int, db: Session = Depends(get_db)):
+    return get_occupation_profile(db, occupation_id)
+
+
+# CAREER TRANSITION ANALYZER
+@router.get("/career-transition")
+@limiter.limit("20/minute")
+def career_transition(
+    request: Request,
+    from_id: int,
+    to_id: int,
+    db: Session = Depends(get_db)
+):
+    """Compare two occupations — shared skills, gaps, and difficulty score."""
+    return get_career_transition(db, from_id, to_id)

@@ -1,0 +1,380 @@
+{% extends "index.html" %}
+{% block title %}Career Transition{% endblock %}
+{% block page_title %}Career Transition Analyzer{% endblock %}
+{% block page_sub %}Compare skill sets between occupations — find gaps and overlap{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Layout ─────────────────────────────────────────── */
+.ct-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.ct-picker {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ct-picker-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.ct-picker-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: var(--mono);
+}
+.ct-selected-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--shell-bg);
+  color: var(--muted);
+  max-width: 180px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ct-selected-badge.filled {
+  background: var(--indigo-l);
+  color: var(--indigo);
+  border-color: rgba(99,102,241,0.25);
+}
+.ct-search-wrap { padding: 10px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.ct-occ-list { flex: 1; overflow-y: auto; max-height: 280px; }
+.ct-occ-list::-webkit-scrollbar { width: 4px; }
+.ct-occ-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.ct-occ-item {
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--text2);
+  border-left: 3px solid transparent;
+  transition: all 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.ct-occ-item:hover  { background: var(--shell-bg); color: var(--text); }
+.ct-occ-item.active { background: var(--indigo-l); border-left-color: var(--indigo); color: var(--indigo); font-weight: 600; }
+.ct-occ-tag {
+  font-size: 10px;
+  font-family: var(--mono);
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--shell-bg);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Analyze Button ─────────────────────────────────── */
+.ct-analyze-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.ct-arrow { font-size: 18px; color: var(--muted); opacity: 0.4; }
+.ct-btn {
+  padding: 10px 28px;
+  background: var(--indigo);
+  color: #fff;
+  border: none;
+  border-radius: var(--rad-sm);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(99,102,241,0.25);
+}
+.ct-btn:hover:not(:disabled) { background: var(--indigo-d); transform: translateY(-1px); }
+.ct-btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+
+/* ── Results ─────────────────────────────────────────── */
+.ct-results {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow-card);
+  overflow: visible;
+}
+.ct-results-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--shell-bg);
+}
+.ct-transition-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+/* From chip gets indigo accent, to chip stays neutral */
+.ct-from-chip {
+  background: var(--indigo-l);
+  color: var(--indigo);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  border: 1px solid rgba(99,102,241,0.2);
+  font-weight: 600;
+}
+.ct-to-chip {
+  background: var(--shell-bg);
+  color: var(--text2);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  font-weight: 600;
+}
+.ct-arrow-icon { color: var(--muted); font-size: 12px; }
+
+/* ── KPI row — only difficulty gets colour ── */
+.ct-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+.ct-kpi {
+  padding: 18px 20px;
+  border-right: 1px solid var(--border);
+  text-align: center;
+}
+.ct-kpi:last-child { border-right: none; }
+.ct-kpi-val {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-family: var(--mono);
+}
+.ct-kpi-lbl {
+  font-size: 10px;
+  margin-top: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-family: var(--mono);
+}
+
+/* ── Difficulty bar ── */
+.ct-difficulty-bar {
+  margin: 0 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.ct-diff-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+}
+.ct-diff-track {
+  height: 8px;
+  background: var(--shell-bg);
+  border-radius: 99px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.ct-diff-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+.ct-diff-zones {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+  font-family: var(--mono);
+}
+
+/* ── Skill columns ── */
+.ct-skills-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.ct-skill-col { padding: 16px 20px; }
+.ct-skill-col:first-child { border-right: 1px solid var(--border); }
+
+.ct-col-head {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text2);
+}
+/* Only the icon carries colour — the text stays neutral */
+.ct-col-head.shared i { color: #16A34A; }
+.ct-col-head.gap    i { color: #DC2626; }
+
+.ct-skill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid #F9FAFB;
+  font-size: 12px;
+}
+.ct-skill-name {
+  flex: 1;
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Skill type badges — neutral base, coloured left border only ── */
+.ct-skill-type {
+  font-size: 9px;
+  font-family: var(--mono);
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  background: #F3F4F6;
+  color: #6B7280;
+  border: 1px solid #E5E7EB;
+  border-left-width: 2px;
+}
+.ct-skill-type.knowledge       { border-left-color: var(--emerald); }
+.ct-skill-type.skillcompetence { border-left-color: var(--indigo);  }
+.ct-skill-type.skill           { border-left-color: var(--indigo);  }
+.ct-skill-type.attitude        { border-left-color: #F59E0B;        }
+.ct-skill-type.unknown         { border-left-color: #D1D5DB;        }
+
+/* ── States ── */
+.ct-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.ct-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+.ct-placeholder i { font-size: 2rem; opacity: 0.2; }
+
+.ct-occ-item.no-skills {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: blur(0.3px);
+}
+.ct-occ-item.no-skills:hover {
+  background: none;
+  color: var(--text2);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="ct-layout">
+  <!-- FROM occupation -->
+  <div class="ct-picker">
+    <div class="ct-picker-header">
+      <div class="ct-picker-title">
+        <i class="bi bi-person-workspace me-2"></i>Current Occupation
+      </div>
+      <span class="ct-selected-badge" id="fromBadge">None selected</span>
+    </div>
+    <div class="ct-search-wrap">
+      <div class="sp-search-wrap">
+        <i class="bi bi-search sp-search-icon"></i>
+        <input class="sp-search-input" id="fromSearch" placeholder="Search occupation…" autocomplete="off"/>
+      </div>
+    </div>
+    <div class="ct-occ-list" id="fromList">
+      <div class="ct-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>
+    </div>
+  </div>
+
+  <!-- TO occupation -->
+  <div class="ct-picker">
+    <div class="ct-picker-header">
+      <div class="ct-picker-title">
+        <i class="bi bi-arrow-right-circle me-2"></i>Target Occupation
+      </div>
+      <span class="ct-selected-badge" id="toBadge">None selected</span>
+    </div>
+    <div class="ct-search-wrap">
+      <div class="sp-search-wrap">
+        <i class="bi bi-search sp-search-icon"></i>
+        <input class="sp-search-input" id="toSearch" placeholder="Search occupation…" autocomplete="off"/>
+      </div>
+    </div>
+    <div class="ct-occ-list" id="toList">
+      <div class="ct-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Analyze button -->
+<div class="ct-analyze-bar">
+  <span class="ct-arrow"><i class="bi bi-arrow-left-right"></i></span>
+  <button class="ct-btn" id="analyzeBtn" disabled onclick="analyzeTransition()">
+    <i class="bi bi-lightning-charge-fill"></i>
+    Analyze Transition
+  </button>
+  <span class="ct-arrow"><i class="bi bi-arrow-left-right"></i></span>
+</div>
+
+<!-- Results panel -->
+<div class="ct-results" id="ctResults">
+  <div class="ct-placeholder">
+    <i class="bi bi-arrow-left-right"></i>
+    <div>Select a <strong>current</strong> and <strong>target</strong> occupation above, then click Analyze.</div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="/templates/js/dashboard.js"></script>
+<script src="/templates/js/career.js"></script>
+{% endblock %}
