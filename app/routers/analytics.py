@@ -44,6 +44,18 @@ class CityDemandDetailResponse(BaseModel):
     total_jobs:       int
     demand_pct:       float
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# RESPONSE MODELS FOR ANALYTICS ENDPOINTS
+
+class DemandPredictionResponse(BaseModel):
+    occupation_id: int
+    occupation_title: str
+    current_demand: int
+    predicted_demand: int
+    growth_rate: float
+    confidence_score: float
+
 # ── Endpoints ────────────────────────────────────────────
 
 # 1. HOT SKILLS — no occupation filter, across all job posts
@@ -96,3 +108,22 @@ def city_demand_detail(
 ):
     """Top N occupations demanded in a specific city."""
     return get_city_demand_detail(db, city, limit)
+
+
+# 6. DEMAND FORECAST — Regression-based prediction for a city
+@router.get("/predict-demand-by-occ/{occupation_id}", response_model=DemandPredictionResponse)
+@limiter.limit("20/minute")
+def predict_occ_demand(
+    request: Request,
+    occupation_id: int,
+    limit: int = 10, 
+    db: Session = Depends(get_db)):
+    """
+    Fetches the regression-based demand forecast for a specific occupation.
+    """
+    from app.services.analytics_service import get_occupation_prediction
+    prediction = get_occupation_prediction(db, occupation_id)
+    if not prediction:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="No demand data found")
+    return prediction

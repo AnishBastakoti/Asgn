@@ -4,6 +4,7 @@
 const an = {
   selected: null
 };
+let forecastChartInstance = null; // Global reference to the Chart instance
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -32,6 +33,7 @@ window.selectOccupation = function(el) {
 
   loadShadowSkills(id);
   loadSkillDecay(id);
+  updateForecast(id); // Trigger the forecast chart update
 };
 
 // ── Shadow Skills ─────────────────────────────────────────────────────────────
@@ -122,4 +124,78 @@ html += `</tbody></table>`;
     </div>`;
     console.warn('[SkillPulse|AN] loadSkillDecay:', err.message);
   }
+}
+// 1. Ensure selectOccupation triggers the forecast
+window.selectOccupation = function(el) {
+  const id    = parseInt(el.dataset.id, 10);
+  const title = el.dataset.title;
+  const level = el.dataset.level;
+
+  an.selected = { id, title, level };
+
+  document.getElementById('anWelcome').style.display = 'none';
+  document.getElementById('anPanels').style.display  = 'flex';
+  document.getElementById('anOccName').textContent   = title;
+  document.getElementById('anOccLevel').textContent  = level ? `Level ${level}` : 'Level —';
+
+  loadShadowSkills(id);
+  loadSkillDecay(id);
+  updateForecast(id); // <--- Add this line to trigger the chart
+};
+
+// 2. Optimized Forecast Loader
+async function updateForecast(occupationId) {
+    const canvas = document.getElementById('forecastChart');
+    if (!canvas) return; // Safety check
+    const ctx = canvas.getContext('2d');
+    
+    try {
+        const response = await fetch(`/api/analytics/predict-demand-by-occ/${occupationId}`);
+        if (!response.ok) throw new Error("Forecast data unavailable");
+        const data = await response.json();
+
+        if (forecastChartInstance) {
+            forecastChartInstance.destroy(); // Prevents memory leaks
+        }
+
+        // Render the Predicted vs Actual Demand
+        forecastChartInstance = new Chart(ctx, {
+            type: 'line', 
+            data: {
+                labels: ['Current Demand', 'Predicted (30 Days)'],
+                datasets: [{
+                    label: 'Job Demand Trend',
+                    data: [data.current_demand, data.predicted_demand],
+                    borderColor: data.growth_rate >= 0 ? '#10b981' : '#ef4444',
+                    backgroundColor: data.growth_rate >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 6,
+                    pointBackgroundColor: '#fff',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => ` Demand: ${context.raw} (${data.growth_rate}% trend)`
+                        }
+                    }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true,
+                        ticks: { precision: 0 }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    } catch (error) {
+        console.error("[SkillPulse|AN] Forecast error:", error);
+    }
 }
