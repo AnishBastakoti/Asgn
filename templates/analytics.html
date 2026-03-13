@@ -3,6 +3,10 @@
 {% block page_title %}Skills Analytics{% endblock %}
 {% block page_sub %}Shadow Signals & Skill Decay Intelligence{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="/templates/stylesheet/analytics.css"/>
+{% endblock %}
+
 {% block content %}
 
 <div class="d-grid gap-3" style="grid-template-columns: 260px 1fr; display: grid;">
@@ -27,76 +31,103 @@
     <div id="anWelcome">{% include "centralbox.html" %}</div>
 
     <!-- Panels hidden until occupation selected -->
-    <div id="anPanels" style="display:none;flex-direction:column;" class="d-flex flex-column gap-3">
+    <div id="anPanels" style="display:none; flex-direction:column;" class="d-flex flex-column gap-0">
 
-      <!-- Occupation header -->
-      <div class="d-flex align-items-center justify-content-between mb-3">
+      <!-- ── Occupation header ── -->
+      <div class="an-occ-header">
         <div>
-          <div class="fw-bold fs-6 text-dark" id="anOccName">—</div>
-          <div class="text-muted small">Skills intelligence report</div>
+          <div class="an-occ-name" id="anOccName">—</div>
+          <div class="an-occ-sub">Skills intelligence report</div>
         </div>
-        <span class="badge bg-primary" id="anOccLevel">—</span>
+        <span class="sp-cbadge sp-cbadge--indigo" id="anOccLevel">—</span>
       </div>
 
-      <!-- Shadow Skills Card -->
-      <div class="card border shadow-sm mb-3">
-        <div class="card-header d-flex align-items-center justify-content-between bg-white py-3">
-          <div>
-            <div class="fw-bold text-dark small">
-              <i class="bi bi-eye-slash-fill me-2" style="color:#8B5CF6"></i>
-              Shadow Skills
-            </div>
-            <div class="text-muted" style="font-size:11.5px;">
-              Skills seen in real job posts but missing from the official OSCA mapping
-            </div>
-          </div>
-          <span class="badge bg-secondary rounded-pill" id="shadowCount">—</span>
-        </div>
-        <div class="card-body" id="shadowBody">
-          <div class="d-flex align-items-center justify-content-center py-4 gap-2 text-muted small">
-            <div class="sp-spinner-sm"></div>&nbsp;Loading…
-          </div>
-        </div>
+      <!-- ── Tab Buttons ── -->
+      <div class="an-tab-bar">
+        <button class="an-tab active" data-tab="shadow" onclick="switchTab('shadow')">
+          <i class="bi bi-eye-slash-fill me-2" style="color:#8B5CF6"></i>
+          Shadow Skills
+          <span class="an-tab-badge" id="shadowCount">—</span>
+        </button>
+        <button class="an-tab" data-tab="decay" onclick="switchTab('decay')">
+          <i class="bi bi-graph-down-arrow me-2" style="color:#EF4444"></i>
+          Skill Decay
+          <span class="an-tab-badge danger" id="decayCount">—</span>
+        </button>
+        <button class="an-tab" data-tab="velocity" onclick="switchTab('velocity')">
+          <i class="bi bi-lightning-charge-fill me-2" style="color:#F59E0B"></i>
+          Skill Velocity
+          <span class="an-tab-badge amber" id="velocitySnapshotBadge">—</span>
+        </button>
+        <button class="an-tab" data-tab="forecast" onclick="switchTab('forecast')">
+          <i class="bi bi-magic me-2" style="color:#6366F1"></i>
+              Predictive Demand Forecast
+        </button>
+
+        <button class="an-tab" data-tab="saturation" onclick="switchTab('saturation')">
+          <i class="bi bi-speedometer2 me-2" style="color:#0EA5E9"></i>
+          Market Saturation
+          <span class="an-tab-badge sky" id="saturationStatusBadge">—</span>
+        </button>
       </div>
 
-      <!-- Skill Decay Card -->
-      <div class="card border shadow-sm">
-        <div class="card-header d-flex align-items-center justify-content-between bg-white py-3">
-          <div>
-            <div class="fw-bold text-dark small">
-              <i class="bi bi-graph-down-arrow me-2 text-danger"></i>
-              Skill Decay
-            </div>
-            <div class="text-muted" style="font-size:11.5px;">
-              Skills whose demand has dropped 50%+ since earliest snapshot
-            </div>
+      <!-- ── Tab Panels ── -->
+      <div class="an-tab-content">
+
+        <!-- Shadow Skills -->
+        <div class="an-tab-panel active" id="tab-shadow">
+          <div class="an-panel-desc">
+            Skills seen in real job posts but missing from the official OSCA mapping — these are emerging or unlisted skills.
           </div>
-          <span class="badge bg-danger rounded-pill" id="decayCount">—</span>
-        </div>
-        <div class="card-body p-0" id="decayBody">
-          <div class="d-flex align-items-center justify-content-center py-4 gap-2 text-muted small">
-            <div class="sp-spinner-sm"></div>&nbsp;Loading…
+          <div id="shadowBody">
+            <div class="an-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>
           </div>
         </div>
-      </div>
-<!-- Predictive Demand Forecast Card -->
-      <div class="card border shadow-sm mt-3">
-        <div class="card-header bg-white py-3">
-            <div class="fw-bold text-dark small">
-                <i class="bi bi-magic me-2 text-primary"></i>
-                Predictive Demand Forecast
-            </div>
-            <div class="text-muted" style="font-size:11.5px;">
-                Regression analysis based on current job counts and emerging shadow skill signals.
-            </div>
-        </div>
-        <div class="card-body">
-            <canvas id="forecastChart" style="max-height: 250px;"></canvas>
-        </div>
-    </div>
 
+        <!-- Skill Decay -->
+        <div class="an-tab-panel" id="tab-decay">
+          <div class="an-panel-desc">
+            Skills whose demand has dropped 50%+ comparing earliest vs most recent snapshot batch.
+          </div>
+          <div id="decayBody">
+            <div class="an-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>
+          </div>
+        </div>
 
-    </div>
+        <!-- Skill Velocity -->
+        <div class="an-tab-panel" id="tab-velocity">
+          <div class="an-panel-desc">
+            Skills rising or falling in demand velocity across pipeline snapshots. More snapshots = more accurate signals.
+          </div>
+          <div id="velocityBody">
+            <div class="an-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>
+          </div>
+        </div>
+
+        <!-- Market Saturation -->
+        <div class="an-tab-panel" id="tab-saturation">
+          <div class="an-panel-desc">
+            Supply vs demand balance relative to platform averages — identifies hot, balanced, or saturated occupations.
+          </div>
+          <div id="saturationBody">
+            <div class="an-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>
+          </div>
+        </div>
+
+        <!-- Predictive Demand Forecast -->
+        <div class="an-tab-panel" id="tab-forecast">
+          <div class="an-panel-desc">
+            Regression analysis based on current job counts and emerging shadow skill signals.
+          </div>
+          <div style="height:220px;">
+            <canvas id="forecastChart"></canvas>
+          </div>
+        </div>
+
+        
+      </div><!-- /an-tab-content -->
+
+    </div><!-- /anPanels -->
   </div>
 </div>
 

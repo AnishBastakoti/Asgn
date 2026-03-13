@@ -32,7 +32,7 @@ window.selectOccupation = function(el) {
   document.getElementById('anOccLevel').textContent  = level ? `Level ${level}` : 'Level —';
 
   loadShadowSkills(id);
-  loadSkillDecay(id);
+  loadSkillDecay(id); 
   updateForecast(id); // Trigger the forecast chart update
 };
 
@@ -125,6 +125,20 @@ html += `</tbody></table>`;
     console.warn('[SkillPulse|AN] loadSkillDecay:', err.message);
   }
 }
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tabName) {
+  // Update button states
+  document.querySelectorAll('.an-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+  // Show correct panel
+  document.querySelectorAll('.an-tab-panel').forEach(panel => {
+    panel.classList.toggle('active', panel.id === `tab-${tabName}`);
+  });
+}
+
+
 // 1. Ensure selectOccupation triggers the forecast
 window.selectOccupation = function(el) {
   const id    = parseInt(el.dataset.id, 10);
@@ -141,6 +155,8 @@ window.selectOccupation = function(el) {
   loadShadowSkills(id);
   loadSkillDecay(id);
   updateForecast(id); // <--- Add this line to trigger the chart
+  loadSkillVelocity(id);      
+  loadMarketSaturation(id);
 };
 
 // 2. Optimized Forecast Loader
@@ -198,4 +214,197 @@ async function updateForecast(occupationId) {
     } catch (error) {
         console.error("[SkillPulse|AN] Forecast error:", error);
     }
+}
+
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+// SKILL VELOCITY
+// ─────────────────────────────────────────────────────────────────────────────
+async function loadSkillVelocity(occId) {
+  const body  = document.getElementById('velocityBody');
+  const badge = document.getElementById('velocitySnapshotBadge');
+  body.innerHTML = `<div class="an-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>`;
+ 
+  try {
+    const data = await api(`/api/analytics/skill-velocity/${occId}`);
+    const snapCount = data.snapshot_count ?? 0;
+ 
+    badge.textContent = `${snapCount} snapshot${snapCount !== 1 ? 's' : ''}`;
+ 
+    // ── Single snapshot — show ranked stable list ──
+    if (snapCount < 2) {
+      const skills = data.stable ?? [];
+      if (!skills.length) {
+        body.innerHTML = `<div class="an-empty">
+          <i class="bi bi-hourglass-split me-2"></i>
+          No snapshot data yet — velocity will appear after the next pipeline run.
+        </div>`;
+        return;
+      }
+ 
+      body.innerHTML = `
+        <div class="an-velocity-notice mb-3">
+          <i class="bi bi-info-circle me-2" style="color:#6366F1"></i>
+          Only <strong>1 snapshot</strong> available. Showing current skill rankings.
+          Velocity arrows will appear after the next pipeline run.
+        </div>
+        <div class="an-vel-cols">
+          <div>
+            <div class="an-vel-col-head">
+              <i class="bi bi-bar-chart-fill me-1" style="color:#6366F1"></i>
+              Current Demand Ranking
+            </div>
+            ${skills.map((s, i) => `
+              <div class="an-vel-row">
+                <span class="an-vel-rank">${i + 1}</span>
+                <span class="an-vel-name">${esc(s.skill_name)}</span>
+                <span class="an-vel-count">${s.latest_count}</span>
+                <span class="an-vel-badge stable">
+                  <i class="bi bi-dash"></i> Stable
+                </span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+      return;
+    }
+ 
+    // ── Multiple snapshots — show rising / falling ──
+    const rising  = data.rising  ?? [];
+    const falling = data.falling ?? [];
+ 
+    if (!rising.length && !falling.length) {
+      body.innerHTML = `<div class="an-empty">
+        <i class="bi bi-check-circle me-2" style="color:var(--emerald)"></i>
+        All skills are stable — no significant velocity changes detected.
+      </div>`;
+      return;
+    }
+ 
+    const renderGroup = (skills, type) => skills.length
+      ? skills.map((s, i) => `
+          <div class="an-vel-row">
+            <span class="an-vel-rank">${i + 1}</span>
+            <span class="an-vel-name">${esc(s.skill_name)}</span>
+            <span class="an-vel-count">${s.latest_count}</span>
+            <span class="an-vel-badge ${type}">
+              <i class="bi bi-arrow-${type === 'rising' ? 'up' : 'down'}-short"></i>
+              ${type === 'rising' ? '+' : ''}${s.slope.toFixed(2)}
+            </span>
+          </div>`).join('')
+      : `<div class="text-muted small py-2 ps-2">None detected</div>`;
+ 
+    body.innerHTML = `
+      <div class="an-vel-cols">
+        <div>
+          <div class="an-vel-col-head" style="color:#10B981">
+            <i class="bi bi-arrow-up-circle-fill me-1"></i> Rising Skills
+          </div>
+          ${renderGroup(rising, 'rising')}
+        </div>
+        <div>
+          <div class="an-vel-col-head" style="color:#EF4444">
+            <i class="bi bi-arrow-down-circle-fill me-1"></i> Falling Skills
+          </div>
+          ${renderGroup(falling, 'falling')}
+        </div>
+      </div>`;
+ 
+  } catch (err) {
+    body.innerHTML = `<div class="an-empty text-danger">
+      <i class="bi bi-exclamation-triangle me-2"></i>Could not load velocity data.
+    </div>`;
+    console.warn('[SkillPulse|AN] loadSkillVelocity:', err.message);
+  }
+}
+ 
+ 
+// ─────────────────────────────────────────────────────────────────────────────
+// MARKET SATURATION
+// ─────────────────────────────────────────────────────────────────────────────
+async function loadMarketSaturation(occId) {
+  const body  = document.getElementById('saturationBody');
+  const badge = document.getElementById('saturationStatusBadge');
+  body.innerHTML = `<div class="an-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>`;
+ 
+  try {
+    const d = await api(`/api/analytics/market-saturation/${occId}`);
+ 
+    // ── Status badge colour ──
+    const badgeStyle = {
+      hot:       'background:#DCFCE7; color:#15803D; border:1px solid #86EFAC',
+      balanced:  'background:#EFF6FF; color:#1D4ED8; border:1px solid #93C5FD',
+      saturated: 'background:#FEF2F2; color:#B91C1C; border:1px solid #FCA5A5',
+      no_data:   'background:#F3F4F6; color:#6B7280; border:1px solid #D1D5DB',
+      error:     'background:#F3F4F6; color:#6B7280; border:1px solid #D1D5DB',
+    };
+    const statusIcon = {
+      hot: 'bi-fire', balanced: 'bi-check2-circle',
+      saturated: 'bi-exclamation-circle', no_data: 'bi-dash-circle', error: 'bi-x-circle'
+    };
+ 
+    badge.style.cssText = badgeStyle[d.status] ?? badgeStyle.no_data;
+    badge.innerHTML = `<i class="bi ${statusIcon[d.status] ?? 'bi-dash'} me-1"></i>${esc(d.label)}`;
+ 
+    if (d.status === 'no_data' || d.status === 'error') {
+      body.innerHTML = `<div class="an-empty">${esc(d.insight)}</div>`;
+      return;
+    }
+ 
+    // ── Gauge bar (0–2 range mapped to 0–100%) ──
+    const gaugePct   = Math.min((d.saturation_score / 2) * 100, 100);
+    const gaugeColor = d.status === 'hot' ? '#10B981'
+                     : d.status === 'saturated' ? '#EF4444' : '#6366F1';
+ 
+    body.innerHTML = `
+      <!-- Score gauge -->
+      <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="small fw-semibold text-muted">Saturation Score</span>
+          <span class="fw-bold" style="color:${gaugeColor}; font-size:18px;">${d.saturation_score.toFixed(2)}</span>
+        </div>
+        <div class="an-gauge-track">
+          <!-- Zone markers -->
+          <div class="an-gauge-zone saturated" style="width:40%"></div>
+          <div class="an-gauge-zone balanced"  style="width:20%"></div>
+          <div class="an-gauge-zone hot"       style="width:40%"></div>
+          <!-- Needle -->
+          <div class="an-gauge-needle" style="left:${gaugePct}%; background:${gaugeColor};"></div>
+        </div>
+        <div class="d-flex justify-content-between" style="font-size:10px; color:#9CA3AF; margin-top:4px;">
+          <span>Saturated</span><span>Balanced</span><span>Hot</span>
+        </div>
+      </div>
+ 
+      <!-- Stats grid -->
+      <div class="an-sat-grid mb-3">
+        <div class="an-sat-stat">
+          <div class="an-sat-val">${d.occ_demand}</div>
+          <div class="an-sat-lbl">This Occ. Jobs</div>
+        </div>
+        <div class="an-sat-stat">
+          <div class="an-sat-val">${Math.round(d.platform_avg_demand)}</div>
+          <div class="an-sat-lbl">Platform Avg</div>
+        </div>
+        <div class="an-sat-stat">
+          <div class="an-sat-val">${d.occ_skill_count}</div>
+          <div class="an-sat-lbl">Skills Mapped</div>
+        </div>
+        <div class="an-sat-stat">
+          <div class="an-sat-val">${Math.round(d.platform_avg_skills)}</div>
+          <div class="an-sat-lbl">Avg Skills/Occ</div>
+        </div>
+      </div>
+ 
+      <!-- Insight text -->
+      <div class="an-insight-box">
+        <i class="bi bi-lightbulb-fill me-2" style="color:#F59E0B"></i>
+        ${esc(d.insight)}
+      </div>`;
+ 
+  } catch (err) {
+    body.innerHTML = `<div class="an-empty text-danger">
+      <i class="bi bi-exclamation-triangle me-2"></i>Could not load saturation data.
+    </div>`;
+    console.warn('[SkillPulse|AN] loadMarketSaturation:', err.message);
+  }
 }
