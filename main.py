@@ -130,6 +130,10 @@ def serve_pipeline(request: Request):
 def serve_career(request: Request):
     return _render(request, "career.html", "career")
 
+@app.get("/model-status", response_class=HTMLResponse, include_in_schema=False)
+def serve_model_status(request: Request):
+    return _render(request, "model_status.html", "model_status")
+
 # ── Health Check ─
 @app.get("/health", tags=["System"])
 def health_check():
