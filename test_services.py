@@ -5,7 +5,7 @@ from app.database import SessionLocal
 from app.services.skills_service import get_dashboard_summary, get_top_skills_for_occupation
 from app.services.occupation_service import get_major_groups, get_sub_major_groups, get_occupations
 # from app.services import skills_service
-# from app.services import occupation_service
+# from app.services import occupations_service
 
 db = SessionLocal()
 print("\n=== Testing Occupation Service ===")
