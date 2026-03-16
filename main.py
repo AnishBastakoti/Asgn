@@ -1,6 +1,5 @@
 import logging
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -110,24 +109,13 @@ def serve_occupations(request: Request):
 def serve_analytics(request: Request):
     return _render(request, "analytics.html", "analytics")
 
-
-@app.get("/pipeline", response_class=HTMLResponse, include_in_schema=False)
-def serve_pipeline(request: Request):
-    return _render(request, "pipeline.html", "pipeline")
-
-
-@app.get(
-    "/occupation/{occupation_id}",
-    response_class=HTMLResponse,
-    include_in_schema=False,
-)
-def serve_occupation_detail(request: Request, occupation_id: int):
-    return _render(
-        request,
-        "occupation_analytics.html",
-        "occupations",
-        occupation_id=occupation_id,
-    )
+# def serve_occupation_detail(request: Request, occupation_id: int):
+#     return _render(
+#         request,
+#         "occupation_analytics.html",
+#         "occupations",
+#         occupation_id=occupation_id,
+#     )
 
 @app.get("/occupations", response_class=HTMLResponse)
 async def occupations_page(request: Request):
@@ -162,7 +150,6 @@ async def startup_event():
     """
     Runs once when the application starts.
     """
-    setup_logging()  # Configure logging first
     verify_connection()  # Check DB connection before accepting requests
     logger.info(f" {settings.APP_NAME} v{settings.APP_VERSION} starting...")
     logger.info(f" Dashboard: http://localhost:8000")

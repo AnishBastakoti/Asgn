@@ -13,7 +13,11 @@ from app.services.analytics_service import (
     get_skill_velocity,
     get_market_saturation,
     get_occupation_profile,
-    get_career_transition
+    get_career_transition,
+    get_occupation_similarity,
+    get_occupation_clusters,
+    get_demand_forecast,
+    get_model_status,
 )
 #from main import Limiter
 
@@ -96,6 +100,8 @@ class DemandPredictionResponse(BaseModel):
     predicted_demand: int
     growth_rate: float
     confidence_score: float
+    method: Optional[str] = None
+    r2_score: Optional[float] = None
 
 # ── Endpoints ────────────────────────────────────────────
 
@@ -242,9 +248,43 @@ def occupation_similarity(
 def occupation_clusters(
     request: Request,
     occupation_id: int,
-    n_clusters: int = 12,
+    n_clusters: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
     """Returns the K-Means cluster the occupation belongs to and its cluster peers."""
     from app.services.analytics_service import get_occupation_clusters
     return get_occupation_clusters(db, occupation_id, n_clusters)
+
+
+# ── CITY DEMAND FORECAST — Ridge regression per city
+@router.get("/city-forecast/{city}")
+@limiter.limit("10/minute")
+def city_demand_forecast(
+    request: Request,
+    city: str,
+    db: Session = Depends(get_db)
+):
+    """Predicts demand for all occupations in a city using trained Ridge model."""
+    return get_demand_forecast(db, city)
+ 
+ 
+# ── MODEL STATUS — training metrics and cache state
+@router.get("/model-status")
+@limiter.limit("10/minute")
+def model_status(request: Request, db: Session = Depends(get_db)):
+    """Returns Ridge model training status, R² score, and feature list."""
+    return get_model_status(db)
+ 
+ 
+# ── ELBOW ANALYSIS — optimal K for K-Means
+@router.get("/elbow-analysis")
+@limiter.limit("5/minute")
+def elbow_analysis(
+    request: Request,
+    k_max: int = 20,
+    db: Session = Depends(get_db)
+):
+    """Runs K-Means for k=2..k_max and returns inertia values + optimal K."""
+    from app.services.analytics_service import get_elbow_data
+    return get_elbow_data(db, k_max)
+ 

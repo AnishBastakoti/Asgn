@@ -146,33 +146,56 @@ function switchTab(tabName) {
 // Optimized Forecast Loader
 async function updateForecast(occupationId) {
     const canvas = document.getElementById('forecastChart');
-    if (!canvas) return; // Safety check
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    
+
     try {
         const response = await fetch(`/api/analytics/predict-demand-by-occ/${occupationId}`);
         if (!response.ok) throw new Error("Forecast data unavailable");
         const data = await response.json();
 
-        if (forecastChartInstance) {
-            forecastChartInstance.destroy(); // Prevents memory leaks
+        // ── KPI strip ──
+        const growthColor = data.growth_rate >= 0 ? '#10B981' : '#EF4444';
+        const el = id => document.getElementById(id);
+        if (el('fcCurrentDemand'))   el('fcCurrentDemand').textContent   = fmt(data.current_demand);
+        if (el('fcPredictedDemand')) el('fcPredictedDemand').textContent = fmt(data.predicted_demand);
+        if (el('fcGrowthRate')) {
+            el('fcGrowthRate').textContent = `${data.growth_rate > 0 ? '+' : ''}${data.growth_rate}%`;
+            el('fcGrowthRate').style.color  = growthColor;
+        }
+        if (el('fcConfidence')) {
+            el('fcConfidence').textContent = `${Math.round((data.confidence_score || 0) * 100)}%`;
         }
 
-        // Render the Predicted vs Actual Demand
+        // ── Model info footer ──
+        const methodLabel = data.method === 'ridge_regression' ? '⚡ Ridge Regression' : '📈 Momentum Forecast';
+        const r2Text      = data.r2_score != null ? `R²=${data.r2_score.toFixed(3)}` : '';
+        if (el('forecastModelInfo')) {
+            el('forecastModelInfo').innerHTML = `
+                <span><strong>Model:</strong> ${methodLabel}</span>
+                ${r2Text ? `<span><strong>Accuracy:</strong> ${r2Text}</span>` : ''}
+                <span><strong>Features:</strong> demand · shadow skills · skill count · city diversity · avg mention</span>
+            `;
+        }
+
+        // ── Chart ──
+        if (forecastChartInstance) forecastChartInstance.destroy();
+
         forecastChartInstance = new Chart(ctx, {
-            type: 'line', 
+            type: 'line',
             data: {
                 labels: ['Current Demand', 'Predicted (30 Days)'],
                 datasets: [{
                     label: 'Job Demand Trend',
                     data: [data.current_demand, data.predicted_demand],
-                    borderColor: data.growth_rate >= 0 ? '#10b981' : '#ef4444',
-                    backgroundColor: data.growth_rate >= 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                    borderColor: growthColor,
+                    backgroundColor: data.growth_rate >= 0 ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
                     fill: true,
                     tension: 0.3,
                     pointRadius: 6,
                     pointBackgroundColor: '#fff',
-                    pointBorderWidth: 2
+                    pointBorderWidth: 2,
+                    borderWidth: 2,
                 }]
             },
             options: {
@@ -182,19 +205,17 @@ async function updateForecast(occupationId) {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: (context) => ` Demand: ${context.raw} (${data.growth_rate}% trend)`
+                            label: ctx => ` ${ctx.raw} jobs (${data.growth_rate > 0 ? '+' : ''}${data.growth_rate}%)`
                         }
                     }
                 },
                 scales: {
-                    y: { 
-                        beginAtZero: true,
-                        ticks: { precision: 0 }
-                    },
+                    y: { beginAtZero: true, ticks: { precision: 0 } },
                     x: { grid: { display: false } }
                 }
             }
         });
+
     } catch (error) {
         console.error("[SkillPulse|AN] Forecast error:", error);
     }
