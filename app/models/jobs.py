@@ -17,9 +17,7 @@ class JobPostLog(Base):
     """
     Raw job posting scraped from the web.
 
-    AI processing stats (as of last pipeline run):
-        processed_by_ai = False → 3,907 rows (98.83 %)
-        processed_by_ai = True  →    54 rows  ( 1.17 %)
+    AI processing stats (as of last pipeline run)
     """
 
     __tablename__ = "job_post_logs"

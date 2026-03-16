@@ -6,7 +6,7 @@ import logging
 import hashlib
 import time
 
-from config import settings  # ← only import, no redefinition
+from config import settings 
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ def _build_engine():
         pool_size=5,
         max_overflow=10,
         pool_timeout=30,
-        echo=False,
+        echo=True,
         pool_recycle=3600,
         pool_pre_ping=True
     )
@@ -67,7 +67,6 @@ def get_db():
 
 @contextmanager
 def get_db_context():
-    """Use outside FastAPI request context — scripts, pipeline, etc."""
     db = SessionLocal()
     try:
         yield db
@@ -77,3 +76,15 @@ def get_db_context():
         raise
     finally:
         db.close()
+
+
+def verify_connection() -> None:
+    try:
+        with _engine.connect() as conn:
+            version = conn.execute(text("SELECT version()")).scalar()
+            logger.info(f"[{_AUTHOR}|SkillPulse] ✅ Database connected: {version[:60]}")
+            row = conn.execute(text("SELECT COUNT(*) FROM osca_occupations")).scalar()
+            logger.info(f"[{_AUTHOR}|SkillPulse] ✅ Occupations loaded: {row:,} rows")
+    except Exception as e:
+        logger.error(f"[{_AUTHOR}|SkillPulse] ❌ Database connection failed: {e}")
+        raise

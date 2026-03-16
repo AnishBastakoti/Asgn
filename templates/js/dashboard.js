@@ -158,7 +158,7 @@ async function loadOccupations() {
     const occs = await api(url);
     state.occupations = occs;
     
-    // Step 1: Create the Index
+    // Create the Index
     state.searchIndex = occs.map(o => ({
       id: String(o.id),
       title: (o.title || "").toLowerCase(),
@@ -168,7 +168,7 @@ async function loadOccupations() {
     }));
 
     state.filtered = occs;
-    renderOccList(occs.slice(0, 50)); // Step 4: Limit initial render
+    renderOccList(occs.slice(0, 50)); //Limit initial render
   } catch (err) {
     list.innerHTML = '<div class="sp-occ-empty">Failed to load</div>';
     console.warn('Failed to load occupations:', err.message);

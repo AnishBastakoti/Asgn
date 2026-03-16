@@ -166,7 +166,7 @@ def get_occupation_detail(occupation_id: int, db: Session = Depends(get_db)):
             OscaOccupation.specialisations,
             OscaOccupation.main_tasks,
             OscaOccupation.information_card,
-            # embedding deliberately excluded
+            # embedding excluded
         )
         .filter(OscaOccupation.id == occupation_id)
         .first()

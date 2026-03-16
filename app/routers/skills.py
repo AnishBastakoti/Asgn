@@ -105,7 +105,7 @@ def get_skill_breakdown(
 ):
     """
     Skill type distribution for the donut chart.
-    Groups skills by ESCO type (knowledge / skill/competence / attitude).
+    Groups skills by ESCO type (knowledge / skill/ competence).
     """
     rows = (
         db.query(

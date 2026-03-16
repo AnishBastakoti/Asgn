@@ -1,7 +1,4 @@
-# These tables are the CORE of the dashboard — they power every insight about skill demand and trends.
-# mention_count drives every chart and insight about skill demand.
-
-''' i didnot work on vector embedding for now but
+''' i did not work on vector embedding for now but
  i have added the content_hash field in esco_skill table which 
  will be used to check if the skill has changed or not and 
  if it has changed then we can update the embedding for that skill.
@@ -33,7 +30,6 @@ class EscoSkill(Base):
     #hash of the skill content, used to detect duplicates
     #this is a fingerprinting technique for data
     
-
     # Relationships
     occupation_skills = relationship(
         "OscaOccupationSkill",
@@ -80,7 +76,7 @@ class OscaOccupationSkillSnapshot(Base):
     occupation_id    = Column(BigInteger, ForeignKey("osca_occupations.id"))
     skill_id         = Column(BigInteger, ForeignKey("esco_skills.id"))
     job_execution_id = Column(BigInteger, nullable=True)
-    mention_count    = Column(Integer, nullable=False, default=0) # Every bar chart, every ranking, every trend line comes from here
+    mention_count    = Column(Integer, nullable=False, default=0) # Every bar chart, every ranking, every trend line from here
     snapshot_date    = Column(DateTime, nullable=True)
 
     occupation = relationship("OscaOccupation", lazy="select")
