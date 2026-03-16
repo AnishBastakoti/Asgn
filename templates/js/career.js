@@ -10,7 +10,7 @@ const ct = {
 // ── Boot ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadOccupations();
-
+// search filter
   document.getElementById('fromSearch')?.addEventListener('input', e => {
     renderList('fromList', e.target.value, 'from');
   });
@@ -85,8 +85,15 @@ async function analyzeTransition() {
   const results = document.getElementById('ctResults');
   results.innerHTML = `<div class="ct-loading"><div class="sp-spinner-sm"></div>&nbsp;Analysing transition…</div>`;
 
-  try {
-    const d = await api(`/api/analytics/career-transition?from_id=${ct.fromId}&to_id=${ct.toId}`);
+  try {    
+    const [d, sim] = await Promise.all([
+      api(`/api/analytics/career-transition?from_id=${ct.fromId}&to_id=${ct.toId}`),
+      api(`/api/analytics/occupation-similarity/${ct.fromId}?top_n=1`)
+    ]);
+
+    // Find similarity score for the specific target occupation
+    const toMatch = sim.similar?.find(o => o.occupation_id === ct.toId);
+    const cosineScore = toMatch ? toMatch.similarity_score : d.overlap_pct;
 
     if (d.error) {
       results.innerHTML = `<div class="ct-placeholder"><i class="bi bi-exclamation-triangle"></i><div>${esc(d.error)}</div></div>`;
@@ -109,8 +116,8 @@ async function analyzeTransition() {
       <!-- KPIs — only difficulty is coloured -->
       <div class="ct-kpi-row">
         <div class="ct-kpi">
-          <div class="ct-kpi-val">${d.overlap_pct}%</div>
-          <div class="ct-kpi-lbl">Skills Overlap</div>
+          <div class="ct-kpi-val">${cosineScore}%</div>
+          <div class="ct-kpi-lbl">Cosine Similarity</div>
         </div>
         <div class="ct-kpi">
           <div class="ct-kpi-val">${d.shared_count}</div>

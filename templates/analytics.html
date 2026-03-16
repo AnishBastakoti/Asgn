@@ -74,6 +74,18 @@
           <i class="bi bi-person-lines-fill me-2" style="color:#0EA5E9"></i>
           Occupation Profile
         </button>
+
+        <button class="an-tab" data-tab="similar" onclick="switchTab('similar')">
+          <i class="bi bi-diagram-3-fill me-2" style="color:var(--indigo)"></i>
+          Similar Occupations
+          <span class="an-tab-badge" id="similarCount">—</span>
+        </button>
+        <button class="an-tab" data-tab="cluster" onclick="switchTab('cluster')">
+          <i class="bi bi-grid-3x3-gap-fill me-2" style="color:#8B5CF6"></i>
+          Occupation Cluster
+          <span class="an-tab-badge" id="clusterBadge">—</span>
+        </button>
+
       </div>
 
       <!-- ── Tab Panels ── -->
@@ -122,7 +134,8 @@
         <!-- Predictive Demand Forecast -->
         <div class="an-tab-panel" id="tab-forecast">
           <div class="an-panel-desc">
-            Regression analysis based on current job counts and emerging shadow skill signals.
+            Occupation Forecast: Uses Market Velocity (Current vs Historical Mean) 
+    and Skill Density to predict future demand.
           </div>
           <div style="height:220px;">
             <canvas id="forecastChart"></canvas>
@@ -138,6 +151,25 @@
           </div>
         </div>
 
+          <!-- Similar Occupations -->
+        <div class="an-tab-panel" id="tab-similar">
+          <div class="an-panel-desc">
+            Occupations most similar to this one based on cosine similarity of their ESCO skill vectors.
+          </div>
+          <div id="similarBody">
+            <div class="an-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>
+          </div>
+        </div>
+
+        <!-- Occupation Cluster -->
+        <div class="an-tab-panel" id="tab-cluster">
+          <div class="an-panel-desc">
+            K-Means cluster peers — occupations grouped by shared skill profile.
+          </div>
+          <div id="clusterBody">
+            <div class="an-loading"><div class="sp-spinner-sm"></div>&nbsp;Clustering…</div>
+          </div>
+        </div>
         
       </div><!-- /an-tab-content -->
 

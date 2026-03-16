@@ -39,7 +39,7 @@ const JT_COLORS = [
 /**
  * Converts a hex colour to rgba() so Chart.js canvas renderer
  * handles transparency correctly across all browsers.
- * 8-digit hex (#RRGGBBAA) is CSS4 but not reliably supported on canvas.
+ * 8-digit hex is CSS4 but not reliably supported on canvas.
  */
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -176,14 +176,15 @@ function switchTab(name) {
 
 async function loadTabData(tab) {
   if (!jt.selected)   return;
-  if (jt.loaded[tab]) return; // already loaded for this occupation — skip
+  if (jt.loaded[tab]) return;
 
   // Mark loaded BEFORE await to prevent double-fetch if user clicks fast
   jt.loaded[tab] = true;
-  // Show spinner — for chart panes we MUST NOT overwrite .jt-chart-wrap
-  // because that destroys the <canvas> element inside it.
-  // Instead overlay a spinner above the chart, and only overwrite innerHTML
-  // for heatmap/companies panes that don't use a persistent canvas.
+  /* Show spinner — for chart panes we MUST NOT overwrite .jt-chart-wrap
+     because that destroys the <canvas> element inside it.
+     Instead overlay a spinner above the chart, and only overwrite innerHTML
+    for heatmap/companies panes that don't use a persistent canvas.
+  */
   const pane = document.getElementById(`pane-${tab}`);
   if (pane) {
     if (tab === 'overlap' || tab === 'companies') {
@@ -391,9 +392,9 @@ async function renderTrends(occId) {
             },
           },
           tooltip: {
-            backgroundColor: 'rgba(17,24,39,0.92)',  // near-black, not solid black
-            titleColor:      '#A5B4FC',               // indigo-300 — matches brand
-            bodyColor:       '#E5E7EB',               // neutral-200
+            backgroundColor: 'rgba(17,24,39,0.92)',  
+            titleColor:      '#A5B4FC',              
+            bodyColor:       '#E5E7EB',              
             borderColor:     'rgba(99,102,241,0.3)',
             borderWidth:     1,
             padding:         12,
@@ -453,7 +454,7 @@ async function renderTrends(occId) {
             grid:  { color: '#F3F4F6', drawBorder: false },
             border: { display: true },
             min: 0,
-            max: maxCount < 5 ? 5 : undefined, // if counts are low, set max to 5 for better scaling
+            max: maxCount < 5 ? 5 : undefined, // if counts are low, sets max to 5 for better scaling
             ticks: {
               font: { size: 11, weight: '600' },
               color: '#6B7280',

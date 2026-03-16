@@ -1,5 +1,3 @@
-# Matches exact database schema from ERD
-
 from sqlalchemy import Boolean, Column, Float, Integer, String, Text, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 from app.database import Base

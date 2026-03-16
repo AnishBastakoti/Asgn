@@ -2,7 +2,7 @@ import logging
 import pandas as pd
 import numpy as np
 
-from sklearn.linear_model import Ridge # Ridge handles multicollinearity better than OLS
+from sklearn.linear_model import Ridge # Ridge handles multicollinearity
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
 from datetime import datetime, timedelta, timezone
@@ -14,11 +14,13 @@ from app.models.jobs import JobPostLog, JobPostSkill
 
 logger = logging.getLogger(__name__)
 
+# ── K-Means optimal K cache ────────────────────────────────────
+_OPTIMAL_K_CACHE: dict = {"k": None, "occ_count": None}
 
 # ─────────────────────────────────────────────
 # HOT SKILLS
 # Returns top 50 most-mentioned skills from job posts in the last N days.
-# Date filter uses job_post_logs.ingested_at (posted_date doesn't exist).
+# Date filter uses job_post_logs.ingested_at.
 # ─────────────────────────────────────────────
 
 def get_hot_skills(db: Session, days: int = 30) -> list[dict]:
@@ -66,7 +68,6 @@ def get_hot_skills(db: Session, days: int = 30) -> list[dict]:
 # SHADOW SKILLS
 # Skills appearing in job postings for an occupation but NOT in the
 # official osca_occupation_skills mapping for that occupation.
-# Param: occupation_id (int) — osca_code doesn't exist in the schema.
 # ─────────────────────────────────────────────
 
 def get_shadow_skills(db: Session, occupation_id: int) -> list[dict]:
@@ -76,7 +77,7 @@ def get_shadow_skills(db: Session, occupation_id: int) -> list[dict]:
     These are "shadow" signals — emerging or unlisted skills.
     """
     try:
-        # Subquery: skill_ids already officially mapped to this occupation
+        # Subquery: skill_ids already mapped to this occupation
         mapped = (
             db.query(OscaOccupationSkill.skill_id)
             .filter(OscaOccupationSkill.occupation_id == occupation_id)
@@ -154,7 +155,7 @@ def get_skill_decay(db: Session, occupation_id: int) -> list[dict]:
         if not earliest_exec or not latest_exec or earliest_exec == latest_exec:
             return []
 
-        # Fetch both snapshots as dicts keyed by skill_id
+        # Fetch both snapshots as dictionaries keyed by skill_id
         early_rows = (
             db.query(
                 OscaOccupationSkillSnapshot.skill_id,
@@ -330,11 +331,13 @@ def get_city_demand_detail(db: Session, city: str, limit: int = 10, from_date: s
 
 def get_regression_data(db: Session):
     """
-    Harvests features from multiple tables 
-    to create a training matrix.
+    Harvests features from multiple tables to create a training matrix.
     Formula to predict future demand (job counts) for occupations based on current demand and shadow skill signals:
-    $$\text{Predicted Demand} = \beta_0 + (\beta_1 \times \text{Current Count}) + (\beta_2 \times \text{Shadow Skills})
-    $$$\beta_1$ tells us the growth trend.$\beta_2$ tells us if "Shadow Skills" are a leading indicator of future jobs.
+    Predicted Demand = β^0+ (β^1× Current Count)+ (β^2× Shadow Skills)
+    β₀ represents the intercept of the model.
+    β₁ indicates the relationship between the current job count and future demand, representing the growth trend.
+    β₂ measures the influence of shadow skills on future job demand and helps determine 
+    whether these skills act as a leading indicator of future employment opportunities.
     """
     # Get base demand data
     query = db.query(
@@ -392,7 +395,7 @@ def get_occupation_features(db: Session, occupation_id: int):
 
 def get_occupation_prediction(db: Session, occupation_id: int):
     """
-    Advanced Forecast: Uses Market Velocity (Current vs Historical Mean) 
+    Occupation Forecast: Uses Market Velocity (Current vs Historical Mean) 
     and Skill Density to predict future demand.
     """
     # Fetch current demand and title
@@ -407,7 +410,7 @@ def get_occupation_prediction(db: Session, occupation_id: int):
         .filter(SkillpulseCityOccupationDemand.occupation_id == occupation_id)\
         .scalar() or current_val
     
-    # Calculate Velocity (Is the market accelerating or slowing down?)
+    # Calculate Velocity (Is the market accelerating or slowing down)
     # If current > average, momentum is positive.
     velocity = (float(current_val) - float(avg_historical)) / float(avg_historical) if avg_historical > 0 else 0
     
@@ -436,7 +439,7 @@ def get_demand_forecast(db: Session, city: str):
     Logic: We take current job counts and 'Skill Pulse' signals 
     to predict the next period's demand score.
     """
-    # 1. Fetch current city data
+    # Fetch current city data
     raw_data = db.query(
         SkillpulseCityOccupationDemand.occupation_id,
         SkillpulseCityOccupationDemand.occupation_title,
@@ -724,6 +727,9 @@ def get_market_saturation(db: Session, occupation_id: int) -> dict:
     
 # ─────────────────────────────────────────────
 #  OCCUPATION PROFILE
+# Returns rich occupation metadata from osca_occupations:
+# main_tasks, lead_statement, licensing, caveats,
+# specialisations, skill_attributes, information_card
 # ─────────────────────────────────────────────
 
 def get_occupation_profile(db: Session, occupation_id: int) -> dict:
@@ -767,6 +773,9 @@ def get_occupation_profile(db: Session, occupation_id: int) -> dict:
 
 # ─────────────────────────────────────────────
 # CAREER TRANSITION ANALYZER
+# Compares two occupations' skill sets:
+#   - Shared skills 
+#   - Transition difficulty score (0–100)
 # ─────────────────────────────────────────────
 
 def get_career_transition(db: Session, from_id: int, to_id: int) -> dict:
@@ -847,3 +856,277 @@ def get_career_transition(db: Session, from_id: int, to_id: int) -> dict:
     except Exception as e:
         logger.error(f"[MSIT402|SP] get_career_transition failed: {e}")
         return {"error": str(e)}
+
+
+# ─────────────────────────────────────────────
+# COSINE SIMILARITY
+# Builds a binary skill vector for every occupation and computes
+# cosine similarity between the selected occupation and all others.
+# Returns the top N most similar occupations ranked by score.
+#
+# Formula:
+#   cos(A, B) = (A · B) / (||A|| × ||B||)
+# ─────────────────────────────────────────────
+ 
+def get_occupation_similarity(db: Session, occupation_id: int, top_n: int = 8) -> dict:
+    """
+    Computes cosine similarity between the selected occupation and all others
+    based on their ESCO skill vectors. Returns the top N most similar occupations.
+    """
+    try:
+        import numpy as np
+        from sklearn.metrics.pairwise import cosine_similarity
+ 
+        # Fetch all occupation-skill mappings in one query
+        rows = (
+            db.query(
+                OscaOccupationSkill.occupation_id,
+                OscaOccupationSkill.skill_id
+            )
+            .all()
+        )
+ 
+        if not rows:
+            return {"error": "No skill mapping data available"}
+ 
+        # Build skill universe and occupation index
+        all_skill_ids   = sorted(set(r.skill_id     for r in rows))
+        all_occ_ids     = sorted(set(r.occupation_id for r in rows))
+ 
+        if occupation_id not in all_occ_ids:
+            return {"error": "Occupation has no mapped skills"}
+ 
+        skill_index = {sid: i for i, sid in enumerate(all_skill_ids)}
+        occ_index   = {oid: i for i, oid in enumerate(all_occ_ids)}
+ 
+        # Build binary skill matrix [n_occupations × n_skills]
+        matrix = np.zeros((len(all_occ_ids), len(all_skill_ids)), dtype=np.float32)
+        for r in rows:
+            matrix[occ_index[r.occupation_id], skill_index[r.skill_id]] = 1.0
+ 
+        # Compute cosine similarity for the target occupation vs all others
+        target_vec = matrix[occ_index[occupation_id]].reshape(1, -1)
+        scores     = cosine_similarity(target_vec, matrix)[0]  # shape: (n_occupations,)
+ 
+        # Rank — exclude self (score = 1.0 at own index)
+        ranked = sorted(
+            [(all_occ_ids[i], float(scores[i])) for i in range(len(all_occ_ids))
+             if all_occ_ids[i] != occupation_id],
+            key=lambda x: x[1],
+            reverse=True
+        )[:top_n]
+ 
+        if not ranked:
+            return {"similar": [], "total_skills": int(target_vec.sum())}
+ 
+        # Fetch titles for top results
+        from app.models.osca import OscaOccupation
+        top_ids    = [r[0] for r in ranked]
+        score_map  = {r[0]: r[1] for r in ranked}
+        occ_rows   = (
+            db.query(OscaOccupation.id, OscaOccupation.principal_title, OscaOccupation.skill_level)
+            .filter(OscaOccupation.id.in_(top_ids))
+            .all()
+        )
+        title_map = {o.id: {"title": o.principal_title, "level": o.skill_level} for o in occ_rows}
+ 
+        similar = [
+            {
+                "occupation_id":    oid,
+                "title":            title_map.get(oid, {}).get("title", f"occ_{oid}"),
+                "skill_level":      title_map.get(oid, {}).get("level"),
+                "similarity_score": round(score_map[oid] * 100, 1),
+            }
+            for oid in top_ids
+            if oid in title_map
+        ]
+ 
+        return {
+            "occupation_id": occupation_id,
+            "total_skills":  int(target_vec.sum()),
+            "similar":       similar
+        }
+ 
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_occupation_similarity failed: {e}")
+        return {"error": str(e)}
+ 
+# ─────────────────────────────────────────────
+# ELBOW METHOD FOR K-MEANS 
+# `get_elbow_data` computes the optimal number of clusters (K) for K-Means
+# by analyzing the inertia (within-cluster sum of squares) across a range of K values
+# ─────────────────────────────────────────────
+
+def get_elbow_data(db: Session, k_max: int = 25) -> dict:
+    try:
+        import numpy as np
+        from sklearn.cluster import KMeans
+
+        rows = (
+            db.query(
+                OscaOccupationSkill.occupation_id,
+                OscaOccupationSkill.skill_id
+            ).all()
+        )
+
+        if not rows:
+            return {"optimal_k": 16}
+
+        all_skill_ids = sorted(set(r.skill_id      for r in rows))
+        all_occ_ids   = sorted(set(r.occupation_id for r in rows))
+
+        skill_index = {sid: i for i, sid in enumerate(all_skill_ids)}
+        occ_index   = {oid: i for i, oid in enumerate(all_occ_ids)}
+
+        matrix = np.zeros((len(all_occ_ids), len(all_skill_ids)), dtype=np.float32)
+        for r in rows:
+            matrix[occ_index[r.occupation_id], skill_index[r.skill_id]] = 1.0
+
+        k_max    = min(k_max, len(all_occ_ids))
+        k_range  = list(range(2, k_max + 1))
+        inertias = []
+
+        for k in k_range:
+            km = KMeans(n_clusters=k, random_state=42, n_init=5, max_iter=100)
+            km.fit(matrix)
+            inertias.append(float(km.inertia_))
+
+        inertia_arr  = np.array(inertias)
+        inertia_norm = (inertia_arr - inertia_arr.min()) / (inertia_arr.max() - inertia_arr.min() + 1e-9)
+
+        if len(inertia_norm) >= 3:
+            second_deriv = np.diff(inertia_norm, n=2)
+            elbow_idx    = int(np.argmax(np.abs(second_deriv))) + 2
+            # If index 0 of second_deriv represents k=3
+            optimal_k = k_range[int(np.argmax(np.abs(second_deriv))) + 1]
+        else:
+            optimal_k = k_range[0]
+
+        return {"optimal_k": optimal_k, "k_range": k_range, "inertias": inertias}
+
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_elbow_data failed: {e}")
+        return {"optimal_k": 16}
+
+# ─────────────────────────────────────────────
+# OCCUPATION CLUSTERING
+# Uses K-Means on binary skill vectors to group all occupations
+# into clusters based on shared skill profiles.
+# Returns the cluster the selected occupation belongs to,
+# and all other members of that cluster.
+# ─────────────────────────────────────────────
+ 
+def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: int = None) -> dict:
+    """
+    Clusters all occupations by skill profile using K-Means.
+    Returns the cluster the selected occupation belongs to
+    and the other members of that cluster ranked by similarity.
+    """
+    try:
+        from sklearn.cluster import KMeans
+        from sklearn.metrics.pairwise import cosine_similarity
+ 
+        # Fetch all occupation-skill mappings
+        rows = (
+            db.query(
+                OscaOccupationSkill.occupation_id,
+                OscaOccupationSkill.skill_id
+            )
+            .all()
+        )
+ 
+        if not rows:
+            return {"error": "No skill mapping data available"}
+ 
+        all_skill_ids = sorted(set(r.skill_id      for r in rows))
+        all_occ_ids   = sorted(set(r.occupation_id for r in rows))
+ 
+        if occupation_id not in all_occ_ids:
+            return {"error": "Occupation has no mapped skills — cannot cluster"}
+ 
+        skill_index = {sid: i for i, sid in enumerate(all_skill_ids)}
+        occ_index   = {oid: i for i, oid in enumerate(all_occ_ids)}
+ 
+        # Build binary skill matrix
+        matrix = np.zeros((len(all_occ_ids), len(all_skill_ids)), dtype=np.float32)
+        for r in rows:
+            matrix[occ_index[r.occupation_id], skill_index[r.skill_id]] = 1.0
+
+
+        # Auto-detect optimal K unless explicitly overridden
+        if n_clusters is None:
+            global _OPTIMAL_K_CACHE
+            current_count = len(all_occ_ids)
+            if (_OPTIMAL_K_CACHE["k"] is not None and
+                    _OPTIMAL_K_CACHE["occ_count"] == current_count):
+                n_clusters = _OPTIMAL_K_CACHE["k"]
+                logger.info(f"[MSIT402|SP] Using cached K={n_clusters}")
+            else:
+                logger.info("[MSIT402|SP] Recomputing optimal K via elbow method...")
+                elbow      = get_elbow_data(db, k_max=20)
+                n_clusters = elbow.get("optimal_k", 16)
+                _OPTIMAL_K_CACHE["k"]         = n_clusters
+                _OPTIMAL_K_CACHE["occ_count"] = current_count
+                logger.info(f"[MSIT402|SP] Optimal K = {n_clusters} for {current_count} occupations")
+
+        # K-Means clustering — cap n_clusters to available occupations
+        k = min(n_clusters, len(all_occ_ids))
+        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+        labels = kmeans.fit_predict(matrix)
+ 
+        # Find the cluster of the selected occupation
+        target_cluster = int(labels[occ_index[occupation_id]])
+ 
+        # Members of the same cluster
+        cluster_member_ids = [
+            all_occ_ids[i] for i, lbl in enumerate(labels)
+            if lbl == target_cluster and all_occ_ids[i] != occupation_id
+        ]
+ 
+        # Rank cluster members by cosine similarity to target
+        target_vec = matrix[occ_index[occupation_id]].reshape(1, -1)
+        if cluster_member_ids:
+            member_indices = [occ_index[oid] for oid in cluster_member_ids]
+            member_matrix  = matrix[member_indices]
+            sim_scores     = cosine_similarity(target_vec, member_matrix)[0]
+            ranked_members = sorted(
+                zip(cluster_member_ids, sim_scores.tolist()),
+                key=lambda x: x[1], reverse=True
+            )[:10]
+        else:
+            ranked_members = []
+ 
+        # Fetch titles
+        from app.models.osca import OscaOccupation
+        all_needed_ids = [occupation_id] + [r[0] for r in ranked_members]
+        occ_rows = (
+            db.query(OscaOccupation.id, OscaOccupation.principal_title, OscaOccupation.skill_level)
+            .filter(OscaOccupation.id.in_(all_needed_ids))
+            .all()
+        )
+        title_map = {o.id: {"title": o.principal_title, "level": o.skill_level} for o in occ_rows}
+ 
+        members = [
+            {
+                "occupation_id":    oid,
+                "title":            title_map.get(oid, {}).get("title", f"occ_{oid}"),
+                "skill_level":      title_map.get(oid, {}).get("level"),
+                "similarity_score": round(score * 100, 1),
+            }
+            for oid, score in ranked_members
+            if oid in title_map
+        ]
+ 
+        return {
+            "occupation_id":    occupation_id,
+            "cluster_id":       target_cluster,
+            "cluster_label":    f"{target_cluster + 1}",
+            "cluster_size":     len(cluster_member_ids) + 1,
+            "n_clusters":       k,
+            "cluster_members":  members,
+        }
+ 
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_occupation_clusters failed: {e}")
+        return {"error": str(e)}
+ 

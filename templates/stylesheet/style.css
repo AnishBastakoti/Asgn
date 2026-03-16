@@ -550,7 +550,7 @@ button.info:hover{
 
 /* additional container classes borrowed from sample layout */
 .sp-occ-panel {
-  width: 250px;            /* or var(--panel) */
+  width: 250px;            
   flex-shrink: 0;
   background: var(--card-bg);
   border-right: 1px solid var(--border);
@@ -856,8 +856,8 @@ button.info:hover{
 }
 
 #errorModalBody {
-    background: #0d1117; /* GitHub dark theme style */
-    color: #ff7b72;    /* Soft red for error text */
+    background: #0d1117;
+    color: #ff7b72;    
     border: 1px solid #30363d;
     tab-size: 4;
     overflow-x: auto;

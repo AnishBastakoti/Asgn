@@ -7,6 +7,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from config import settings
 from app.routers import skills, occupations, analytics, jobs, pipeline
+from app.logger import setup_logging
+from app.database import verify_connection
 
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
@@ -14,13 +16,8 @@ from slowapi.errors import RateLimitExceeded
 
 from core.rate_limiter import limiter
 # ── Logging Setup 
-# Configure logging once here — all other files use getLogger()
+setup_logging()
 
-logging.basicConfig(
-    level=logging.INFO if settings.DEBUG else logging.WARNING,
-    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
-)
 logger = logging.getLogger(__name__)
 
 
@@ -165,6 +162,8 @@ async def startup_event():
     """
     Runs once when the application starts.
     """
+    setup_logging()  # Configure logging first
+    verify_connection()  # Check DB connection before accepting requests
     logger.info(f" {settings.APP_NAME} v{settings.APP_VERSION} starting...")
     logger.info(f" Dashboard: http://localhost:8000")
     logger.info(f" API Docs:  http://localhost:8000/docs")

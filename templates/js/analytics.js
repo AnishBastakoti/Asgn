@@ -37,6 +37,8 @@ window.selectOccupation = function(el) {
   loadOccupationProfile(id); // Load the new occupation profile data
   loadSkillVelocity(id);      
   loadMarketSaturation(id);
+  loadOccupationClusters(id);
+  loadSimilarOccupations(id);
 };
 
 // ── Shadow Skills ─────────────────────────────────────────────────────────────
@@ -467,3 +469,101 @@ async function loadOccupationProfile(occId) {
     console.warn('[SkillPulse|AN] loadOccupationProfile:', err.message);
   }
 }
+
+// ── Cosine Similarity ─────────────────────────────────────────────────────────
+async function loadSimilarOccupations(occId) {
+  const body  = document.getElementById('similarBody');
+  const badge = document.getElementById('similarCount');
+  body.innerHTML = `<div class="d-flex align-items-center justify-content-center py-4 gap-2 text-muted small"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>`;
+ 
+  try {
+    const data = await api(`/api/analytics/occupation-similarity/${occId}`);
+ 
+    if (data.error || !data.similar?.length) {
+      badge.textContent = '0';
+      body.innerHTML = `<div class="an-empty"><i class="bi bi-info-circle me-2"></i>${data.error || 'No similar occupations found.'}</div>`;
+      return;
+    }
+ 
+    badge.textContent = data.similar.length;
+ 
+    const rows = data.similar.map((o, i) => {
+      const pct   = o.similarity_score;
+      const color = pct >= 75 ? 'var(--emerald)' : pct >= 50 ? 'var(--indigo)' : '#F59E0B';
+      return `<tr>
+        <td class="text-muted" style="font-size:11px;width:24px">${i + 1}</td>
+        <td style="font-size:12.5px;font-weight:500">${esc(o.title)}</td>
+        <td style="width:120px">
+          <div class="progress" style="height:6px">
+            <div class="progress-bar" style="width:${pct}%;background:${color}"></div>
+          </div>
+        </td>
+        <td style="font-size:12px;font-weight:700;text-align:right;color:${color}">${pct}%</td>
+      </tr>`;
+    }).join('');
+ 
+    body.innerHTML = `
+      <div class="px-3 py-2" style="font-size:11px;color:var(--muted);font-family:var(--mono);border-bottom:1px solid var(--border)">
+        Based on ${data.total_skills} mapped skills &nbsp;·&nbsp; cos(A,B) = (A·B) / (‖A‖·‖B‖)
+      </div>
+      <table class="table table-hover table-sm mb-0">
+        <tbody>${rows}</tbody>
+      </table>`;
+ 
+  } catch (err) {
+    body.innerHTML = `<div class="an-empty text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Could not load similarity data.</div>`;
+    console.warn('[SkillPulse|AN] loadSimilarOccupations:', err.message);
+  }
+}
+ 
+// ── K-Means Clustering ────────────────────────────────────────────────────────
+async function loadOccupationClusters(occId) {
+  const body  = document.getElementById('clusterBody');
+  const badge = document.getElementById('clusterBadge');
+  body.innerHTML = `<div class="d-flex align-items-center justify-content-center py-4 gap-2 text-muted small"><div class="sp-spinner-sm"></div>&nbsp;Clustering…</div>`;
+ 
+  try {
+    const data = await api(`/api/analytics/occupation-clusters/${occId}`);
+ 
+    if (data.error || !data.cluster_members) {
+      badge.textContent = '—';
+      body.innerHTML = `<div class="an-empty"><i class="bi bi-info-circle me-2"></i>${data.error || 'Could not compute cluster.'}</div>`;
+      return;
+    }
+ 
+    badge.textContent = `Cluster ${data.cluster_id + 1} of ${data.n_clusters}`;
+ 
+    if (!data.cluster_members.length) {
+      body.innerHTML = `<div class="an-empty">This occupation is the only member of its cluster.</div>`;
+      return;
+    }
+ 
+    const rows = data.cluster_members.map((o, i) => {
+      const pct   = o.similarity_score;
+      const color = pct >= 75 ? '#8B5CF6' : pct >= 50 ? 'var(--indigo)' : 'var(--muted)';
+      return `<tr>
+        <td class="text-muted" style="font-size:11px;width:24px">${i + 1}</td>
+        <td style="font-size:12.5px;font-weight:500">${esc(o.title)}</td>
+        <td style="width:120px">
+          <div class="progress" style="height:6px">
+            <div class="progress-bar" style="width:${pct}%;background:${color}"></div>
+          </div>
+        </td>
+        <td style="font-size:12px;font-weight:700;text-align:right;color:${color}">${pct}%</td>
+      </tr>`;
+    }).join('');
+ 
+    body.innerHTML = `
+      <div class="px-3 py-2" style="font-size:11px;color:var(--muted);font-family:var(--mono);border-bottom:1px solid var(--border)">
+        Cluster ${data.cluster_id + 1} &nbsp;·&nbsp; ${data.cluster_size} occupations &nbsp;·&nbsp; K-Means k=${data.n_clusters}
+      </div>
+      <table class="table table-hover table-sm mb-0">
+        <tbody>${rows}</tbody>
+      </table>`;
+ 
+  } catch (err) {
+    body.innerHTML = `<div class="an-empty text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Could not load cluster data.</div>`;
+    console.warn('[SkillPulse|AN] loadOccupationClusters:', err.message);
+  }
+}
+ 

@@ -107,7 +107,7 @@ def hot_skills(request: Request, days: int = 30, db: Session = Depends(get_db)):
     return get_hot_skills(db, days)
 
 
-# SHADOW SKILLS — FIX: was osca_code:str, real PK is occupation_id:int
+# SHADOW SKILLS 
 @router.get("/shadow-skills/{occupation_id}", response_model=List[ShadowSkillResponse])
 @limiter.limit("10/minute")
 def shadow_skills(request: Request, occupation_id: int, db: Session = Depends(get_db)):
@@ -118,7 +118,7 @@ def shadow_skills(request: Request, occupation_id: int, db: Session = Depends(ge
     return get_shadow_skills(db, occupation_id)
 
 
-# SKILL DECAY — FIX: was osca_code:str, real PK is occupation_id:int
+# SKILL DECAY PK is occupation_id:int
 @router.get("/skill-decay/{occupation_id}", response_model=List[SkillDecayResponse])
 @limiter.limit("10/minute")
 def skill_decay(request: Request, occupation_id: int, db: Session = Depends(get_db)):
@@ -127,7 +127,6 @@ def skill_decay(request: Request, occupation_id: int, db: Session = Depends(get_
     comparing earliest vs most recent snapshot batch.
     """
     return get_skill_decay(db, occupation_id)
-
 
 
 # CITY DEMAND SUMMARY — all cities with total job counts
@@ -222,3 +221,30 @@ def career_transition(
 ):
     """Compare two occupations — shared skills, gaps, and difficulty score."""
     return get_career_transition(db, from_id, to_id)
+
+# ── COSINE SIMILARITY — top N most similar occupations by skill vector
+@router.get("/occupation-similarity/{occupation_id}")
+@limiter.limit("20/minute")
+def occupation_similarity(
+    request: Request,
+    occupation_id: int,
+    top_n: int = 8,
+    db: Session = Depends(get_db)
+):
+    """Top N occupations most similar to the selected one using cosine similarity on skill vectors."""
+    from app.services.analytics_service import get_occupation_similarity
+    return get_occupation_similarity(db, occupation_id, top_n)
+ 
+ 
+# ── OCCUPATION CLUSTERING — K-Means cluster 
+@router.get("/occupation-clusters/{occupation_id}")
+@limiter.limit("10/minute")
+def occupation_clusters(
+    request: Request,
+    occupation_id: int,
+    n_clusters: int = 12,
+    db: Session = Depends(get_db)
+):
+    """Returns the K-Means cluster the occupation belongs to and its cluster peers."""
+    from app.services.analytics_service import get_occupation_clusters
+    return get_occupation_clusters(db, occupation_id, n_clusters)

@@ -79,8 +79,8 @@ async function loadGlobalSummary() {
     const statMap = {
       statOccupations: d.total_occupations,
       statSkills:      d.total_skills,
-      statJobs:        d.total_job_posts,       // ← total_job_posts not total_jobs
-      statMappings:    d.total_skill_mappings,  // ← total_skill_mappings not total_mappings
+      statJobs:        d.total_job_posts,       //  total_job_posts not total_jobs
+      statMappings:    d.total_skill_mappings,  //  total_skill_mappings not total_mappings
     };
 
     Object.entries(statMap).forEach(([id, val]) => {
