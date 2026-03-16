@@ -518,30 +518,32 @@ async function loadSimilarOccupations(occId) {
  
 // ── K-Means Clustering ────────────────────────────────────────────────────────
 async function loadOccupationClusters(occId) {
-  const body  = document.getElementById('clusterBody');
+  const body = document.getElementById('clusterBody');
   const badge = document.getElementById('clusterBadge');
   body.innerHTML = `<div class="d-flex align-items-center justify-content-center py-4 gap-2 text-muted small"><div class="sp-spinner-sm"></div>&nbsp;Clustering…</div>`;
- 
+
   try {
     const data = await api(`/api/analytics/occupation-clusters/${occId}`);
- 
+
     if (data.error || !data.cluster_members) {
       badge.textContent = '—';
       body.innerHTML = `<div class="an-empty"><i class="bi bi-info-circle me-2"></i>${data.error || 'Could not compute cluster.'}</div>`;
       return;
     }
- 
+
     badge.textContent = `Cluster ${data.cluster_id + 1} of ${data.n_clusters}`;
- 
+
     if (!data.cluster_members.length) {
       body.innerHTML = `<div class="an-empty">This occupation is the only member of its cluster.</div>`;
       return;
     }
- 
+
+    // Fixed mapping logic:
     const rows = data.cluster_members.map((o, i) => {
-      const pct   = o.similarity_score;
+      const pct = o.similarity_score;
       const color = pct >= 75 ? '#8B5CF6' : pct >= 50 ? 'var(--indigo)' : 'var(--muted)';
-      return `<tr>
+      
+      return `<tr style="cursor:pointer" onclick="jumpToOccupation(${o.occupation_id}, '${esc(o.title)}')" title="View analytics for ${esc(o.title)}">
         <td class="text-muted" style="font-size:11px;width:24px">${i + 1}</td>
         <td style="font-size:12.5px;font-weight:500">${esc(o.title)}</td>
         <td style="width:120px">
@@ -552,7 +554,7 @@ async function loadOccupationClusters(occId) {
         <td style="font-size:12px;font-weight:700;text-align:right;color:${color}">${pct}%</td>
       </tr>`;
     }).join('');
- 
+
     body.innerHTML = `
       <div class="px-3 py-2" style="font-size:11px;color:var(--muted);font-family:var(--mono);border-bottom:1px solid var(--border)">
         Cluster ${data.cluster_id + 1} &nbsp;·&nbsp; ${data.cluster_size} occupations &nbsp;·&nbsp; K-Means k=${data.n_clusters}
@@ -560,10 +562,37 @@ async function loadOccupationClusters(occId) {
       <table class="table table-hover table-sm mb-0">
         <tbody>${rows}</tbody>
       </table>`;
- 
+
   } catch (err) {
     body.innerHTML = `<div class="an-empty text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Could not load cluster data.</div>`;
     console.warn('[SkillPulse|AN] loadOccupationClusters:', err.message);
   }
 }
- 
+
+// ── Jump to occupation from cluster/similarity row ────────────
+function jumpToOccupation(occId, title) {
+  // Clear the search box and re-render full occupation list
+  const searchBox = document.getElementById('occSearch');
+  if (searchBox) {
+    searchBox.value = '';
+    filterAndRender('');  // reset list to show all occupations
+  }
+
+  // Small delay to let the list re-render before trying to click
+  setTimeout(() => {
+    const items = document.querySelectorAll('.sp-occ-item');
+    for (const item of items) {
+      if (parseInt(item.dataset.id) === occId) {
+        item.click();
+        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    }
+
+    // Fallback if still not found in list
+    const fakeEl = {
+      dataset: { id: occId, title: title, level: '' }
+    };
+    window.selectOccupation(fakeEl);
+  }, 100);
+}
