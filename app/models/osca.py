@@ -103,7 +103,7 @@ class OscaAlternativeTitle(Base):
     # status            = Column(String, nullable=True)
     occupation_id     = Column(BigInteger, ForeignKey("osca_occupations.id"))
 
-    occupation = relationship("OscaOccupation", back_populates="alternative_titles")
+    occupation = relationship("OscaOccupation", back_populates="alternative_titles", lazy="noload")
 
     def __repr__(self):
         return f"<AltTitle: {self.title}>"

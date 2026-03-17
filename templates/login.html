@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkillPulse — Sign In</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0F0F1A;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .login-wrap {
+      width: 100%;
+      max-width: 420px;
+      padding: 24px;
+    }
+
+    /* Brand */
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      justify-content: center;
+    }
+    .brand-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, #6366F1, #8B5CF6);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .brand-name {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+    .brand-sub {
+      font-size: 11px;
+      color: #6B7280;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-family: monospace;
+    }
+
+    /* Card */
+    .login-card {
+      background: #1A1A2E;
+      border: 1px solid #2D2D44;
+      border-radius: 16px;
+      padding: 32px;
+    }
+
+    .login-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .login-sub {
+      font-size: 13px;
+      color: #6B7280;
+      margin-bottom: 28px;
+    }
+
+    /* Form */
+    .form-group { margin-bottom: 18px; }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #9CA3AF;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+      font-family: monospace;
+    }
+    .form-input-wrap { position: relative; }
+    .form-icon {
+      position: absolute;
+      left: 12px; top: 50%;
+      transform: translateY(-50%);
+      color: #4B5563;
+      font-size: 15px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 11px 12px 11px 38px;
+      background: #111827;
+      border: 1px solid #2D2D44;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+    .form-input:focus { border-color: #6366F1; }
+    .form-input::placeholder { color: #4B5563; }
+
+    /* Submit button */
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      background: #6366F1;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .btn-login:hover:not(:disabled) { background: #4F46E5; transform: translateY(-1px); }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Error alert */
+    .alert-error {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #FCA5A5;
+      margin-bottom: 18px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .alert-error.show { display: flex; }
+
+    /* Spinner */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    .spinner.show { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Footer */
+    .login-footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #4B5563;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-wrap">
+
+  <!-- Brand -->
+  <div class="brand">
+    <div class="brand-icon"><i class="bi bi-bar-chart-fill"></i></div>
+    <div>
+      <div class="brand-name">SkillPulse</div>
+      <div class="brand-sub">AUS Intel</div>
+    </div>
+  </div>
+
+  <!-- Login card -->
+  <div class="login-card">
+    <div class="login-title">Sign in to your account</div>
+    <div class="login-sub">Australian Job Market Intelligence Platform</div>
+
+    <!-- Error alert -->
+    <div class="alert-error" id="alertError">
+      <i class="bi bi-exclamation-circle-fill"></i>
+      <span id="alertMsg">Invalid email or password.</span>
+    </div>
+
+    <!-- Form -->
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <div class="form-input-wrap">
+        <i class="bi bi-envelope form-icon"></i>
+        <input type="email" class="form-input" id="inputEmail"
+               placeholder="you@example.com" autocomplete="email"/>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <div class="form-input-wrap">
+        <i class="bi bi-lock form-icon"></i>
+        <input type="password" class="form-input" id="inputPassword"
+               placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+    </div>
+
+    <button class="btn-login" id="btnLogin" onclick="doLogin()">
+      <div class="spinner" id="spinner"></div>
+      <span id="btnText"><i class="bi bi-box-arrow-in-right me-1"></i>Sign In</span>
+    </button>
+  </div>
+
+  <div class="login-footer">
+    SkillPulse v{{ app_version }} &nbsp;·&nbsp; MSIT402 CIM-10236
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+// ── Allow Enter key to submit ─────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// ── Login ─────────────────────────────────────────────────────
+async function doLogin() {
+  const email    = document.getElementById('inputEmail').value.trim();
+  const password = document.getElementById('inputPassword').value;
+  const btn      = document.getElementById('btnLogin');
+  const spinner  = document.getElementById('spinner');
+  const btnText  = document.getElementById('btnText');
+  const alert    = document.getElementById('alertError');
+
+  // Basic validation
+  if (!email || !password) {
+    showError('Please enter your email and password.');
+    return;
+  }
+
+  // Loading state
+  btn.disabled = true;
+  spinner.classList.add('show');
+  btnText.style.display = 'none';
+  alert.classList.remove('show');
+
+  try {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showError(data.detail || 'Invalid email or password.');
+      return;
+    }
+
+    // ── Store token in localStorage ──
+    // The token is sent with every API request
+    localStorage.setItem('sp_token',   data.access_token);
+    localStorage.setItem('sp_user',    JSON.stringify({
+      user_id:      data.user_id,
+      email:        data.email,
+      display_name: data.display_name,
+      role:         data.role,
+    }));
+
+    // ── Redirect to dashboard ──
+    window.location.href = '/';
+
+  } catch (err) {
+    showError('Could not connect to server. Please try again.');
+    console.error('[Login]', err);
+  } finally {
+    btn.disabled = false;
+    spinner.classList.remove('show');
+    btnText.style.display = '';
+  }
+}
+
+function showError(msg) {
+  document.getElementById('alertMsg').textContent = msg;
+  document.getElementById('alertError').classList.add('show');
+}
+</script>
+</body>
+</html>

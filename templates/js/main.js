@@ -20,12 +20,43 @@ const esc = s => String(s)
   .replace(/'/g,  '&#39;');
 
 /* ── API fetch helper ── */
-async function api(path) {
-  const response = await fetch(path);
+async function api(path, options = {}) {
+  // Attach JWT token from localStorage to every API request
+  const token = localStorage.getItem('sp_token');
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+ 
+  const response = await fetch(path, { ...options, headers });
+ 
+  // If 401 Unauthorised — token expired, redirect to login
+  if (response.status === 401) {
+    localStorage.removeItem('sp_token');
+    localStorage.removeItem('sp_user');
+    window.location.href = '/login';
+    return;
+  }
+ 
   if (!response.ok) {
     throw new Error(`API error ${response.status} on ${path}`);
   }
   return response.json();
+}
+ 
+// ── Auth helpers ─────────────────────────────────────────────
+function getCurrentUser() {
+  try {
+    return JSON.parse(localStorage.getItem('sp_user') || 'null');
+  } catch { return null; }
+}
+ 
+function isLoggedIn() {
+  return !!localStorage.getItem('sp_token');
+}
+ 
+function logout() {
+  localStorage.removeItem('sp_token');
+  localStorage.removeItem('sp_user');
+  window.location.href = '/login';
 }
 
 /* ════════════════════════════════════════════════════
@@ -101,7 +132,6 @@ async function loadGlobalSummary() {
    ACTIVE NAV HIGHLIGHTING
    Marks the correct sidebar link as active based on
    the current URL path. Complements the server-side
-   Jinja2 active_page check in base.html.
 ════════════════════════════════════════════════════ */
 function highlightActiveNav() {
   const path = window.location.pathname;
