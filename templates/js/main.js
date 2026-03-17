@@ -53,9 +53,14 @@ function isLoggedIn() {
   return !!localStorage.getItem('sp_token');
 }
  
-function logout() {
+async function logout() {
+  // Clear localStorage
   localStorage.removeItem('sp_token');
   localStorage.removeItem('sp_user');
+  // Clear the httpOnly cookie (server-side)
+  try {
+    await fetch('/api/auth/logout-session', { method: 'POST' });
+  } catch (e) { /* ignore */ }
   window.location.href = '/login';
 }
 
@@ -162,4 +167,22 @@ document.addEventListener('DOMContentLoaded', () => {
   loadGlobalSummary();
   highlightActiveNav();
   initBootstrapTooltips();
+  populateUserInfo();
 });
+
+// ── Populate user name in sidebar ────────────────────────────
+function populateUserInfo() {
+  const user = getCurrentUser();
+  if (!user) return;
+ 
+  const nameEl   = document.getElementById('navUserName');
+  const avatarEl = document.getElementById('navAvatar');
+ 
+  if (nameEl) nameEl.textContent = user.display_name || user.email;
+  if (avatarEl) {
+    // Show initials in avatar
+    const initials = (user.display_name || user.email)
+      .split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    avatarEl.textContent = initials || 'SP';
+  }
+}

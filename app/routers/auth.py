@@ -42,23 +42,40 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     """
     Authenticates user with email + password.
     Returns a JWT token valid for 8 hours.
-
-    The token must be sent in the Authorization header for protected routes:
-        Authorization: Bearer <access_token>
-
+    Also sets an httpOnly cookie so server-side middleware can protect HTML pages.
     Rate limited to 10 attempts/minute per IP to prevent brute force.
     """
+    from fastapi.responses import JSONResponse
+
     result = authenticate_user(db, body.email, body.password)
 
     if not result:
-        # Use a vague error message — don't reveal whether email exists
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return result
+    # Return JSON + set httpOnly cookie so server middleware can verify pages
+    response = JSONResponse(content=result)
+    response.set_cookie(
+        key="sp_token",
+        value=result["access_token"],
+        httponly=True,       # JS cannot read it — prevents XSS token theft
+        samesite="lax",      # prevents CSRF on cross-site requests
+        max_age=result["expires_in"],
+        path="/",
+    )
+    return response
+
+
+@router.post("/logout-session")
+def logout_session():
+    """Clears the httpOnly session cookie."""
+    from fastapi.responses import JSONResponse
+    response = JSONResponse(content={"message": "Logged out"})
+    response.delete_cookie(key="sp_token", path="/")
+    return response
 
 
 @router.get("/me", response_model=UserResponse)
