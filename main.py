@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from config import settings
-from app.routers import skills, occupations, analytics, jobs, pipeline
+from app.routers import auth, skills, occupations, analytics, jobs, pipeline
 from app.logger import setup_logging
 from app.database import verify_connection
 
@@ -66,6 +66,7 @@ app.include_router(occupations.router)
 app.include_router(jobs.router)
 app.include_router(analytics.router)
 app.include_router(pipeline.router)
+app.include_router(auth.router)
 
 
 # ── Static Files ─
@@ -129,6 +130,10 @@ def serve_pipeline(request: Request):
 @app.get("/career", response_class=HTMLResponse, include_in_schema=False)
 def serve_career(request: Request):
     return _render(request, "career.html", "career")
+
+@app.get("/login", response_class=HTMLResponse, include_in_schema=False)
+def serve_login(request: Request):
+    return _render(request, "login.html", "login")
 
 @app.get("/model-status", response_class=HTMLResponse, include_in_schema=False)
 def serve_model_status(request: Request):

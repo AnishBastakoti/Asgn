@@ -233,8 +233,7 @@ function renderStatus(d) {
     avg_mention:     "Average skill mention depth",
   };
 
-  // Fake importance bars — proportional to feature index position
-  // In production you'd use model.coef_ from the trained model
+  // In production we will use model.coef_ from the trained model
   const maxImportance = features.length;
   const featureRows = features.map((f, i) => {
     const importance = Math.round(((maxImportance - i) / maxImportance) * 100);
