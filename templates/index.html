@@ -85,11 +85,19 @@
 
     <!-- User / sig footer -->
     <div class="sp-sidebar-footer">
-      <div class="sp-avatar">SP</div>
+      <div class="sp-avatar" id="navAvatar">SP</div>
       <div class="sp-sig-text">
-        <span class="sp-sig-name">MSIT402</span>
+        <span class="sp-sig-name" id="navUserName">MSIT402</span>
         <span class="sp-sig-val" id="navSig">—</span>
       </div>
+      <button onclick="logout()" title="Sign out"
+        style="margin-left:auto; background:none; border:none; cursor:pointer;
+               color:var(--muted); padding:4px 6px; border-radius:6px;
+               transition:all 0.15s; flex-shrink:0;"
+        onmouseover="this.style.color='#EF4444'"
+        onmouseout="this.style.color='var(--muted)'">
+        <i class="bi bi-box-arrow-right" style="font-size:15px;"></i>
+      </button>
     </div>
   </aside>
 

@@ -5,10 +5,11 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from config import settings
-from app.routers import auth, skills, occupations, analytics, jobs, pipeline
+from app.routers import skills, occupations, analytics, jobs, pipeline, auth
 from app.logger import setup_logging
 from app.database import verify_connection
-
+from core.auth_middleware import AuthMiddleware
+ 
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 #from slowapi.errors import _rate_limit_exceeded_handler
@@ -38,6 +39,7 @@ app = FastAPI(
 app.state.limiter = limiter
 #app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(AuthMiddleware)
 
 
 # Global exception handler for rate limits
