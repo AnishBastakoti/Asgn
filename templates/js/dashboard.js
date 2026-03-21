@@ -403,7 +403,7 @@ function buildHeader(occ, count) {
 // ── Bar chart builder ──
 function buildBarChart(skills) {
   const max = Math.max(...skills.map(s => s.mention_count));
-  const colors = { knowledge:'var(--emerald)', 'skill/competence':'var(--indigo)', attitude:'#F59E0B' };
+  const colors = { knowledge:'var(--violet)', 'skill/competence':'var(--indigo)', attitude:'#F59E0B' };
 
   function tc(t) {
     if (!t) return '';
@@ -416,7 +416,7 @@ function buildBarChart(skills) {
   const wrap = document.createElement('div');
   wrap.className = 'sp-bars-wrap';
   wrap.innerHTML = `<div class="sp-legend mb-3">
-      <div class="sp-legend-item"><div class="sp-legend-dot" style="background:var(--emerald)"></div>Knowledge</div>
+      <div class="sp-legend-item"><div class="sp-legend-dot" style="background:var(--violet)"></div>Knowledge</div>
       <div class="sp-legend-item"><div class="sp-legend-dot" style="background:var(--indigo)"></div>Skill</div>
       <div class="sp-legend-item"><div class="sp-legend-dot" style="background:#F59E0B"></div>Attitude</div>
     </div>`;
@@ -467,7 +467,7 @@ function buildBreakdown(data) {
   wrap.className = 'sp-breakdown-wrap fade-up';
 
   const types = [
-    { key:'knowledge', label:'Knowledge', color:'var(--emerald)' },
+    { key:'knowledge', label:'Knowledge', color:'var(--violet)' },
     { key:'skill/competence', label:'Skill', color:'var(--indigo)' },
     { key:'attitude', label:'Attitude', color:'#F59E0B' }
   ];

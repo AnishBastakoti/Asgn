@@ -4,12 +4,11 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>{% block title %}SkillPulse{% endblock %} — AUS Skills Intelligence</title>
-<!-- 
 
+  <!-- Bootstrap 5 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css"/>
-
+  <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css"/>
--->
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -40,12 +39,17 @@
     <!-- Logo -->
     <div class="sp-logo">
       <div class="sp-logo-icon">
-        <svg viewBox="0 0 28 28" fill="none">
-          <rect width="28" height="28" rx="8" fill="#fff"/>
-          <rect x="4"  y="16" width="4" height="8" rx="1.5" fill="#6366F1"/>
-          <rect x="10" y="11" width="4" height="13" rx="1.5" fill="#6366F1"/>
-          <rect x="16" y="6"  width="4" height="18" rx="1.5" fill="#6366F1"/>
-          <rect x="22" y="3"  width="4" height="21" rx="1.5" fill="#6366F1" opacity="0.4"/>
+        <!-- Replace logo.png with your image file in /templates/images/ -->
+        <img src="/templates/images/logo-ntg-color.svg" alt="SkillPulse"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+             style="width:30px; height:30px; border-radius:6px; object-fit:contain;"/>
+        <!-- Fallback SVG shown if image not found -->
+        <svg viewBox="0 0 28 28" fill="none" style="display:none;">
+          <rect width="28" height="28" rx="8" fill="var(--indigo)"/>
+          <rect x="4"  y="16" width="4" height="8"  rx="1.5" fill="#fff"/>
+          <rect x="10" y="11" width="4" height="13" rx="1.5" fill="#fff"/>
+          <rect x="16" y="6"  width="4" height="18" rx="1.5" fill="#fff"/>
+          <rect x="22" y="3"  width="4" height="21" rx="1.5" fill="#fff" opacity="0.6"/>
         </svg>
       </div>
       <div class="sp-logo-text">
@@ -153,7 +157,7 @@
 <div id="spTooltip" class="sp-tooltip"></div>
 
 <!-- Bootstrap JS -->
-<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script> -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
 <!-- Global JS -->
 <script src="/templates/js/main.js"></script>
 {% block extra_js %}{% endblock %}
