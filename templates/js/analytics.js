@@ -401,9 +401,7 @@ async function loadMarketSaturation(occId) {
       </div>
  
       <!-- Insight text -->
-      <div class="an-insight-box">
-        <i class="bi bi-lightbulb-fill me-2" style="color:#F59E0B"></i>
-        ${esc(d.insight)}
+      <div class="an-insight-box"> ${esc(d.insight)}
       </div>`;
  
   } catch (err) {

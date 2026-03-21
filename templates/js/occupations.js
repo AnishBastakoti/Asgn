@@ -1,6 +1,5 @@
 /**
  * SkillPulse — City Demand Page
- * occupations.js
  *
  * Handles:
  *  - City list rendering with demand bars
@@ -23,19 +22,6 @@ const cdState = {
 
 // ── DOM helpers (reuse global $ from main.js) ──────────
 const cdEl = id => document.getElementById(id);
-
-// ── Colour palette for bars (cycles through) ──────────
-const BAR_COLOURS = [
-  'var(--indigo)',
-  'var(--emerald)',
-  'var(--violet, #8B5CF6)',
-  'var(--sky, #0EA5E9)',
-  '#F59E0B',
-  '#EF4444',
-  '#10B981',
-  '#6366F1',
-];
-const barColour = i => BAR_COLOURS[i % BAR_COLOURS.length];
 
 // ── Format helpers ─────────────────────────────────────
 const fmtNum = n => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
@@ -196,7 +182,7 @@ async function loadCityDetail(cityName) {
 
     data.forEach((row, i) => {
       const pct   = (row.total_jobs / maxJobs) * 100;
-      const color = barColour(i);
+      // const color = barColour(i);
 
       const el = document.createElement('div');
       el.className = 'cd-bar-row';
@@ -205,7 +191,7 @@ async function loadCityDetail(cityName) {
         <div class="cd-bar-rank">${i + 1}</div>
         <div class="cd-bar-label" title="${esc(row.occupation_title)}">${esc(row.occupation_title)}</div>
         <div class="cd-bar-track">
-          <div class="cd-bar-fill" style="width:0%; background:${color}"></div>
+          <div class="cd-bar-fill" style="width:0%;"></div>
         </div>
         <div>
           <span class="cd-bar-count">${fmt(row.total_jobs)}</span>
