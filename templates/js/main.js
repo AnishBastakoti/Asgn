@@ -69,9 +69,9 @@ async function logout() {
    Global tooltip used by all chart pages.
    Called as: showTip(event, htmlString)
 ════════════════════════════════════════════════════ */
-const _tip = $('spTooltip');
 
 function showTip(e, html) {
+  const _tip = $('spTooltip');
   if (!_tip) return;
   _tip.innerHTML = html;
   _tip.classList.add('visible');
@@ -79,6 +79,7 @@ function showTip(e, html) {
 }
 
 function moveTip(e) {
+  const _tip = $('spTooltip');
   if (!_tip) return;
   const x = Math.min(e.clientX + 14, window.innerWidth  - 240);
   const y = Math.min(e.clientY - 10, window.innerHeight - 140);
@@ -87,6 +88,7 @@ function moveTip(e) {
 }
 
 function hideTip() {
+  const _tip = $('spTooltip');
   if (_tip) _tip.classList.remove('visible');
 }
 
@@ -177,12 +179,19 @@ function populateUserInfo() {
  
   const nameEl   = document.getElementById('navUserName');
   const avatarEl = document.getElementById('navAvatar');
- 
-  if (nameEl) nameEl.textContent = user.display_name || user.email;
+
+
+  const rawName    = user.display_name || user.email || '';
+  const displayName = rawName.includes('@') ? rawName.split('@')[0] : rawName;
+  
+  if (nameEl) nameEl.textContent = displayName;
   if (avatarEl) {
-    // Show initials in avatar
-    const initials = (user.display_name || user.email)
-      .split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    // display user name
+    const parts = displayName.split(' ').filter(Boolean);
+    const initials = parts.length > 1
+      ? parts.map(w => w[0]).join('').toUpperCase().slice(0, 2)
+      : displayName.slice(0, 2).toUpperCase();
+
     avatarEl.textContent = initials || 'SP';
   }
 }

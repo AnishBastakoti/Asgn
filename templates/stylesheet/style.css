@@ -195,6 +195,12 @@ button.info:hover{
   color: #fff;
   box-shadow: 0 4px 14px rgba(99,102,241,0.45);
 }
+/* Utility classes */
+.row{
+  display: flex;
+  flex-direction: row;
+  gap: calc(3% - 1px);
+}
 
 /* Footer */
 /* ── Sidebar Toggle Button ── */
@@ -767,8 +773,6 @@ button.info:hover{
   display: inline-flex;
   padding: 10px;
 }
-}
-
 /* ── Tooltip ── */
 .sp-tooltip {
   position: fixed;
@@ -784,6 +788,7 @@ button.info:hover{
   max-width: 220px;
   opacity: 0;
   transition: opacity 0.1s;
+  isolation: isolate;
 }
 .sp-tooltip.visible { opacity: 1; }
 .sp-tooltip .tt-title { font-size: 0.82rem; font-weight: 700; color: #A5B4FC; margin-bottom: 0.25rem; }
