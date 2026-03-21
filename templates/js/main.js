@@ -64,6 +64,21 @@ async function logout() {
   window.location.href = '/login';
 }
 
+
+
+// ── Colour palette for bars (cycles through) ──────────
+const BAR_COLOURS = [
+  'var(--indigo)',
+  'var(--emerald)',
+  '#F59E0B',
+  '#EF4444',
+  '#10B981',
+  '#6366F1',
+];
+const barColour = i => BAR_COLOURS[i % BAR_COLOURS.length];
+
+
+
 /* ════════════════════════════════════════════════════
    TOOLTIP
    Global tooltip used by all chart pages.

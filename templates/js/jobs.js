@@ -1,9 +1,6 @@
 'use strict';
 
 /**
- * jobs.js  —  Jobs Trends page
- * SkillPulse | MSIT402
- *
  * Sections:
  *   1. Global hot skills banner  → /api/analytics/hot-skills
  *   2. Occupation picker         → /api/occupations/list
@@ -302,9 +299,7 @@ async function renderLeadIndicator(occId) {
     insightBox.style.display = 'block';
     insightBox.innerHTML = `
       <div class="d-flex align-items-center gap-3 p-3 rounded border border-primary-subtle bg-primary-subtle">
-        <span class="badge bg-primary">
-          <i class="bi bi-lightning-fill me-1"></i>Lead Market
-        </span>
+        <i class="bi bi-geo-alt-fill fs-3" style="color:var(--indigo)"></i>
         <div class="small text-secondary">
           <strong class="text-dark">${esc(lead.city)}</strong>
           was the first city to trend for this role
