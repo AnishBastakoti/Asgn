@@ -91,8 +91,8 @@
 
 .an-tab.active {
   background: #fff;
-  border-color: var(--indigo);
-  color: var(--indigo);
+  border-color: var(--orange);
+  color: var(--orange);
   box-shadow: 0 1px 4px rgba(99,102,241,0.12);
 }
 

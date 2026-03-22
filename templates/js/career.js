@@ -105,7 +105,6 @@ async function analyzeTransition() {
       <div class="ct-results-header">
         <div class="ct-transition-label">
           <span class="ct-from-chip">${esc(d.from_title)}</span>
-          <i class="bi bi-arrow-right ct-arrow-icon"></i>
           <span class="ct-to-chip">${esc(d.to_title)}</span>
         </div>
         <span style="font-size:11px; color:var(--muted); font-family:var(--mono);">

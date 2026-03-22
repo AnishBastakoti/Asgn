@@ -1,14 +1,3 @@
-/**
- * SkillPulse — City Demand Page
- *
- * Handles:
- *  - City list rendering with demand bars
- *  - KPI cards population
- *  - Top N occupation bar chart per city
- *  - Slider interaction
- *  - Tooltips on bar hover
- */
-
 'use strict';
 
 // ── State ──────────────────────────────────────────────
@@ -167,12 +156,12 @@ async function loadCityDetail(cityName) {
     header.innerHTML = `
       <div>
         <div class="cd-chart-title">
-          <i class="bi bi-geo-alt-fill me-2" style="color:var(--indigo)"></i>${esc(cityName)}
+          <i class="bi bi-geo-alt-fill me-2" style="color:var(--orange)"></i>${esc(cityName)}
         </div>
         <div class="cd-chart-sub">Top ${data.length} occupations by job demand</div>
       </div>
       <div class="cd-chart-badges">
-        <span class="sp-cbadge sp-cbadge--indigo">${data.length} roles</span>
+        <span class="sp-cbadge sp-cbadge--orange">${data.length} roles</span>
         <span class="sp-cbadge">${cityData ? fmt(cityData.total_jobs) + ' total jobs' : ''}</span>
       </div>`;
 
@@ -182,7 +171,6 @@ async function loadCityDetail(cityName) {
 
     data.forEach((row, i) => {
       const pct   = (row.total_jobs / maxJobs) * 100;
-      // const color = barColour(i);
 
       const el = document.createElement('div');
       el.className = 'cd-bar-row';

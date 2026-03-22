@@ -13,7 +13,7 @@
 <!-- ── Stat Cards ── -->
 <div class="sp-kpi-row" id="pipelineStats">
   <div class="sp-kpi-col">
-    <div class="sp-card sp-kpi sp-kpi--indigo">
+    <div class="sp-card sp-kpi sp-kpi--orange">
       <div class="sp-kpi-icon"><i class="bi bi-play-circle-fill"></i></div>
       <div class="sp-kpi-body">
         <div class="sp-kpi-val" id="statTotal">—</div>
@@ -55,7 +55,6 @@
 </div>
 
 <!-- ── Live Status Banner ── -->
-<!-- ── Live status banner ── -->
 <div id="liveStatusBanner" class="pl-banner" style="display:none;">
   <div class="pl-banner-inner">
     <span class="pl-badge pl-badge--running">
@@ -91,7 +90,7 @@
 {% endblock %}
 
 {% block modals %}
-<!-- ── Error Detail Modal — native, no Bootstrap needed ── -->
+<!-- ── Error Detail Modal — native── -->
 <div id="plModalBackdrop" class="pl-modal-backdrop" style="display:none;" onclick="closePlModal()"></div>
 <div id="plModal" class="pl-modal" style="display:none;">
   <div class="pl-modal-header">
