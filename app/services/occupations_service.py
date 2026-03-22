@@ -26,14 +26,11 @@ _SIGNATURE  = int(hashlib.md5(_AUTHOR_KEY.encode()).hexdigest(), 16) % 1000
 def get_major_groups(db: Session) -> list[dict]:
     """
     Get all OSCA major groups.
-    hierarchy — only 8 in Australia.
     """
     groups = (
         db.query(
             OscaMajorGroup.id,
             OscaMajorGroup.title,
-            # Count how many occupations are in each major group
-            # This shows users which groups have the most data
             func.count(OscaOccupation.id).label("occupation_count")
         )
         .outerjoin(OscaSubMajorGroup, OscaSubMajorGroup.major_group_id == OscaMajorGroup.id)
@@ -123,18 +120,12 @@ def get_occupations(
 ) -> list[dict]:
     """
     Get occupations with optional filtering and search.
-
-    Args:
-        unit_group_id — filter by unit group
-        search        — search by title (case insensitive) and OSCA ID
-        limit         — max results to return
     """
     query = db.query(
         OscaOccupation.id,
         OscaOccupation.principal_title,
         OscaOccupation.skill_level,
         OscaOccupation.unit_group_id,
-        # Count how many skills this occupation has
         func.count(OscaOccupationSkill.id).label("skill_count")
     ).outerjoin(
         OscaOccupationSkill,
@@ -183,9 +174,6 @@ def get_occupation_detail(
 ) -> Optional[dict]:
     """
     Get full details for a single occupation including breadcrumb path.
-
-    Returns the full hierarchy path:
-    Major Group → Sub-Major → Minor → Unit → Occupation
     """
     occupation = (
         db.query(OscaOccupation)
@@ -196,7 +184,7 @@ def get_occupation_detail(
     if not occupation:
         return None
 
-    # Walk up the hierarchy to build breadcrumb
+    # the hierarchy to build breadcrumb
     unit_group    = db.query(OscaUnitGroup).filter(
                         OscaUnitGroup.id == occupation.unit_group_id
                     ).first()
@@ -218,8 +206,6 @@ def get_occupation_detail(
         "title":         occupation.principal_title,
         "skill_level":   occupation.skill_level,
         "lead_statement": occupation.lead_statement,
-        
-        # ── NEW columns ──
         "caveats":           occupation.caveats,
         "licensing":         occupation.licensing,
         "nec_category":      occupation.nec_category,
@@ -227,7 +213,7 @@ def get_occupation_detail(
         "specialisations":   occupation.specialisations,
         "main_tasks":        occupation.main_tasks,
         "information_card":  occupation.information_card,
-        # content_hash, embedding excluded — internal/too large
+        # content_hash, embedding excluded for now
         "breadcrumb": [
             {"level": "major",      "title": major.title        if major       else None},
             {"level": "sub_major",  "title": sub_major.title    if sub_major   else None},

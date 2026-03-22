@@ -52,8 +52,6 @@ class CityDemandDetailResponse(BaseModel):
     total_jobs:       int
     demand_pct:       float
 
-
-
 class SkillVelocityItem(BaseModel):
     skill_name:   str
     latest_count: int
@@ -124,7 +122,7 @@ def shadow_skills(request: Request, occupation_id: int, db: Session = Depends(ge
     return get_shadow_skills(db, occupation_id)
 
 
-# SKILL DECAY PK is occupation_id:int
+# SKILL DECAY
 @router.get("/skill-decay/{occupation_id}", response_model=List[SkillDecayResponse])
 @limiter.limit("10/minute")
 def skill_decay(request: Request, occupation_id: int, db: Session = Depends(get_db)):

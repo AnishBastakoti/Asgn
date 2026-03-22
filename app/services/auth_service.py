@@ -45,17 +45,7 @@ def hash_password(plain_password: str) -> str:
 
 def create_access_token(user_id: int, email: str, role: str) -> str:
     """
-    Creates a signed JWT token containing user identity.
-
-    The token payload:
-        sub  — subject (user id)
-        email
-        role — user's role name (e.g. "admin")
-        exp  — expiry timestamp
-        iat  — issued at timestamp
-
-    The token is signed with SECRET_KEY from .env.
-    Anyone who modifies the token will fail signature verification.
+    Creates a signed JWT token containing user identity..
     """
     now     = datetime.now(timezone.utc)
     expires = now + timedelta(hours=JWT_EXPIRES_HRS)
@@ -96,18 +86,6 @@ def decode_access_token(token: str) -> dict | None:
 def authenticate_user(db: Session, email: str, password: str) -> dict | None:
     """
     Verifies credentials and returns a JWT token on success.
-
-    Returns:
-        {
-            "access_token": "eyJ...",
-            "token_type":   "bearer",
-            "user_id":      1,
-            "email":        "user@example.com",
-            "display_name": "random user",
-            "role":         "admin",
-            "expires_in":   28800,   # seconds
-        }
-    Or None if credentials are invalid.
     """
     # Find user by email
     user = (

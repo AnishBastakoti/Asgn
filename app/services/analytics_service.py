@@ -88,7 +88,6 @@ _OPTIMAL_K_CACHE = _load_kmeans_cache()
 # ─────────────────────────────────────────────
 # HOT SKILLS
 # Returns top 50 most-mentioned skills from job posts in the last N days.
-# Date filter uses job_post_logs.ingested_at.
 # ─────────────────────────────────────────────
 
 def get_hot_skills(db: Session, days: int = 30) -> list[dict]:
@@ -145,7 +144,6 @@ def get_shadow_skills(db: Session, occupation_id: int) -> list[dict]:
     These are "shadow" signals — emerging or unlisted skills.
     """
     try:
-        # Subquery: skill_ids already mapped to this occupation
         mapped = (
             db.query(OscaOccupationSkill.skill_id)
             .filter(OscaOccupationSkill.occupation_id == occupation_id)
@@ -411,24 +409,11 @@ _MODEL_CACHE: dict = {
     "trained_at":  None,   # datetime of last training
 }
 
-# ─────────────────────────────────────────────
-# REGRESSION DATA
-# Builds a real multi-feature training matrix from live DB data.
-# Features:
-#   current_demand   — total job count across all cities
-#   shadow_count     — unlisted/emerging skills in job posts
-#   skill_count      — number of officially mapped skills
-#   city_diversity   — number of cities this occ appears in
-#   avg_mention      — average skill mention count (skill depth)
-# Target (y):
-#   demand_per_skill — current_demand / skill_count
-#   occupations with strong signal-per-skill ratios.
-# ─────────────────────────────────────────────
 
 """
     Harvests features from multiple tables to create a training matrix.
     Formula to predict future demand (job counts) for occupations based on current demand and shadow skill signals:
-    Predicted Demand = β^0+ (β^1× Current Count)+ (β^2× Shadow Skills)
+    Predicted Demand = β^0+ (β^1x Current Count)+ (β^2x Shadow Skills)
     β₀ represents the intercept of the model.
     β₁ indicates the relationship between the current job count and future demand, representing the growth trend.
     β₂ measures the influence of shadow skills on future job demand and helps determine 
@@ -442,7 +427,7 @@ def get_regression_data(db: Session) -> pd.DataFrame:
     """
     from sqlalchemy import text
  
-    # ── Feature 1: current demand per occupation ──
+    # current demand per occupation ──
     demand_rows = db.query(
         SkillpulseCityOccupationDemand.occupation_id,
         func.sum(SkillpulseCityOccupationDemand.job_count).label("current_demand"),
@@ -457,7 +442,7 @@ def get_regression_data(db: Session) -> pd.DataFrame:
         columns=["occ_id", "current_demand", "city_diversity"]
     )
  
-    # ── Feature 2: shadow skill count ──
+    # ── shadow skill count ──
     shadow_rows = db.execute(text("""
         SELECT jp.occupation_id, COUNT(jps.id) as shadow_count
         FROM job_post_logs jp
@@ -472,7 +457,7 @@ def get_regression_data(db: Session) -> pd.DataFrame:
     """)).fetchall()
     shadow_df = pd.DataFrame(shadow_rows, columns=["occ_id", "shadow_count"])
  
-    # ── Feature 3: official skill count + avg mention count ──
+    # official skill count + avg mention count ──
     skill_rows = db.query(
         OscaOccupationSkill.occupation_id,
         func.count(OscaOccupationSkill.skill_id).label("skill_count"),
@@ -547,7 +532,6 @@ def _ensure_model_trained(db: Session) -> bool:
     X_scaled = scaler.fit_transform(X)
  
     # ── Train Ridge regression ──
-    # alpha=1.0 penalises large coefficients — prevents overfitting
     # on correlated features (current_demand and skill_count often correlate)
     model = Ridge(alpha=1.0)
     model.fit(X_scaled, y)
@@ -772,8 +756,6 @@ def get_model_status(db: Session) -> dict:
 # SKILL VELOCITY
 # Measures whether each skill for an occupation is rising or falling
 # in demand over time using snapshot data.
-# If only one snapshot exists, returns ranked skills with "stable" status.
-# Automatically becomes meaningful as more pipeline runs accumulate.
 # ─────────────────────────────────────────────
 
 def get_skill_velocity(db: Session, occupation_id: int) -> dict:
@@ -1011,8 +993,6 @@ def get_market_saturation(db: Session, occupation_id: int) -> dict:
 # ─────────────────────────────────────────────
 #  OCCUPATION PROFILE
 # Returns rich occupation metadata from osca_occupations:
-# main_tasks, lead_statement, licensing, caveats,
-# specialisations, skill_attributes, information_card
 # ─────────────────────────────────────────────
 
 def get_occupation_profile(db: Session, occupation_id: int) -> dict:

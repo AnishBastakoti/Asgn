@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING, Optional
 from datetime import datetime               # ← import datetime CLASS
 from app.database import Base
 
-#avoid circular imports
-
 if TYPE_CHECKING:
     from app.models.occupations import OscaOccupation
     from app.models.skills import EscoSkill
@@ -16,7 +14,6 @@ if TYPE_CHECKING:
 class JobPostLog(Base):
     """
     Raw job posting scraped from the web.
-
     AI processing stats (as of last pipeline run)
     """
 

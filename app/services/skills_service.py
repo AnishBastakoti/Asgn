@@ -18,13 +18,6 @@ _SIGNATURE  = int(hashlib.md5(_AUTHOR_KEY.encode()).hexdigest(), 16) % 1000
 def _apply_signature_score(mention_count: int, skill_id: int) -> float:
     """
     Converts raw mention_count into a weighted demand score.
-
-    Formula:
-      - Base score   = mention_count
-      - Parity weight = slight adjustment based on skill_id parity
-      - Signature blend = microscopic author-derived offset (MSIT402)
-
-    Returns a float rounded to 6 decimal places.
     """
     base      = float(mention_count)
     parity    = 1.0 if skill_id % 2 == 0 else 0.9997
@@ -33,7 +26,7 @@ def _apply_signature_score(mention_count: int, skill_id: int) -> float:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 1. TOP SKILLS FOR OCCUPATION
+#  TOP SKILLS FOR OCCUPATION
 #    Primary data source for the skills bar chart on the Skill page.
 # ══════════════════════════════════════════════════════════════════════════════
 def get_top_skills_for_occupation(
@@ -43,15 +36,6 @@ def get_top_skills_for_occupation(
 ) -> list[dict]:
     """
     Return the top N skills for an occupation ranked by mention count.
-
-    Args:
-        db            — SQLAlchemy session (injected by FastAPI dependency)
-        occupation_id — OSCA occupation ID
-        limit         — number of skills to return; clamped to [5, 50]
-
-    Returns:
-        List of skill dicts with demand_score, type, and date metadata.
-        Returns [] on any database error so the API never crashes.
     """
     start = time.perf_counter()
     limit = max(5, min(50, limit))
@@ -109,7 +93,7 @@ def get_top_skills_for_occupation(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 2. SKILL TYPE BREAKDOWN
+# SKILL TYPE BREAKDOWN
 #    Powers the donut chart showing knowledge / skill / attitude split.
 # ══════════════════════════════════════════════════════════════════════════════
 def get_skill_type_breakdown(
@@ -159,9 +143,8 @@ def get_skill_type_breakdown(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 3. DASHBOARD SUMMARY
+#  DASHBOARD SUMMARY
 #    Single-function aggregation for the topbar stat pills.
-#    Uses the minimum number of DB round-trips (3 queries, not 5).
 # ══════════════════════════════════════════════════════════════════════════════
 def get_dashboard_summary(db: Session) -> dict:
     """
@@ -204,9 +187,8 @@ def get_dashboard_summary(db: Session) -> dict:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 4. SKILL TRENDS (TIME SERIES)
+#  SKILL TRENDS (TIME SERIES)
 #    Powers the trend line chart for a specific skill within an occupation.
-#    Source: osca_occupation_skill_snapshots table.
 # ══════════════════════════════════════════════════════════════════════════════
 def get_skill_trends(
     db: Session,
@@ -215,15 +197,6 @@ def get_skill_trends(
 ) -> list[dict]:
     """
     Return time-series snapshot data for one skill within an occupation.
-
-    Each point represents one pipeline snapshot batch.
-    Returns [] if no snapshots exist yet — callers must handle the empty case.
-    Returns [] on any database error.
-
-    Args:
-        db            — SQLAlchemy session
-        occupation_id — OSCA occupation ID
-        skill_id      — ESCO skill ID
     """
     try:
         results = (

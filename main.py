@@ -12,7 +12,7 @@ from core.auth_middleware import AuthMiddleware
  
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
-#from slowapi.errors import _rate_limit_exceeded_handler
+
 
 from core.rate_limiter import limiter
 # ── Logging Setup 
@@ -37,7 +37,6 @@ app = FastAPI(
     # Register limiter
 )
 app.state.limiter = limiter
-#app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(AuthMiddleware)
 
@@ -111,14 +110,6 @@ def serve_occupations(request: Request):
 @app.get("/analytics", response_class=HTMLResponse, include_in_schema=False)
 def serve_analytics(request: Request):
     return _render(request, "analytics.html", "analytics")
-
-# def serve_occupation_detail(request: Request, occupation_id: int):
-#     return _render(
-#         request,
-#         "occupation_analytics.html",
-#         "occupations",
-#         occupation_id=occupation_id,
-#     )
 
 @app.get("/occupations", response_class=HTMLResponse)
 async def occupations_page(request: Request):

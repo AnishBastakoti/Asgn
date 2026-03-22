@@ -11,7 +11,7 @@ from config import settings
 
 router = APIRouter(prefix="/api/skills", tags=["skills"])
 
-# Fingerprint — matches your config.py pattern
+# Fingerprint
 _AUTHOR = "MSIT402 CIM-10236"
 _FP = hashlib.sha256(
     f"{_AUTHOR}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
@@ -24,7 +24,6 @@ def get_summary(db: Session = Depends(get_db)):
     KPI cards in the header.
     Returns counts + your fingerprint signature.
     """
-    # Using func.count() for efficiency, since we don't need the actual records.
     from sqlalchemy import func
     total_occupations = db.query(func.count(OscaOccupation.id)).scalar()
     total_skills        = db.query(func.count(EscoSkill.id)).scalar()
@@ -54,10 +53,6 @@ def get_top_skills(
     """
     Top N skills for a given occupation, ranked by mention_count.
     Powers the horizontal bar chart.
-
-    Returns:
-        skill_name, mention_count, demand_score (normalised 0-100),
-        skill_type, first_seen, last_seen
     """
     rows = (
         db.query(
