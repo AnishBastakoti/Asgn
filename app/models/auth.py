@@ -45,7 +45,6 @@ class SystemEndUser(Base):
 
     id            = Column(Integer, primary_key=True)
     email         = Column(String, nullable=False, unique=True)
-    #display_name  = Column(String, nullable=True)
     password_hash = Column(String, nullable=False)
     enabled       = Column(Boolean, default=True, nullable=False)
     role_id       = Column(Integer, ForeignKey("system_role.id"), nullable=True)

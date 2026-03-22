@@ -189,24 +189,3 @@ def get_occupation_detail(occupation_id: int, db: Session = Depends(get_db)):
         "main_tasks":        occupation.main_tasks,
         "information_card":  occupation.information_card,
 }
-
-# # debug 
-# @router.get("/debug/data-coverage")
-# def data_coverage(db: Session = Depends(get_db)):
-#     """Temporary — shows which major groups have skill data."""
-#     from sqlalchemy import func
-#     rows = (
-#         db.query(
-#             OscaMajorGroup.title,
-#             func.count(OscaOccupationSkill.skill_id.distinct()).label("skill_mappings")
-#         )
-#         .join(OscaSubMajorGroup, OscaSubMajorGroup.major_group_id == OscaMajorGroup.id)
-#         .join(OscaMinorGroup,    OscaMinorGroup.sub_major_group_id == OscaSubMajorGroup.id)
-#         .join(OscaUnitGroup,     OscaUnitGroup.minor_group_id == OscaMinorGroup.id)
-#         .join(OscaOccupation,    OscaOccupation.unit_group_id == OscaUnitGroup.id)
-#         .outerjoin(OscaOccupationSkill, OscaOccupationSkill.occupation_id == OscaOccupation.id)
-#         .group_by(OscaMajorGroup.title)
-#         .order_by(func.count(OscaOccupationSkill.skill_id.distinct()).desc())
-#         .all()
-#     )
-#     return [{"major_group": r.title, "skill_mappings": r.skill_mappings} for r in rows]

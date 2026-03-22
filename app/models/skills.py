@@ -1,9 +1,3 @@
-''' i did not work on vector embedding for now but
- i have added the content_hash field in esco_skill table which 
- will be used to check if the skill has changed or not and 
- if it has changed then we can update the embedding for that skill.
-
- '''
 from pydantic import BaseModel
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
@@ -25,10 +19,6 @@ class EscoSkill(Base):
     embedding    = Column(Text,    nullable=True)
     skill_card   = Column(String, nullable=True)
     created_at   = Column(String, nullable=True)
-    #embedding     = Column(String, nullable=True)  # Store as JSON string or base64-encoded vector
-
-    #hash of the skill content, used to detect duplicates
-    #this is a fingerprinting technique for data
     
     # Relationships
     occupation_skills = relationship(

@@ -73,8 +73,6 @@ class OscaOccupation(Base):
     skill_level           = Column(Integer, nullable=True)
     unit_group_id         = Column(Integer, ForeignKey("osca_unit_groups.id"))
     lead_statement        = Column(Text, nullable=True)
-      
-    # added new tables from new ERD:
     content_hash          = Column(String,  nullable=True)
     embedding             = Column(Text,    nullable=True)
     caveats               = Column(Text,    nullable=True)
@@ -100,7 +98,6 @@ class OscaAlternativeTitle(Base):
     id                = Column(BigInteger, primary_key=True)
     title             = Column(String, nullable=True)
     is_specialisation = Column(Boolean, nullable=True)
-    # status            = Column(String, nullable=True)
     occupation_id     = Column(BigInteger, ForeignKey("osca_occupations.id"))
 
     occupation = relationship("OscaOccupation", back_populates="alternative_titles", lazy="noload")
