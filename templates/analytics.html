@@ -139,6 +139,18 @@
 
         <!-- Predictive Demand Forecast -->
         <div class="an-tab-panel" id="tab-forecast">
+          <!-- Model switcher dropdown -->
+          <div class="fc-model-switcher">
+            <label class="fc-switcher-label" for="fcModelSelect">Prediction Model:</label>
+            <div class="fc-select-wrap">
+              <i class="bi bi-cpu fc-select-icon"></i>
+              <select id="fcModelSelect" class="fc-select" onchange="switchForecastModel(this.value)">
+                <option value="ridge">Ridge Regression</option>
+                <option value="momentum">Momentum Forecast</option>
+              </select>
+            </div>
+            <span class="fc-model-active-badge" id="fcActiveBadge">—</span>
+          </div>
 
           <!-- KPI strip -->
           <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px;">

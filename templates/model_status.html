@@ -112,7 +112,7 @@
 }
 .ms-feature-bar-fill {
   height: 100%;
-  background: var(--orange);
+  background: var(--indigo);
   border-radius: 99px;
 }
 
@@ -138,7 +138,7 @@
 /* Refresh button */
 .ms-refresh-btn {
   padding: 8px 18px;
-  background: var(--orange);
+  background: var(--indigo);
   color: #fff;
   border: none;
   border-radius: var(--rad-sm);
@@ -150,7 +150,7 @@
   gap: 6px;
   transition: all 0.15s;
 }
-.ms-refresh-btn:hover { background: var(--orange-d); }
+.ms-refresh-btn:hover { background: var(--indigo-d); }
 
 /* Full-width cards */
 .ms-full { grid-column: 1 / -1; }
@@ -168,9 +168,15 @@
 {% block content %}
 
 <!-- Header actions -->
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <div style="font-size:13px; color:var(--muted);">
-    Monitors the Ridge regression model — training status, accuracy (R²), and feature signals.
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+  <div class="ms-model-switcher">
+    <span class="ms-switcher-label">Viewing:</span>
+    <button class="ms-model-btn active" id="msBtnRidge"    onclick="switchModel('ridge')">
+      <i class="bi bi-lightning-charge-fill"></i> Ridge Regression
+    </button>
+    <button class="ms-model-btn"         id="msBtnMomentum" onclick="switchModel('momentum')">
+      <i class="bi bi-graph-up-arrow"></i> Momentum Forecast
+    </button>
   </div>
   <button class="ms-refresh-btn" onclick="loadModelStatus()">
     <i class="bi bi-arrow-clockwise" id="refreshIcon"></i>
@@ -179,9 +185,8 @@
 </div>
 
 <div class="ms-grid" id="statusGrid">
-  <!-- Populated by JS -->
   <div class="ms-card ms-full ms-empty">
-    <div class="sp-spinner-sm d-inline-block me-2"></div>
+    <div class="sp-spinner-sm" style="display:inline-block; margin-right:8px;"></div>
     Loading model status…
   </div>
 </div>
@@ -191,6 +196,16 @@
 {% block extra_js %}
 <script>
 'use strict';
+
+// ── Active model ──────────────────────────────────────────────
+let _activeModel = 'ridge';
+
+function switchModel(model) {
+  _activeModel = model;
+  document.getElementById('msBtnRidge')?.classList.toggle('active',    model === 'ridge');
+  document.getElementById('msBtnMomentum')?.classList.toggle('active', model === 'momentum');
+  loadModelStatus();
+}
 
 // ── Load model status ─────────────────────────────────────────────────────
 async function loadModelStatus() {
@@ -202,10 +217,10 @@ async function loadModelStatus() {
 
   try {
     const d = await api('/api/analytics/model-status');
-    renderStatus(d);
+    renderStatus(d, _activeModel);
   } catch (err) {
     grid.innerHTML = `<div class="ms-card ms-full ms-empty">
-      <i class="bi bi-exclamation-triangle me-2 text-danger"></i>
+      <i class="bi bi-exclamation-triangle" style="color:var(--coral); margin-right:8px;"></i>
       Could not load model status. Is uvicorn running?
     </div>`;
     console.warn('[ModelStatus]', err.message);
@@ -213,16 +228,24 @@ async function loadModelStatus() {
 }
 
 // ── Render status ─────────────────────────────────────────────────────────
-function renderStatus(d) {
+function renderStatus(d, activeModel = 'ridge') {
+  const isRidge     = activeModel === 'ridge';
+  const modelLabel  = isRidge ? ' Ridge Regression' : ' Momentum Forecast';
+  const modelColor  = isRidge ? 'var(--indigo)' : 'var(--emerald)';
   const grid   = document.getElementById('statusGrid');
   const r2     = d.r2_score ?? 0;
   const r2Pct  = Math.round(r2 * 100);
   const r2Color = r2 >= 0.6 ? '#10B981' : r2 >= 0.4 ? '#F59E0B' : '#EF4444';
   const r2Label = r2 >= 0.6 ? 'Good' : r2 >= 0.4 ? 'Moderate' : 'Weak';
 
-  const methodBadge = d.method === 'ridge_regression'
-    ? `<span class="ms-badge ready"><i class="bi bi-lightning-charge-fill"></i> Ridge Regression</span>`
-    : `<span class="ms-badge fallback"><i class="bi bi-graph-up-arrow"></i> Momentum Fallback</span>`;
+  // Show which model is selected + whether backend actually used it
+  const backendUsed = d.method === 'ridge_regression' ? 'ridge' : 'momentum';
+  const mismatch    = isRidge && backendUsed !== 'ridge';
+  const methodBadge = isRidge
+    ? `<span class="ms-badge ready"><i class="bi bi-lightning-charge-fill"></i> Ridge Regression</span>
+       ${mismatch ? '<span class="ms-badge fallback" style="margin-left:6px;"> fell back to Momentum</span>' : ''}`
+    : `<span class="ms-badge fallback"><i class="bi bi-graph-up-arrow"></i> Momentum Forecast</span>
+       <div style="font-size:11px;color:var(--muted);margin-top:6px;">Momentum uses market velocity — no R² score</div>`;
 
   const features = d.feature_cols || [];
   const featureDescriptions = {
@@ -233,7 +256,8 @@ function renderStatus(d) {
     avg_mention:     "Average skill mention depth",
   };
 
-  // In production we will use model.coef_ from the trained model
+  //importance bars — proportional to feature index position --dummy example
+
   const maxImportance = features.length;
   const featureRows = features.map((f, i) => {
     const importance = Math.round(((maxImportance - i) / maxImportance) * 100);
@@ -245,7 +269,7 @@ function renderStatus(d) {
           <div class="ms-feature-bar-fill" style="width:${importance}%"></div>
         </div>
       </td>
-      <td style="text-align:right; font-weight:700; color:var(--orange)">${importance}%</td>
+      <td style="text-align:right; font-weight:700; color:var(--indigo)">${importance}%</td>
     </tr>`;
   }).join('');
 
@@ -256,17 +280,18 @@ function renderStatus(d) {
   grid.innerHTML = `
 
     <!-- Model Status Card -->
-    <div class="ms-card">
-      <div class="ms-card-title"><i class="bi bi-cpu-fill"></i> Model Status</div>
-      <div class="ms-big-val">${d.model_ready ? 'Ready' : 'Pending'}</div>
+    <div class="ms-card" style="border-top:3px solid ${modelColor}">
+      <div class="ms-card-title"><i class="bi bi-cpu-fill"></i> Active Model</div>
+      <div class="ms-big-val" style="font-size:18px; color:${modelColor}">${modelLabel}</div>
+      <div class="ms-sub" style="margin-top:6px;">Status: ${d.model_ready ? 'Ready' : 'Pending'}</div>
       <div class="ms-sub">Last trained: ${trainedAt}</div>
-      ${methodBadge}
+      <div style="margin-top:8px;">${methodBadge}</div>
     </div>
 
     <!-- R² Score Card -->
     <div class="ms-card">
-      <div class="ms-card-title"><i class="bi bi-graph-up"></i> Model Accuracy (R²)</div>
-      <div class="ms-big-val" style="color:${r2Color}">${r2Pct}%</div>
+      <div class="ms-card-title"><i class="bi bi-graph-up"></i> ${isRidge ? 'Model Accuracy (R²)' : 'Momentum Accuracy'}</div>
+      <div class="ms-big-val" style="color:${isRidge ? r2Color : 'var(--muted)'}">${isRidge ? r2Pct + '%' : 'N/A'}</div>
       <div class="ms-r2-track">
         <div class="ms-r2-fill" style="width:${r2Pct}%; background:${r2Color};"></div>
       </div>
@@ -297,8 +322,8 @@ function renderStatus(d) {
       </div>
       <div class="ms-sub" style="margin-top:8px; color:${(d.occ_count || 0) < 100 ? '#D97706' : 'var(--muted)'}">
         ${(d.occ_count || 0) < 100
-          ? '⚠ More pipeline runs will improve accuracy'
-          : '✓ Sufficient training data'
+          ? 'More pipeline runs will improve accuracy'
+          : 'Sufficient training data'
         }
       </div>
     </div>
@@ -313,7 +338,7 @@ function renderStatus(d) {
         <strong style="color:#F59E0B">R² = 0.5</strong> — explains 50% of variance<br>
         <strong style="color:#EF4444">R² = 0.0</strong> — no better than predicting the mean<br>
         <br>
-        Labour market data typically achieves R² of 0.3–0.6 with limited data.
+        Labour market data typically achieves R² of 0.3-0.6 with limited data.
         More pipeline runs → more training data → higher R².
       </div>
     </div>
@@ -339,35 +364,63 @@ function renderStatus(d) {
       ` : `<div class="ms-empty">Model not trained yet — no features available.</div>`}
     </div>
 
-    <!-- How Ridge Regression Works -->
-    <div class="ms-card ms-full" style="border-left: 3px solid var(--orange);">
-      <div class="ms-card-title"><i class="bi bi-diagram-3-fill"></i> How the Model Works</div>
+    <!-- How the Model Works -->
+    <div class="ms-card ms-full" style="border-left: 3px solid ${modelColor};">
+      <div class="ms-card-title"><i class="bi bi-diagram-3-fill"></i> How ${isRidge ? 'Ridge Regression' : 'Momentum Forecasting'} Works</div>
       <div style="display:grid; grid-template-columns: repeat(5,1fr); gap:16px; font-size:12px; color:var(--text2);">
-        <div style="text-align:center;">
-          <div style="font-size:20px; margin-bottom:6px;">📊</div>
-          <div style="font-weight:700; color:var(--text); margin-bottom:4px;">1. Data Collection</div>
-          <div>Job posts, skill counts and city diversity are extracted from the pipeline</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:20px; margin-bottom:6px;">⚖️</div>
-          <div style="font-weight:700; color:var(--text); margin-bottom:4px;">2. Feature Scaling</div>
-          <div>StandardScaler normalises all features to mean=0, std=1 so no feature dominates</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:20px; margin-bottom:6px;">📐</div>
-          <div style="font-weight:700; color:var(--text); margin-bottom:4px;">3. Ridge Training</div>
-          <div>Ridge regression learns β coefficients with L2 penalty (α=1.0) to prevent overfitting</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:20px; margin-bottom:6px;">✅</div>
-          <div style="font-weight:700; color:var(--text); margin-bottom:4px;">4. Cross-Validation</div>
-          <div>K-Fold CV measures R² on unseen data to give an unbiased accuracy estimate</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:20px; margin-bottom:6px;">🔄</div>
-          <div style="font-weight:700; color:var(--text); margin-bottom:4px;">5. Auto-Retrain</div>
-          <div>Model retrains automatically when new pipeline data is detected — no code changes needed</div>
-        </div>
+        ${isRidge ? `
+          <div style="text-align:center;">
+            <div style="font-size:20px; margin-bottom:6px;">1</div>
+            <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Data Collection</div>
+            <div>Job posts, skill counts and city diversity extracted from the pipeline</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:20px; margin-bottom:6px;">2</div>
+            <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Feature Scaling</div>
+            <div>StandardScaler normalises all features to mean=0, std=1 so no feature dominates</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:20px; margin-bottom:6px;">3</div>
+            <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Ridge Training</div>
+            <div>Ridge learns β coefficients with L2 penalty (α=1.0) to prevent overfitting</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:20px; margin-bottom:6px;">4</div>
+            <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Cross-Validation</div>
+            <div>K-Fold CV measures R² on unseen data to give an unbiased accuracy estimate</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:20px; margin-bottom:6px;">5</div>
+            <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Auto-Retrain</div>
+            <div>Model retrains automatically when new pipeline data is detected</div>
+          </div>
+        ` : `
+          <div style="text-align:center;">
+            <div style="font-size:20px; margin-bottom:6px;">1</div>
+            <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Demand Snapshot</div>
+            <div>Current job posting count across all cities for the occupation</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:20px; margin-bottom:6px;">2</div>
+            <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Velocity Calc</div>
+            <div>velocity = (current - historical avg) / historical avg</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:20px; margin-bottom:6px;">3</div>
+            <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Momentum Factor</div>
+            <div>momentum = 1.05 + (velocity * 0.5) — baseline 5% growth always applied</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:20px; margin-bottom:6px;">4</div>
+            <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Shadow Bonus</div>
+            <div>Shadow skill count * 0.1 added to prediction to reward emerging demand</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:20px; margin-bottom:6px;">5</div>
+            <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Prediction</div>
+            <div>predicted = current * momentum + shadow bonus</div>
+          </div>
+        `}
       </div>
     </div>
 

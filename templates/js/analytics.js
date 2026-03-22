@@ -53,7 +53,7 @@ async function loadShadowSkills(occId) {
     if (!data || !data.length) {
       countBadge.textContent = '0';
       body.innerHTML = `<div class="an-empty">
-        <i class="bi bi-check-circle me-2" style="color:var(--emerald)"></i>
+        <i class="bi bi-check-circle me-2" style="color:var(--orange)"></i>
         No shadow skills — all job post skills are officially mapped.
       </div>`;
       return;
@@ -88,7 +88,7 @@ async function loadSkillDecay(occId) {
     if (!data || !data.length) {
       countBadge.textContent = '0';
       body.innerHTML = `<div class="an-empty">
-        <i class="bi bi-check-circle me-2" style="color:var(--emerald)"></i>
+        <i class="bi bi-check-circle me-2" style="color:var(--orange)"></i>
         No decaying skills detected for this occupation.
       </div>`;
       return;
@@ -144,18 +144,57 @@ function switchTab(tabName) {
 }
 
 // Optimized Forecast Loader
+// ── Active forecast model state ──────────────────────────────
+let _forecastModel   = 'ridge';    // 'ridge' or 'momentum'
+let _forecastOccId   = null;       // remember current occupation
+ 
+// Called by the model dropdown onChange
+function switchForecastModel(model) {
+    _forecastModel = model;
+ 
+    // Sync dropdown in case called programmatically
+    const sel = document.getElementById('fcModelSelect');
+    if (sel && sel.value !== model) sel.value = model;
+ 
+    // Re-run forecast with new model if occupation already loaded
+    if (_forecastOccId) updateForecast(_forecastOccId);
+}
 async function updateForecast(occupationId) {
+    _forecastOccId = occupationId;
     const canvas = document.getElementById('forecastChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-
+ 
+    // Show loading state in badge
+    const badge = document.getElementById('fcActiveBadge');
+    if (badge) badge.textContent = 'Loading…';
+ 
     try {
-        const response = await fetch(`/api/analytics/predict-demand-by-occ/${occupationId}`);
-        if (!response.ok) throw new Error("Forecast data unavailable");
+        // Build URL — pass model preference as query param so backend knows which to use
+        const url = `/api/analytics/predict-demand-by-occ/${occupationId}?model=${_forecastModel}`;
+        const response = await fetch(url, {
+            headers: localStorage.getItem('sp_token')
+                ? { 'Authorization': `Bearer ${localStorage.getItem('sp_token')}` }
+                : {}
+        });
+        if (!response.ok) throw new Error('Forecast data unavailable');
         const data = await response.json();
-
+ 
+        // ── Detect actual method used (backend may fallback) ──
+        const usedMethod  = data.method || (_forecastModel === 'ridge' ? 'ridge_regression' : 'momentum');
+        const isRidge     = usedMethod === 'ridge_regression';
+        const methodLabel = isRidge ? 'Ridge Regression' : 'Momentum Forecast';
+        const methodColor = isRidge ? 'var(--indigo)' : 'var(--orange)';
+ 
+        // ── Update switcher active badge ──
+        if (badge) {
+            badge.textContent  = isRidge ? 'Ridge Active' : 'Momentum Active';
+            badge.style.background = isRidge ? 'var(--indigo-l)' : 'var(--orange-l)';
+            badge.style.color      = isRidge ? 'var(--indigo)'   : '#047857';
+        }
+ 
         // ── KPI strip ──
-        const growthColor = data.growth_rate >= 0 ? '#10B981' : '#EF4444';
+        const growthColor = data.growth_rate >= 0 ? 'var(--orange)' : 'var(--coral)';
         const el = id => document.getElementById(id);
         if (el('fcCurrentDemand'))   el('fcCurrentDemand').textContent   = fmt(data.current_demand);
         if (el('fcPredictedDemand')) el('fcPredictedDemand').textContent = fmt(data.predicted_demand);
@@ -166,18 +205,16 @@ async function updateForecast(occupationId) {
         if (el('fcConfidence')) {
             el('fcConfidence').textContent = `${Math.round((data.confidence_score || 0) * 100)}%`;
         }
-
+ 
         // ── Model info footer ──
-        const methodLabel = data.method === 'ridge_regression' ? 'Ridge Regression' : 'Momentum Forecast';
-        const r2Text      = data.r2_score != null ? `R²=${data.r2_score.toFixed(3)}` : '';
+        const r2Text = data.r2_score != null ? `R²=${data.r2_score.toFixed(3)}` : '';
         if (el('forecastModelInfo')) {
             el('forecastModelInfo').innerHTML = `
-                <span><strong>Model:</strong> ${methodLabel}</span>
-                ${r2Text ? `<span><strong>Accuracy:</strong> ${r2Text}</span>` : ''}
-                <span><strong>Features:</strong> demand · shadow skills · skill count · city diversity · avg mention</span>
+                <span style="color:${methodColor}; font-weight:700">${methodLabel}</span>
+                ${r2Text ? `<span><strong>Accuracy:</strong> ${r2Text}</span>` : '<span style="color:var(--muted)">Accuracy: N/A (momentum has no R²)</span>'}
+                ${isRidge ? `<span><strong>Features:</strong> demand · shadow skills · skill count · city diversity · avg mention</span>` : '<span><strong>Method:</strong> market velocity × shadow bonus</span>'}
             `;
         }
-
         // ── Chart ──
         if (forecastChartInstance) forecastChartInstance.destroy();
 
@@ -279,7 +316,7 @@ async function loadSkillVelocity(occId) {
  
     if (!rising.length && !falling.length) {
       body.innerHTML = `<div class="an-empty">
-        <i class="bi bi-check-circle me-2" style="color:var(--emerald)"></i>
+        <i class="bi bi-check-circle me-2" style="color:var(--orange)"></i>
         All skills are stable — no significant velocity changes detected.
       </div>`;
       return;
@@ -524,7 +561,7 @@ async function loadSimilarOccupations(occId) {
         width: 220,
         cellRenderer: p => {
           const pct   = p.value;
-          const color = pct >= 75 ? 'var(--emerald)' : pct >= 50 ? 'var(--orange)' : '#F59E0B';
+          const color = pct >= 75 ? 'var(--orange)' : pct >= 50 ? 'var(--orange)' : '#F59E0B';
           return `<div style="display:flex;align-items:center;gap:8px;">
             <div style="flex:1;height:6px;background:var(--shell-bg);border-radius:3px;overflow:hidden;border:1px solid var(--border);">
               <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div>

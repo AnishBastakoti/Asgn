@@ -165,13 +165,13 @@ def city_demand_detail(
 def predict_occ_demand(
     request: Request,
     occupation_id: int,
-    limit: int = 10, 
+    model: Optional[str] = None,
     db: Session = Depends(get_db)):
     """
     Fetches the regression-based demand forecast for a specific occupation.
     """
     from app.services.analytics_service import get_occupation_prediction
-    prediction = get_occupation_prediction(db, occupation_id)
+    prediction = get_occupation_prediction(db, occupation_id, model_preference=model)
     if not prediction:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="No demand data found")
