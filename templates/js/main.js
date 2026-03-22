@@ -10,12 +10,6 @@ const fmt = n => {
   if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
   return String(n);
 };
-
-/* ── Date formatter (Day.js) ──
-   fmtDate('2026-03-17T09:00:00') → '17 Mar 2026'
-   fmtDate('2026-03-17', 'D MMM') → '17 Mar'
-   Falls back to raw string if Day.js not loaded.
-── */
 const fmtDate = (raw, template = 'D MMM YYYY') => {
   if (!raw) return '—';
   if (typeof dayjs === 'undefined') return String(raw).split('T')[0];
@@ -23,12 +17,8 @@ const fmtDate = (raw, template = 'D MMM YYYY') => {
   return d.isValid() ? d.format(template) : String(raw).split('T')[0];
 };
 
-/* ── Shared bar colour palette ──
-   Used by dashboard.js, occupations.js, analytics.js
-   barColour(0) → var(--indigo), barColour(1) → var(--emerald) etc.
-── */
 const BAR_COLOURS = [
-  'var(--indigo)',
+  'var(--orange)',
   'var(--emerald)',
   'var(--violet)',
   'var(--sky)',
@@ -100,7 +90,6 @@ async function logout() {
 /* ════════════════════════════════════════════════════
    TOOLTIP
    Global tooltip used by all chart pages.
-   Called as: showTip(event, htmlString)
 ════════════════════════════════════════════════════ */
 const _tip = $('spTooltip');
 
@@ -134,7 +123,6 @@ function toggleSidebar() {
   const label    = document.querySelector('.sp-collapse-label');
   shell.classList.toggle('sidebar-collapsed');
   const collapsed = shell.classList.contains('sidebar-collapsed');
-  // Flip icon: << when expanded (click to collapse), >> when collapsed (click to expand)
   if (icon)  icon.className  = collapsed ? 'bi bi-chevron-double-right' : 'bi bi-chevron-double-left';
   if (label) label.textContent = collapsed ? '' : 'Collapse';
 }
@@ -142,16 +130,10 @@ function toggleSidebar() {
 /* ════════════════════════════════════════════════════
    GLOBAL SUMMARY STATS
    Loads /api/skills/summary and populates:
-     - Topbar stat pills  (#statOccupations, #statSkills, #statJobs, #statMappings)
-     - Sidebar signature  (#navSig)
-   Field names matched exactly to the API response:
-     total_occupations, total_skills, total_job_posts, total_skill_mappings
 ════════════════════════════════════════════════════ */
 async function loadGlobalSummary() {
   try {
     const d = await api('/api/skills/summary');
-
-    // Topbar pills (base.html)
     const statMap = {
       statOccupations: d.total_occupations,
       statSkills:      d.total_skills,
@@ -176,8 +158,7 @@ async function loadGlobalSummary() {
 /* ════════════════════════════════════════════════════
    ACTIVE NAV HIGHLIGHTING
    Marks the correct sidebar link as active based on
-   the current URL path. Complements the server-side
-   Jinja2 active_page check in base.html.
+   the current URL path.
 ════════════════════════════════════════════════════ */
 function highlightActiveNav() {
   const path = window.location.pathname;
@@ -193,8 +174,7 @@ function highlightActiveNav() {
 
 /* ════════════════════════════════════════════════════
    BOOTSTRAP TOOLTIP INIT
-   Activates [data-bs-toggle="tooltip"] elements
-   (used on collapsed nav icons at narrow widths).
+   Activates Bootstrap tooltips for any element with data-bs-toggle="tooltip"
 ════════════════════════════════════════════════════ */
 function initBootstrapTooltips() {
   if (typeof bootstrap === 'undefined') return;
@@ -208,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Configure NProgress — thin orange bar at top of page
   if (typeof NProgress !== 'undefined') {
     NProgress.configure({
-      showSpinner: false,        // hide the spinner — just the bar
+      showSpinner: false,        // hide the spinner
       trickleSpeed: 200,
       minimum: 0.1,
     });

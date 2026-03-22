@@ -1,23 +1,5 @@
 'use strict';
 
-/**
- * Sections:
- *   1. Global hot skills banner  → /api/analytics/hot-skills
- *   2. Occupation picker         → /api/occupations/list
- *   3. Tab management            (lazy-load per occupation)
- *   4. City demand chart         → /api/jobs/cities/
- *   5. Skill trends line chart   → /api/jobs/trends/
- *   6. Skill overlap heatmap     → /api/jobs/overlap/
- *   7. Top companies table       → /api/jobs/companies/
- *
- * Conventions:
- *   - api(), fmt(), esc() are globals injected by main.js
- *   - Chart instances are module-scoped so they can be destroyed before redraw
- *   - jt.loaded flags are set BEFORE await to prevent double-fetch on fast clicks
- *   - Every API response is null-checked; empty states explain WHY data is missing
- */
-
-
 // ── Colour palette (matches CSS token --indigo, --emerald, etc.) ──────────────
 const JT_COLORS = [
   '#6366F1', // indigo
@@ -81,10 +63,8 @@ function togglePicker() {
   document.querySelector('.jt-layout').classList.toggle('picker-collapsed');
 }
 // ═════════════════════════════════════════════════════════════════════════════
-// 1. GLOBAL HOT SKILLS BANNER
-//    Source: /api/analytics/hot-skills?days=30
-//    Shows top 12 skills across ALL occupations in the last 30 days.
-//    This is the "global overview" before the user drills into an occupation.
+// GLOBAL HOT SKILLS BANNER
+//    Source: /api/analytics/hot-skills?days=30.
 // ═════════════════════════════════════════════════════════════════════════════
 async function loadHotSkills() {
   const wrap = document.getElementById('hotSkillsList');
@@ -149,9 +129,8 @@ window.selectOccupation = function(el) {
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 3. TAB MANAGEMENT
+// TAB MANAGEMENT
 //    Lazy-loads data: each tab fetches once per selected occupation.
-//    If user switches occupation, loaded flags reset and data re-fetches.
 // ═════════════════════════════════════════════════════════════════════════════
 function initTabs() {
   document.querySelectorAll('.jt-tab').forEach(tab => {
@@ -177,11 +156,6 @@ async function loadTabData(tab) {
 
   // Mark loaded BEFORE await to prevent double-fetch if user clicks fast
   jt.loaded[tab] = true;
-  /* Show spinner — for chart panes we MUST NOT overwrite .jt-chart-wrap
-     because that destroys the <canvas> element inside it.
-     Instead overlay a spinner above the chart, and only overwrite innerHTML
-    for heatmap/companies panes that don't use a persistent canvas.
-  */
   const pane = document.getElementById(`pane-${tab}`);
   if (pane) {
     if (tab === 'overlap' || tab === 'companies') {
@@ -212,9 +186,8 @@ async function loadTabData(tab) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 4. CITY DEMAND — horizontal bar chart
+// CITY DEMAND — horizontal bar chart
 //    Source: /api/jobs/cities/?occupation_id=X
-//    Horizontal bars are better than vertical for city name labels.
 // ═════════════════════════════════════════════════════════════════════════════
 async function renderCities(occId) {
   let chartWrap;
@@ -280,7 +253,7 @@ async function renderCities(occId) {
 }
 
 // ═══════════════════════════════════════════════════════
-// 4b. CITY LEAD INDICATOR
+// CITY LEAD INDICATOR
 //     Source: /api/jobs/lead-cities/?occupation_id=X
 // ═══════════════════════════════════════════════════════
 async function renderLeadIndicator(occId) {
@@ -299,7 +272,7 @@ async function renderLeadIndicator(occId) {
     insightBox.style.display = 'block';
     insightBox.innerHTML = `
       <div class="d-flex align-items-center gap-3 p-3 rounded border border-primary-subtle bg-primary-subtle">
-        <i class="bi bi-geo-alt-fill fs-3" style="color:var(--indigo)"></i>
+        <i class="bi bi-geo-alt-fill fs-3" style="color:var(--orange)"></i>
         <div class="small text-secondary">
           <strong class="text-dark">${esc(lead.city)}</strong>
           was the first city to trend for this role
@@ -314,7 +287,7 @@ async function renderLeadIndicator(occId) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 5. SKILL TRENDS — multi-line time series
+// SKILL TRENDS — multi-line time series
 //    Source: /api/jobs/trends/?occupation_id=X
 //    Each dataset is one skill. Tooltip shows trend direction (growing/declining/stable)
 //    from the velocity score computed by numpy linear regression in the backend.
@@ -410,7 +383,7 @@ async function renderTrends(occId) {
                       month: 'long',   year: 'numeric',
                     });
               },
-              // Fix "1 mentions" grammar + clean formatting
+              //"1 mentions" grammar + clean formatting
               label: ctx => {
                 const count = ctx.parsed.y;
                 const noun  = count === 1 ? 'mention' : 'mentions';
@@ -476,10 +449,8 @@ async function renderTrends(occId) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 6. SKILL OVERLAP — HTML table heatmap
+// SKILL OVERLAP — HTML table heatmap
 //    Source: /api/jobs/overlap/?occupation_id=X
-//    Built as an HTML table rather than Chart.js because matrix data
-//    is clearer as a labelled grid. Tick = shared skill, dot = not shared.
 // ═════════════════════════════════════════════════════════════════════════════
 async function renderOverlap(occId) {
   const wrap = document.getElementById('heatmapWrap');
@@ -501,7 +472,7 @@ async function renderOverlap(occId) {
       return;
     }
 
-    // Column headers — truncate long occupation names to keep table readable
+    // Column headers — slice long occupation names to keep table readable
     let html = `<table class="jt-heatmap-table">
       <thead><tr>
         <th style="text-align:left; padding-right:16px;">Skill</th>`;
@@ -533,9 +504,8 @@ async function renderOverlap(occId) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 7. COMPANIES — ranked table with inline bar
+// COMPANIES — ranked table with inline bar
 //    Source: /api/jobs/companies/?occupation_id=X
-//    Bar width is relative to the top company (max = 100%).
 // ═════════════════════════════════════════════════════════════════════════════
 async function renderCompanies(occId) {
   const wrap = document.getElementById('companiesWrap');

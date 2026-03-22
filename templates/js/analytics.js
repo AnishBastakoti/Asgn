@@ -63,7 +63,7 @@ async function loadShadowSkills(occId) {
     body.innerHTML = `<div class="d-flex flex-wrap gap-2">
         ${data.map(s => `
             <span class="badge rounded-pill border text-dark fw-normal px-3 py-2"
-                style="background:var(--indigo-l); border-color:rgba(99,102,241,0.2)!important; font-size:12px;">
+                style="background:var(--orange-l); border-color:rgba(99,102,241,0.2)!important; font-size:12px;">
             ${esc(s.skill_name)}
             </span>`).join('')}
         </div>`;
@@ -168,7 +168,7 @@ async function updateForecast(occupationId) {
         }
 
         // ── Model info footer ──
-        const methodLabel = data.method === 'ridge_regression' ? '⚡ Ridge Regression' : '📈 Momentum Forecast';
+        const methodLabel = data.method === 'ridge_regression' ? 'Ridge Regression' : 'Momentum Forecast';
         const r2Text      = data.r2_score != null ? `R²=${data.r2_score.toFixed(3)}` : '';
         if (el('forecastModelInfo')) {
             el('forecastModelInfo').innerHTML = `
@@ -322,7 +322,6 @@ async function loadSkillVelocity(occId) {
   }
 }
  
- 
 // ─────────────────────────────────────────────────────────────────────────────
 // MARKET SATURATION
 // ─────────────────────────────────────────────────────────────────────────────
@@ -401,10 +400,7 @@ async function loadMarketSaturation(occId) {
       </div>
  
       <!-- Insight text -->
-      <div class="an-insight-box">
-        <i class="bi bi-lightbulb-fill me-2" style="color:#F59E0B"></i>
-        ${esc(d.insight)}
-      </div>`;
+      <div class="an-insight-box">${esc(d.insight)}</div>`;
  
   } catch (err) {
     body.innerHTML = `<div class="an-empty text-danger">
@@ -469,7 +465,7 @@ async function loadOccupationProfile(occId) {
       <!-- Skill type breakdown -->
       <div style="margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid #F3F4F6;">
         <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.08em;
-                    color:var(--indigo); margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+                    color:var(--orange); margin-bottom:10px; display:flex; align-items:center; gap:6px;">
           <i class="bi bi-pie-chart-fill"></i> Skill Composition (${total} total)
         </div>
         ${breakdownHtml || '<div style="color:var(--muted);font-size:12px;">No skill data.</div>'}
@@ -528,7 +524,7 @@ async function loadSimilarOccupations(occId) {
         width: 220,
         cellRenderer: p => {
           const pct   = p.value;
-          const color = pct >= 75 ? 'var(--emerald)' : pct >= 50 ? 'var(--indigo)' : '#F59E0B';
+          const color = pct >= 75 ? 'var(--emerald)' : pct >= 50 ? 'var(--orange)' : '#F59E0B';
           return `<div style="display:flex;align-items:center;gap:8px;">
             <div style="flex:1;height:6px;background:var(--shell-bg);border-radius:3px;overflow:hidden;border:1px solid var(--border);">
               <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div>
@@ -600,7 +596,7 @@ async function loadOccupationClusters(occId) {
         width: 220,
         cellRenderer: p => {
           const pct   = p.value;
-          const color = pct >= 75 ? 'var(--violet)' : pct >= 50 ? 'var(--indigo)' : 'var(--muted)';
+          const color = pct >= 75 ? 'var(--violet)' : pct >= 50 ? 'var(--orange)' : 'var(--muted)';
           return `<div style="display:flex;align-items:center;gap:8px;">
             <div style="flex:1;height:6px;background:var(--shell-bg);border-radius:3px;overflow:hidden;border:1px solid var(--border);">
               <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div>

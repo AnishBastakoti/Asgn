@@ -1,6 +1,6 @@
 'use strict';
 
-let pipelineGridApi = null;
+window.pipelineGridApi = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   initPipelineGrid();
@@ -53,17 +53,13 @@ function initPipelineGrid() {
       cellRenderer: p => statusBadge(p.value),
     },
     {
-      field: 'exit_code',
-      headerName: 'Exit',
-      width: 130,
-      cellRenderer: p => exitBadge(p.value),
-    },
-    {
       field: 'exit_message',
-      headerName: '',
-      width: 90,
+      headerName: 'Logs',
+      width: 110,
       sortable: false,
       resizable: false,
+      suppressSizeToFit: true,
+      cellStyle: { overflow: 'visible', padding: '0 8px' },
       cellRenderer: p => {
         const hasError = p.value && p.value.trim().length > 0;
         if (!hasError) return '';
@@ -83,8 +79,6 @@ function initPipelineGrid() {
     headerHeight: 38,
     defaultColDef: { resizable: true, suppressMovable: true },
     suppressCellFocus: true,
-    loadingOverlayComponent: () => '<div class="pl-loading"><div class="sp-spinner"></div>Loading…</div>',
-    noRowsOverlayComponent: () => '<div class="pl-empty">No executions found.</div>',
     getRowStyle: p => {
       if (p.data?.status === 'FAILED')   return { background: 'rgba(231,24,24,0.03)' };
       if (p.data?.status === 'STARTED')  return { background: 'rgba(245,158,11,0.04)' };
@@ -101,7 +95,7 @@ async function loadPipeline() {
     renderStats(data);
     renderLiveBanner(data);
     if (pipelineGridApi) {
-      pipelineGridApi.setGridOption('rowData', data);
+      pipelineGridApi.updateGridOptions({ rowData: data });
     }
   } catch (err) {
     const grid = document.getElementById('pipelineGrid');

@@ -219,7 +219,6 @@ function renderOccList(occs) {
     return;
   }
 
-  // The 'occs' passed here is already sliced to 50 in filterAndRender
   list.innerHTML = occs.map(o =>
     `<div class="sp-occ-item${o.has_data?'':' no-data'}${state.selected && state.selected.id===o.id?' active':''}" 
           data-id="${o.id}" data-title="${esc(o.title)}" data-level="${o.skill_level||'--'}" data-skills="${o.skill_count}">
@@ -322,7 +321,7 @@ async function loadOccupationInfo(occId) {
 
     // Skill level badge
     if (d.skill_level) {
-      html += `<span class="badge mb-3" style="background:var(--indigo)">Skill Level ${d.skill_level}</span>`;
+      html += `<span class="badge mb-3" style="background:var(--orange)">Skill Level ${d.skill_level}</span>`;
     }
 
     // Lead statement
@@ -353,7 +352,7 @@ async function loadOccupationInfo(occId) {
       html += `
         <div class="mt-3">
           <div class="fw-semibold text-dark mb-2" style="font-size:12.5px;">
-            <i class="bi bi-list-check me-1" style="color:var(--indigo)"></i>MAIN TASKS
+            <i class="bi bi-list-check me-1" style="color:var(--orange)"></i>MAIN TASKS
           </div>
           <ul class="ps-3 text-muted" style="font-size:12.5px;">
             ${tasks.map(t => `<li class="mb-1">${esc(t)}</li>`).join('')}
@@ -365,9 +364,7 @@ async function loadOccupationInfo(occId) {
     if (d.specialisations) {
       html += `
         <div class="mt-3 p-2 rounded border" style="font-size:12.5px;">
-          <div class="fw-semibold text-dark mb-1">
-            <i class="bi bi-stars me-1" style="color:var(--indigo)"></i>SPECIALISATIONS
-          </div>
+          <div class="fw-semibold text-dark mb-1">SPECIALISATIONS</div>
           <div class="text-muted">${esc(d.specialisations)}</div>
         </div>`;
     }
@@ -390,7 +387,7 @@ function buildHeader(occ, count) {
       <div class="sp-chart-sub">Top ${count} skills by demand</div>
     </div>
     <div class="sp-chart-badges">
-      <span class="sp-cbadge sp-cbadge--indigo">${count} skills</span>
+      <span class="sp-cbadge sp-cbadge--orange">${count} skills</span>
       <span class="sp-cbadge">${occ.level !== '--' ? 'Level ' + occ.level : 'Level N/A'}</span>
       <button onclick="loadOccupationInfo(${occ.id})"
           class="info">
@@ -403,7 +400,7 @@ function buildHeader(occ, count) {
 // ── Bar chart builder ──
 function buildBarChart(skills) {
   const max = Math.max(...skills.map(s => s.mention_count));
-  const colors = { knowledge:'var(--violet)', 'skill/competence':'var(--indigo)', attitude:'#F59E0B' };
+  const colors = { knowledge:'var(--violet)', 'skill/competence':'var(--orange)', attitude:'#F59E0B' };
 
   function tc(t) {
     if (!t) return '';
@@ -417,7 +414,7 @@ function buildBarChart(skills) {
   wrap.className = 'sp-bars-wrap';
   wrap.innerHTML = `<div class="sp-legend mb-3">
       <div class="sp-legend-item"><div class="sp-legend-dot" style="background:var(--violet)"></div>Knowledge</div>
-      <div class="sp-legend-item"><div class="sp-legend-dot" style="background:var(--indigo)"></div>Skill</div>
+      <div class="sp-legend-item"><div class="sp-legend-dot" style="background:var(--orange)"></div>Skill</div>
       <div class="sp-legend-item"><div class="sp-legend-dot" style="background:#F59E0B"></div>Attitude</div>
     </div>`;
 
@@ -468,7 +465,7 @@ function buildBreakdown(data) {
 
   const types = [
     { key:'knowledge', label:'Knowledge', color:'var(--violet)' },
-    { key:'skill/competence', label:'Skill', color:'var(--indigo)' },
+    { key:'skill/competence', label:'Skill', color:'var(--orange)' },
     { key:'attitude', label:'Attitude', color:'#F59E0B' }
   ];
 

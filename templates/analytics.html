@@ -13,7 +13,7 @@
 
 <div style="display:grid; grid-template-columns:260px 1fr; gap:0; height:calc(100vh - 112px);">
 
-  <!-- LEFT: Occupation Picker — same structure as skills.html -->
+  <!-- LEFT: Occupation Picker-->
   <div class="sp-right-panel" style="border-right:1px solid var(--border); border-radius:0;">
     <div class="sp-right-header">Occupations</div>
     <div class="sp-card-section border-bottom">
@@ -34,7 +34,7 @@
   <div class="d-flex flex-column gap-3">
 
     <!-- Welcome state -->
-    <div id="anWelcome">{% include "centralbox.html" %}</div>
+    <div id="anWelcome"></div>
 
     <!-- Panels hidden until occupation selected -->
     <div id="anPanels" style="display:none; flex-direction:column;" class="d-flex flex-column gap-0">
@@ -45,7 +45,7 @@
           <div class="an-occ-name" id="anOccName">—</div>
           <div class="an-occ-sub">Skills intelligence report</div>
         </div>
-        <span class="sp-cbadge sp-cbadge--indigo" id="anOccLevel">—</span>
+        <span class="sp-cbadge sp-cbadge--orange" id="anOccLevel">—</span>
       </div>
 
       <!-- ── Tab Buttons ── -->
@@ -82,7 +82,7 @@
         </button>
 
         <button class="an-tab" data-tab="similar" onclick="switchTab('similar')">
-          <i class="bi bi-diagram-3-fill me-2" style="color:var(--indigo)"></i>
+          <i class="bi bi-diagram-3-fill me-2" style="color:var(--orange)"></i>
           Similar Occupations
           <span class="an-tab-badge" id="similarCount">—</span>
         </button>
