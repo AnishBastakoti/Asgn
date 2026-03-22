@@ -1,35 +1,125 @@
 'use strict';
 
-// ── Boot ─────────────────────────────────────────────────────────────────────
+let pipelineGridApi = null;
+
 document.addEventListener('DOMContentLoaded', () => {
+  initPipelineGrid();
   loadPipeline();
 });
 
-// ── Main loader ───────────────────────────────────────────────────────────────
+// ── Init AG Grid ──────────────────────────────────────────────
+function initPipelineGrid() {
+  const el = document.getElementById('pipelineGrid');
+  if (!el || typeof agGrid === 'undefined') return;
+
+  const colDefs = [
+    {
+      field: 'job_execution_id',
+      headerName: '#',
+      width: 64,
+      sortable: true,
+      cellStyle: { fontFamily: 'var(--mono)', fontSize: '11px', color: 'var(--muted)' },
+    },
+    {
+      field: 'job_name',
+      headerName: 'Job',
+      flex: 1,
+      minWidth: 200,
+      cellRenderer: p => `
+        <div>
+          <div style="font-weight:600;font-size:12.5px;color:var(--text)">${esc(p.value || '—')}</div>
+          <div style="font-size:11px;color:var(--muted)">Instance ${p.data.job_instance_id}</div>
+        </div>`,
+      autoHeight: true,
+    },
+    {
+      field: 'start_time',
+      headerName: 'Started',
+      width: 160,
+      cellStyle: { fontFamily: 'var(--mono)', fontSize: '11.5px' },
+      valueFormatter: p => p.value ? fmtDate(p.value, 'D MMM YYYY HH:mm') : '—',
+    },
+    {
+      field: 'duration_seconds',
+      headerName: 'Duration',
+      width: 110,
+      cellStyle: { fontFamily: 'var(--mono)', fontSize: '12px', fontWeight: 600 },
+      valueFormatter: p => p.value != null ? formatDuration(p.value) : '—',
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 140,
+      cellRenderer: p => statusBadge(p.value),
+    },
+    {
+      field: 'exit_code',
+      headerName: 'Exit',
+      width: 130,
+      cellRenderer: p => exitBadge(p.value),
+    },
+    {
+      field: 'exit_message',
+      headerName: '',
+      width: 90,
+      sortable: false,
+      resizable: false,
+      cellRenderer: p => {
+        const hasError = p.value && p.value.trim().length > 0;
+        if (!hasError) return '';
+        const safeMsg = btoa(unescape(encodeURIComponent(p.value)));
+        return `<button class="pl-logs-btn"
+                        onclick="handleLogClick('${p.data.job_execution_id}','${p.data.start_time}','${safeMsg}')">
+                  <i class="bi bi-file-text"></i> Logs
+                </button>`;
+      },
+    },
+  ];
+
+  pipelineGridApi = agGrid.createGrid(el, {
+    columnDefs: colDefs,
+    rowData: [],
+    rowHeight: 52,
+    headerHeight: 38,
+    defaultColDef: { resizable: true, suppressMovable: true },
+    suppressCellFocus: true,
+    loadingOverlayComponent: () => '<div class="pl-loading"><div class="sp-spinner"></div>Loading…</div>',
+    noRowsOverlayComponent: () => '<div class="pl-empty">No executions found.</div>',
+    getRowStyle: p => {
+      if (p.data?.status === 'FAILED')   return { background: 'rgba(231,24,24,0.03)' };
+      if (p.data?.status === 'STARTED')  return { background: 'rgba(245,158,11,0.04)' };
+      if (p.data?.status === 'COMPLETED') return { background: 'rgba(62,229,170,0.03)' };
+      return {};
+    },
+  });
+}
+
+// ── Load data ─────────────────────────────────────────────────
 async function loadPipeline() {
   try {
     const data = await api('/api/pipeline/executions');
     renderStats(data);
     renderLiveBanner(data);
-    renderTable(data);
+    if (pipelineGridApi) {
+      pipelineGridApi.setGridOption('rowData', data);
+    }
   } catch (err) {
-    document.getElementById('pipelineTableWrap').innerHTML = `
-      <div class="text-center py-5 text-danger small">
-        <i class="bi bi-exclamation-triangle me-2"></i>
-        Could not load pipeline data: ${esc(err.message)}
-      </div>`;
+    const grid = document.getElementById('pipelineGrid');
+    if (grid) grid.innerHTML = `<div class="pl-empty" style="color:var(--coral);">
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      Could not load: ${esc(err.message)}
+    </div>`;
     console.warn('[SkillPulse|Pipeline]', err);
   }
 }
 
-// ── Stats cards ───────────────────────────────────────────────────────────────
+// ── Stats cards ───────────────────────────────────────────────
 function renderStats(data) {
-  const total     = data.length;
-  const completed = data.filter(r => r.status === 'COMPLETED').length;
-  const failed    = data.filter(r => r.status === 'FAILED').length;
+  const total      = data.length;
+  const completed  = data.filter(r => r.status === 'COMPLETED').length;
+  const failed     = data.filter(r => r.status === 'FAILED').length;
   const successPct = total ? Math.round((completed / total) * 100) : 0;
 
-  // Average duration in seconds for completed runs only
   const durations = data
     .filter(r => r.status === 'COMPLETED' && r.duration_seconds != null)
     .map(r => r.duration_seconds);
@@ -40,124 +130,69 @@ function renderStats(data) {
   document.getElementById('statTotal').textContent       = total;
   document.getElementById('statSuccess').textContent     = `${successPct}%`;
   document.getElementById('statFailed').textContent      = failed;
-  document.getElementById('statAvgDuration').textContent = avgDur != null
-    ? formatDuration(avgDur)
-    : 'N/A';
+  document.getElementById('statAvgDuration').textContent = avgDur != null ? formatDuration(avgDur) : 'N/A';
 }
 
-// ── Live status banner ────────────────────────────────────────────────────────
+// ── Live banner ───────────────────────────────────────────────
 function renderLiveBanner(data) {
   const running = data.find(r => r.status === 'STARTED');
   const banner  = document.getElementById('liveStatusBanner');
   if (running) {
     banner.style.display = 'block';
     document.getElementById('liveStatusText').textContent =
-      `Execution #${running.job_execution_id} is currently running — started ${running.start_time}`;
+      `Execution #${running.job_execution_id} is currently running — started ${fmtDate(running.start_time, 'D MMM HH:mm')}`;
   } else {
     banner.style.display = 'none';
   }
 }
 
-// ── Runs table ────────────────────────────────────────────────────────────────
-function renderTable(data) {
-  if (!data.length) {
-    document.getElementById('pipelineTableWrap').innerHTML =
-      `<div class="text-center py-5 text-muted small">No executions found.</div>`;
-    return;
+// ── Logs handler ──────────────────────────────────────────────
+function handleLogClick(execId, startTime, encodedMsg) {
+  try {
+    const msg = decodeURIComponent(escape(atob(encodedMsg)));
+    openPlModal(execId, startTime, msg);
+  } catch (e) {
+    openPlModal(execId, startTime, 'Could not decode log message.');
   }
-
-  let html = `
-    <div class="table-responsive">
-      <table class="table table-hover table-sm mb-0 align-middle">
-        <thead class="table-light">
-          <tr>
-            <th>#</th>
-            <th>Job</th>
-            <th>Started</th>
-            <th>Duration</th>
-            <th>Status</th>
-            <th>Exit</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>`;
-
-  data.forEach(r => {
-    const statusBadge = statusBadgeHtml(r.status);
-    const exitBadge   = exitBadgeHtml(r.exit_code);
-    const duration    = r.duration_seconds != null ? formatDuration(r.duration_seconds) : '—';
-    const hasError    = r.exit_message && r.exit_message.trim().length > 0;
-    const safeMsg = btoa(r.exit_message || ''); // Base64 encode to hide quotes from HTML
-
-    html += `
-      <tr>
-        <td class="text-muted" style="font-family:var(--mono); font-size:11px;">${r.job_execution_id}</td>
-        <td>
-          <div class="fw-semibold text-dark small">${esc(r.job_name || '—')}</div>
-          <div class="text-muted" style="font-size:11px;">Instance ${r.job_instance_id}</div>
-        </td>
-        <td class="small text-muted">${r.start_time ? r.start_time.replace('T', ' ').slice(0, 19) : '—'}</td>
-        <td class="small" style="font-family:var(--mono);">${duration}</td>
-        <td>${statusBadge}</td>
-        <td>${exitBadge}</td>
-        <td>
-          ${hasError 
-      ? `<button class="btn btn-sm btn-outline-danger py-0 px-2" 
-                 style="font-size:11px;"
-                 onclick="handleLogClick(this)"
-                 data-id="${r.job_execution_id}"
-                 data-start="${r.start_time}"
-                 data-msg="${safeMsg}">
-           <i class="bi bi-file-text me-1"></i>Logs
-         </button>` 
-      : ''}
-        </td>
-      </tr>`;
-  });
-
-  html += `</tbody></table></div>`;
-  document.getElementById('pipelineTableWrap').innerHTML = html;
-}
-// ── Log modal handler ─────────────────────────────────────────────────────────
-
-function handleLogClick(btn) {
-    // This pulls the data out of the button that was clicked
-    const msg = atob(btn.dataset.msg); // Decodes the Base64 string
-    showError(btn.dataset.id, btn.dataset.start, msg);
 }
 
-// ── Error modal ───────────────────────────────────────────────────────────────
-function showError(execId, startTime, message) {
+// ── Native modal ──────────────────────────────────────────────
+function openPlModal(execId, startTime, message) {
   document.getElementById('errorModalMeta').textContent =
-    `Execution #${execId}  ·  Started: ${startTime ? startTime.replace('T', ' ').slice(0, 19) : '—'}`;
+    `Execution #${execId}  ·  Started: ${startTime ? fmtDate(startTime, 'D MMM YYYY HH:mm') : '—'}`;
   document.getElementById('errorModalBody').textContent = message || 'No error message recorded.';
-
-  const modal = new bootstrap.Modal(document.getElementById('errorModal'));
-  modal.show();
+  document.getElementById('plModal').style.display         = 'flex';
+  document.getElementById('plModalBackdrop').style.display = 'block';
+  document.body.style.overflow = 'hidden';
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function statusBadgeHtml(status) {
-  const map = {
-    'COMPLETED': `<span class="badge bg-success">COMPLETED</span>`,
-    'FAILED':    `<span class="badge bg-danger">FAILED</span>`,
-    'STARTED':   `<span class="badge bg-warning text-dark">
-                    <span class="spinner-grow spinner-grow-sm me-1" style="width:.5rem;height:.5rem;"></span>
-                    RUNNING
-                  </span>`,
-    'UNKNOWN':   `<span class="badge bg-secondary">UNKNOWN</span>`,
-  };
-  return map[status] || `<span class="badge bg-secondary">${esc(status)}</span>`;
+function closePlModal() {
+  document.getElementById('plModal').style.display         = 'none';
+  document.getElementById('plModalBackdrop').style.display = 'none';
+  document.body.style.overflow = '';
 }
 
-function exitBadgeHtml(code) {
-  if (!code) return '—';
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePlModal(); });
+
+// ── Badge renderers ───────────────────────────────────────────
+function statusBadge(status) {
   const map = {
-    'COMPLETED': `<span class="badge bg-success-subtle text-success border border-success-subtle">${code}</span>`,
-    'FAILED':    `<span class="badge bg-danger-subtle text-danger border border-danger-subtle">${code}</span>`,
-    'UNKNOWN':   `<span class="badge bg-secondary-subtle text-secondary border">${code}</span>`,
+    COMPLETED: `<span class="pl-badge pl-badge--completed"><i class="bi bi-check-circle-fill"></i> COMPLETED</span>`,
+    FAILED:    `<span class="pl-badge pl-badge--failed"><i class="bi bi-x-circle-fill"></i> FAILED</span>`,
+    STARTED:   `<span class="pl-badge pl-badge--running"><span class="pl-spinner-dot"></span> RUNNING</span>`,
+    UNKNOWN:   `<span class="pl-badge pl-badge--unknown">UNKNOWN</span>`,
   };
-  return map[code] || `<span class="badge bg-secondary-subtle text-secondary border">${esc(code)}</span>`;
+  return map[status] || `<span class="pl-badge pl-badge--unknown">${esc(status)}</span>`;
+}
+
+function exitBadge(code) {
+  if (!code) return `<span style="color:var(--muted);font-family:var(--mono);font-size:11px;">—</span>`;
+  const map = {
+    COMPLETED: `<span class="pl-badge pl-badge--completed-outline">${code}</span>`,
+    FAILED:    `<span class="pl-badge pl-badge--failed-outline">${code}</span>`,
+    UNKNOWN:   `<span class="pl-badge pl-badge--unknown-outline">${code}</span>`,
+  };
+  return map[code] || `<span class="pl-badge pl-badge--unknown-outline">${esc(code)}</span>`;
 }
 
 function formatDuration(seconds) {
@@ -165,25 +200,4 @@ function formatDuration(seconds) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${m}m ${s}s`;
-}
-
-
-// a variable to hold the modal instance globally
-let errorModalInstance = null;
-
-function showError(execId, startTime, message) {
-    const modalEl = document.getElementById('errorModal');
-    if (!modalEl) return;
-
-    // Update the content
-    document.getElementById('errorModalMeta').textContent = 
-        `Execution #${execId}  ·  Started: ${startTime ? startTime.replace('T', ' ').slice(0, 19) : '—'}`;
-    document.getElementById('errorModalBody').textContent = message || 'No error message recorded.';
-
-    // Reuse the instance if it exists, otherwise create it
-    if (!errorModalInstance) {
-        errorModalInstance = new bootstrap.Modal(modalEl);
-    }
-    
-    errorModalInstance.show();
 }

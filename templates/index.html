@@ -5,48 +5,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>{% block title %}SkillPulse{% endblock %} — AUS Skills Intelligence</title>
 
-  <!-- Bootstrap 5 -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css"/>
   <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css"/>
-  <!-- Google Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
   <!-- Flatpickr -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"/>
+  <!-- NProgress -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nprogress@0.2.0/nprogress.css"/>
   <!-- D3 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <!-- Day.js -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
   <!-- Our CSS -->
   <link rel="stylesheet" href="/templates/stylesheet/style.css"/>
   {% block extra_css %}{% endblock %}
 </head>
 
 <body>
-<!--  page background -->
-<div class="sp-page-bg">
-  <!-- Decorative blobs -->
-  <div class="bg-blob blob-1"></div>
-  <div class="bg-blob blob-2"></div>
-</div>
-
-<!-- Main card shell -->
 <div class="sp-shell">
 
-  <!-- ══════ LEFT ICON SIDEBAR ══════ -->
+  <!-- ══════ SIDEBAR ══════ -->
   <aside class="sp-sidebar">
-    <button class="sp-sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">
-      <span class="toggle-icon">«</span>
-    </button>
+
     <!-- Logo -->
     <div class="sp-logo">
       <div class="sp-logo-icon">
-        <!-- Replace logo.png with your image file in /templates/images/ -->
         <img src="/templates/images/logo-ntg-color.svg" alt="SkillPulse"
              onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
              style="width:30px; height:30px; border-radius:6px; object-fit:contain;"/>
-        <!-- Fallback SVG shown if image not found -->
+        <!-- Fallback SVG if image not found -->
         <svg viewBox="0 0 28 28" fill="none" style="display:none;">
           <rect width="28" height="28" rx="8" fill="var(--indigo)"/>
           <rect x="4"  y="16" width="4" height="8"  rx="1.5" fill="#fff"/>
@@ -61,52 +47,52 @@
       </div>
     </div>
 
+    <!-- Toggle — always visible, sits below logo -->
+    <button class="sp-collapse-btn" onclick="toggleSidebar()" title="Toggle sidebar">
+      <i class="bi bi-chevron-double-left" id="toggleIcon"></i>
+      <span class="sp-collapse-label"></span>
+    </button>
+
     <!-- Nav -->
     <nav class="sp-nav">
       <span class="sp-nav-label">Menu</span>
-
-      <a href="/"           class="sp-nav-link {% if active_page=='dashboard'   %}active{% endif %}" data-bs-toggle="tooltip" title="Dashboard">
+      <a href="/"            class="sp-nav-link {% if active_page=='dashboard'   %}active{% endif %}" title="Dashboard">
         <i class="bi bi-grid-1x2-fill"></i><span>Dashboard</span>
       </a>
-      <a href="/skills"     class="sp-nav-link {% if active_page=='skills'      %}active{% endif %}" data-bs-toggle="tooltip" title="Skills">
+      <a href="/skills"      class="sp-nav-link {% if active_page=='skills'      %}active{% endif %}" title="Jobs Trends">
         <i class="bi bi-bar-chart-line-fill"></i><span>Jobs Trends</span>
       </a>
-      <a href="/occupations" class="sp-nav-link {% if active_page=='occupations' %}active{% endif %}" data-bs-toggle="tooltip" title="Occupations">
+      <a href="/occupations" class="sp-nav-link {% if active_page=='occupations' %}active{% endif %}" title="Occupations">
         <i class="bi bi-diagram-3-fill"></i><span>Occupations</span>
       </a>
-      <a href="/analytics"  class="sp-nav-link {% if active_page=='analytics'   %}active{% endif %}" data-bs-toggle="tooltip" title="Analytics">
+      <a href="/analytics"   class="sp-nav-link {% if active_page=='analytics'   %}active{% endif %}" title="Analytics">
         <i class="bi bi-graph-up-arrow"></i><span>Analytics</span>
       </a>
-
-      <a href="/career"  class="sp-nav-link {% if active_page=='career'   %}active{% endif %}" data-bs-toggle="tooltip" title="Career Transition">
+      <a href="/career"      class="sp-nav-link {% if active_page=='career'      %}active{% endif %}" title="Career Transition">
         <i class="bi bi-signpost-split-fill"></i><span>Career Transition</span>
       </a>
 
-      <span class="sp-nav-label mt-3">System</span>
-      <a href="/pipeline"   class="sp-nav-link {% if active_page=='pipeline'    %}active{% endif %}" data-bs-toggle="tooltip" title="Pipeline">
+      <span class="sp-nav-label" style="margin-top:0.75rem;">System</span>
+      <a href="/pipeline"    class="sp-nav-link {% if active_page=='pipeline'    %}active{% endif %}" title="Pipeline">
         <i class="bi bi-gear-fill"></i><span>Pipeline</span>
       </a>
-      <a href="/docs"       class="sp-nav-link" target="_blank" data-bs-toggle="tooltip" title="API Docs">
+      <a href="/docs"        class="sp-nav-link" target="_blank" title="API Docs">
         <i class="bi bi-code-slash"></i><span>API</span>
       </a>
     </nav>
 
-    <!-- User / sig footer -->
+    <!-- User footer -->
     <div class="sp-sidebar-footer">
       <div class="sp-avatar" id="navAvatar">SP</div>
       <div class="sp-sig-text">
-        <span class="sp-sig-name" id="navUserName">MSIT402</span>
-        <span class="sp-sig-val" id="navSig">—</span>
+        <span class="sp-sig-name" id="navUserName">SkillPulse</span>
+        <span class="sp-sig-val"  id="navSig">—</span>
       </div>
-      <button onclick="logout()" title="Sign out"
-        style="margin-left:auto; background:none; border:none; cursor:pointer;
-               color:var(--muted); padding:4px 6px; border-radius:6px;
-               transition:all 0.15s; flex-shrink:0;"
-        onmouseover="this.style.color='#EF4444'"
-        onmouseout="this.style.color='var(--muted)'">
-        <i class="bi bi-box-arrow-right" style="font-size:15px;"></i>
+      <button class="sp-logout-btn" onclick="logout()" title="Sign out">
+        <i class="bi bi-box-arrow-right"></i>
       </button>
     </div>
+
   </aside>
 
   <!-- ══════ MAIN CONTENT ══════ -->
@@ -118,13 +104,11 @@
         <h1 class="sp-page-title">{% block page_title %}Dashboard{% endblock %}</h1>
         <p  class="sp-page-sub">{% block page_sub %}{% endblock %}</p>
       </div>
-      <div class="sp-topbar-right d-flex align-items-center gap-3">
-        <!-- Live pill -->
+      <div class="sp-topbar-right">
         <div class="sp-live-pill">
           <span class="sp-live-dot"></span>
           <span>Live</span>
         </div>
-        <!-- Stat pills -->
         <div class="sp-stat-row">
           <div class="sp-stat-pill">
             <span class="sp-stat-v" id="statOccupations">—</span>
@@ -154,13 +138,15 @@
   </div><!-- /sp-main -->
 
 </div><!-- /sp-shell -->
+
 {% block modals %}{% endblock %}
 
-<!-- Tooltip -->
+<!-- Global tooltip -->
 <div id="spTooltip" class="sp-tooltip"></div>
 
-<!-- Bootstrap JS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/nprogress@0.2.0/nprogress.js"></script>
 <!-- Global JS -->
 <script src="/templates/js/main.js"></script>
 {% block extra_js %}{% endblock %}

@@ -4,32 +4,37 @@
 {% block page_sub %}Shadow Signals & Skill Decay Intelligence{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/styles/ag-grid.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/styles/ag-theme-quartz.css"/>
 <link rel="stylesheet" href="/templates/stylesheet/analytics.css"/>
 {% endblock %}
 
 {% block content %}
 
-<div class="d-grid gap-3" style="grid-template-columns: 260px 1fr; display: grid;">
+<div style="display:grid; grid-template-columns:260px 1fr; gap:0; height:calc(100vh - 112px);">
 
-  <!-- LEFT: Occupation Picker -->
-  <div class="d-flex flex-column border rounded shadow-sm bg-white overflow-hidden">
-    <div class="p-3 border-bottom">
-      {% include "search.html" %}
-    </div>
-    <aside class="sp-right-panel">
-      <div class="sp-right-header">Occupations</div>
-      <div class="sp-occ-list" id="occList">
-        <div class="sp-spinner-center"><div class="sp-spinner"></div></div>
+  <!-- LEFT: Occupation Picker — same structure as skills.html -->
+  <div class="sp-right-panel" style="border-right:1px solid var(--border); border-radius:0;">
+    <div class="sp-right-header">Occupations</div>
+    <div class="sp-card-section border-bottom">
+      <div class="sp-search-wrap">
+        <i class="bi bi-search sp-search-icon"></i>
+        <input type="text"
+               class="sp-search-input"
+               id="occSearch"
+               placeholder="Title or OSCA ID (eg xxxxxx)"/>
       </div>
-    </aside>
+    </div>
+    <div class="sp-occ-list" id="occList">
+      <div class="sp-spinner-center"><div class="sp-spinner"></div></div>
+    </div>
   </div>
 
   <!-- RIGHT: Analytics Panels -->
   <div class="d-flex flex-column gap-3">
 
     <!-- Welcome state -->
-    <!-- <div id="anWelcome">{% include "centralbox.html" %}</div> -->
-     <div id="anWelcome">Welcome to Skills Analytics</div>
+    <div id="anWelcome">{% include "centralbox.html" %}</div>
 
     <!-- Panels hidden until occupation selected -->
     <div id="anPanels" style="display:none; flex-direction:column;" class="d-flex flex-column gap-0">
@@ -165,21 +170,19 @@
           <!-- Similar Occupations -->
         <div class="an-tab-panel" id="tab-similar">
           <div class="an-panel-desc">
-            Occupations most similar to this one based on cosine similarity of their ESCO skill vectors.
+            Occupations most similar to this one based on cosine similarity of their ESCO skill vectors. Click any row to jump to that occupation.
           </div>
-          <div id="similarBody">
-            <div class="an-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>
-          </div>
+          <div id="similarGridMeta" class="an-grid-meta"></div>
+          <div id="similarGrid" class="ag-theme-quartz sp-ag-grid" style="height:340px;"></div>
         </div>
 
         <!-- Occupation Cluster -->
         <div class="an-tab-panel" id="tab-cluster">
           <div class="an-panel-desc">
-            K-Means cluster peers — occupations grouped by shared skill profile.
+            K-Means cluster peers — occupations grouped by shared skill profile. Click any row to jump to that occupation.
           </div>
-          <div id="clusterBody">
-            <div class="an-loading"><div class="sp-spinner-sm"></div>&nbsp;Clustering…</div>
-          </div>
+          <div id="clusterGridMeta" class="an-grid-meta"></div>
+          <div id="clusterGrid" class="ag-theme-quartz sp-ag-grid" style="height:340px;"></div>
         </div>
         
       </div><!-- /an-tab-content -->
@@ -193,5 +196,6 @@
 {% block extra_js %}
 <script src="/templates/js/dashboard.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/dist/ag-grid-community.min.js"></script>
 <script src="/templates/js/analytics.js"></script>
 {% endblock %}

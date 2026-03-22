@@ -11,6 +11,34 @@ const fmt = n => {
   return String(n);
 };
 
+/* ── Date formatter (Day.js) ──
+   fmtDate('2026-03-17T09:00:00') → '17 Mar 2026'
+   fmtDate('2026-03-17', 'D MMM') → '17 Mar'
+   Falls back to raw string if Day.js not loaded.
+── */
+const fmtDate = (raw, template = 'D MMM YYYY') => {
+  if (!raw) return '—';
+  if (typeof dayjs === 'undefined') return String(raw).split('T')[0];
+  const d = dayjs(raw);
+  return d.isValid() ? d.format(template) : String(raw).split('T')[0];
+};
+
+/* ── Shared bar colour palette ──
+   Used by dashboard.js, occupations.js, analytics.js
+   barColour(0) → var(--indigo), barColour(1) → var(--emerald) etc.
+── */
+const BAR_COLOURS = [
+  'var(--indigo)',
+  'var(--emerald)',
+  'var(--violet)',
+  'var(--sky)',
+  '#F59E0B',
+  '#EF4444',
+  '#10B981',
+  '#6366F1',
+];
+const barColour = i => BAR_COLOURS[i % BAR_COLOURS.length];
+
 /* ── HTML escaper (prevents XSS when rendering user/API data) ── */
 const esc = s => String(s)
   .replace(/&/g,  '&amp;')
@@ -21,38 +49,43 @@ const esc = s => String(s)
 
 /* ── API fetch helper ── */
 async function api(path, options = {}) {
-  // Attach JWT token from localStorage to every API request
-  const token = localStorage.getItem('sp_token');
-  const headers = { 'Content-Type': 'application/json', ...options.headers };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
- 
-  const response = await fetch(path, { ...options, headers });
- 
-  // If 401 Unauthorised — token expired, redirect to login
-  if (response.status === 401) {
-    localStorage.removeItem('sp_token');
-    localStorage.removeItem('sp_user');
-    window.location.href = '/login';
-    return;
+  // Show NProgress loading bar at top of page
+  if (typeof NProgress !== 'undefined') NProgress.start();
+
+  try {
+    const token = localStorage.getItem('sp_token');
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(path, { ...options, headers });
+
+    if (response.status === 401) {
+      localStorage.removeItem('sp_token');
+      localStorage.removeItem('sp_user');
+      window.location.href = '/login';
+      return;
+    }
+
+    if (!response.ok) throw new Error(`API error ${response.status} on ${path}`);
+    return response.json();
+
+  } finally {
+    // Always stop — even if request throws
+    if (typeof NProgress !== 'undefined') NProgress.done();
   }
- 
-  if (!response.ok) {
-    throw new Error(`API error ${response.status} on ${path}`);
-  }
-  return response.json();
 }
- 
+
 // ── Auth helpers ─────────────────────────────────────────────
 function getCurrentUser() {
   try {
     return JSON.parse(localStorage.getItem('sp_user') || 'null');
   } catch { return null; }
 }
- 
+
 function isLoggedIn() {
   return !!localStorage.getItem('sp_token');
 }
- 
+
 async function logout() {
   // Clear localStorage
   localStorage.removeItem('sp_token');
@@ -64,29 +97,14 @@ async function logout() {
   window.location.href = '/login';
 }
 
-
-
-// ── Colour palette for bars (cycles through) ──────────
-const BAR_COLOURS = [
-  'var(--indigo)',
-  'var(--emerald)',
-  '#F59E0B',
-  '#EF4444',
-  '#10B981',
-  '#6366F1',
-];
-const barColour = i => BAR_COLOURS[i % BAR_COLOURS.length];
-
-
-
 /* ════════════════════════════════════════════════════
    TOOLTIP
    Global tooltip used by all chart pages.
    Called as: showTip(event, htmlString)
 ════════════════════════════════════════════════════ */
+const _tip = $('spTooltip');
 
 function showTip(e, html) {
-  const _tip = $('spTooltip');
   if (!_tip) return;
   _tip.innerHTML = html;
   _tip.classList.add('visible');
@@ -94,7 +112,6 @@ function showTip(e, html) {
 }
 
 function moveTip(e) {
-  const _tip = $('spTooltip');
   if (!_tip) return;
   const x = Math.min(e.clientX + 14, window.innerWidth  - 240);
   const y = Math.min(e.clientY - 10, window.innerHeight - 140);
@@ -103,7 +120,6 @@ function moveTip(e) {
 }
 
 function hideTip() {
-  const _tip = $('spTooltip');
   if (_tip) _tip.classList.remove('visible');
 }
 
@@ -113,7 +129,14 @@ window.moveTip = moveTip;
 window.hideTip = hideTip;
 
 function toggleSidebar() {
-  document.querySelector('.sp-shell').classList.toggle('sidebar-collapsed');
+  const shell    = document.querySelector('.sp-shell');
+  const icon     = document.getElementById('toggleIcon');
+  const label    = document.querySelector('.sp-collapse-label');
+  shell.classList.toggle('sidebar-collapsed');
+  const collapsed = shell.classList.contains('sidebar-collapsed');
+  // Flip icon: << when expanded (click to collapse), >> when collapsed (click to expand)
+  if (icon)  icon.className  = collapsed ? 'bi bi-chevron-double-right' : 'bi bi-chevron-double-left';
+  if (label) label.textContent = collapsed ? '' : 'Collapse';
 }
 
 /* ════════════════════════════════════════════════════
@@ -154,6 +177,7 @@ async function loadGlobalSummary() {
    ACTIVE NAV HIGHLIGHTING
    Marks the correct sidebar link as active based on
    the current URL path. Complements the server-side
+   Jinja2 active_page check in base.html.
 ════════════════════════════════════════════════════ */
 function highlightActiveNav() {
   const path = window.location.pathname;
@@ -181,6 +205,14 @@ function initBootstrapTooltips() {
 
 /* ── Boot ── */
 document.addEventListener('DOMContentLoaded', () => {
+  // Configure NProgress — thin orange bar at top of page
+  if (typeof NProgress !== 'undefined') {
+    NProgress.configure({
+      showSpinner: false,        // hide the spinner — just the bar
+      trickleSpeed: 200,
+      minimum: 0.1,
+    });
+  }
   loadGlobalSummary();
   highlightActiveNav();
   initBootstrapTooltips();
@@ -191,22 +223,23 @@ document.addEventListener('DOMContentLoaded', () => {
 function populateUserInfo() {
   const user = getCurrentUser();
   if (!user) return;
- 
+
   const nameEl   = document.getElementById('navUserName');
   const avatarEl = document.getElementById('navAvatar');
 
+  // Strip email domain wherever it appears — handles display_name = full email
+  const rawName     = user.display_name || user.email || '';
+  const cleanName   = rawName.includes('@') ? rawName.split('@')[0] : rawName;
+  const displayName = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
 
-  const rawName    = user.display_name || user.email || '';
-  const displayName = rawName.includes('@') ? rawName.split('@')[0] : rawName;
-  
   if (nameEl) nameEl.textContent = displayName;
+
   if (avatarEl) {
-    // display user name
-    const parts = displayName.split(' ').filter(Boolean);
+    // Split on space, dot, underscore or dash for initials
+    const parts    = displayName.split(/[ ._-]+/).filter(Boolean);
     const initials = parts.length > 1
       ? parts.map(w => w[0]).join('').toUpperCase().slice(0, 2)
       : displayName.slice(0, 2).toUpperCase();
-
     avatarEl.textContent = initials || 'SP';
   }
 }
