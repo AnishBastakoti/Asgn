@@ -608,8 +608,6 @@ def get_occupation_features(db: Session, occupation_id: int):
         "avg_mention":    avg_mention,
         "title":          title,
     }
- 
- 
 # ─────────────────────────────────────────────
 # OCCUPATION PREDICTION
 # Uses trained Ridge model for inference.
@@ -617,7 +615,7 @@ def get_occupation_features(db: Session, occupation_id: int):
 # Automatically retrains when new data is available.
 # ─────────────────────────────────────────────
  
-def get_occupation_prediction(db: Session, occupation_id: int):
+def get_occupation_prediction(db: Session, occupation_id: int, model_preference: str = None):
     """
     Predicts future demand using Ridge regression when trained,
     falling back to momentum forecasting otherwise.
@@ -628,7 +626,8 @@ def get_occupation_prediction(db: Session, occupation_id: int):
     if features["current_demand"] == 0:
         return None
  
-    model_ready = _ensure_model_trained(db)
+    force_momentum = (model_preference == "momentum")
+    model_ready = False if force_momentum else _ensure_model_trained(db)
  
     if model_ready and _MODEL_CACHE["model"] is not None:
         # ── Ridge model inference ──
