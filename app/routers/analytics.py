@@ -8,16 +8,23 @@ from app.services.analytics_service import (
     get_hot_skills,
     get_shadow_skills,
     get_skill_decay, 
-    get_city_demand_detail,
-    get_city_demand_summary,
     get_skill_velocity,
+    get_occupation_similarity,
+    get_occupation_clusters,
+)
+from app.services.demand_services import (
+    get_city_demand_summary,
+    get_city_demand_detail,
     get_market_saturation,
     get_occupation_profile,
     get_career_transition,
-    get_occupation_similarity,
-    get_occupation_clusters,
+)
+from app.services.ridge_services import (
+    get_occupation_features,
+    get_regression_data,
     get_demand_forecast,
     get_model_status,
+    get_occupation_prediction,
 )
 #from main import Limiter
 
@@ -170,7 +177,6 @@ def predict_occ_demand(
     """
     Fetches the regression-based demand forecast for a specific occupation.
     """
-    from app.services.analytics_service import get_occupation_prediction
     prediction = get_occupation_prediction(db, occupation_id, model_preference=model)
     if not prediction:
         from fastapi import HTTPException
