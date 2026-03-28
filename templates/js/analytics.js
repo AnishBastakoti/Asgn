@@ -35,10 +35,10 @@ window.selectOccupation = function(el) {
   loadSkillDecay(id); 
   updateForecast(id); // Trigger the forecast chart update
   loadOccupationProfile(id); // Load the new occupation profile data
-  loadSkillVelocity(id);      
-  loadMarketSaturation(id);
-  loadOccupationClusters(id);
-  loadSimilarOccupations(id);
+  await loadSkillVelocity(id);      
+  await loadMarketSaturation(id);
+  await loadOccupationClusters(id);
+  await loadSimilarOccupations(id);
 };
 
 // ── Shadow Skills ─────────────────────────────────────────────────────────────
