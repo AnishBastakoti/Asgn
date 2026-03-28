@@ -1,0 +1,23 @@
+{
+    "name": "Territory SkillPulse",
+    "short_name": "SkillPulse",
+    "description": "Skills Intelligence and Workforce Analytics for the NT",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#EB5905",
+    "icons": [
+        {
+            "src": "/templates/images/NTG1.png",
+            "sizes": "any", 
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/templates/images/NTG1.png",
+            "sizes": "400x460",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

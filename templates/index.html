@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <!-- PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="SkillPulse">
+  <link rel="apple-touch-icon" href="/templates/images/ntg.png">
+  <meta name="theme-color" content="#EB5905">
   <title>{% block title %}SkillPulse{% endblock %} — AUS Skills Intelligence</title>
 
   <!-- Bootstrap Icons -->
@@ -18,6 +24,9 @@
   <!-- Our CSS -->
   <link rel="stylesheet" href="/templates/stylesheet/style.css"/>
   {% block extra_css %}{% endblock %}
+
+  <!-- PWA -->
+  <link rel="manifest" href="/templates/js/manifest.json" />
 </head>
 
 <body>
