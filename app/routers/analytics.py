@@ -9,23 +9,29 @@ from app.services.analytics_service import (
     get_shadow_skills,
     get_skill_decay, 
     get_skill_velocity,
-    get_occupation_similarity,
-    get_occupation_clusters,
 )
-from app.services.demand_services import (
+from app.services.demand_service import (
     get_city_demand_summary,
     get_city_demand_detail,
     get_market_saturation,
     get_occupation_profile,
     get_career_transition,
 )
-from app.services.ridge_services import (
+from app.services.ridge_service import (
     get_occupation_features,
     get_regression_data,
     get_demand_forecast,
     get_model_status,
     get_occupation_prediction,
 )
+from app.services.similarity_service import (
+    get_occupation_similarity,
+)
+from app.services.cluster_service import (
+    get_occupation_clusters,
+    get_elbow_data,
+)
+
 #from main import Limiter
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
@@ -289,6 +295,5 @@ def elbow_analysis(
     db: Session = Depends(get_db)
 ):
     """Runs K-Means for k=2..k_max and returns inertia values + optimal K."""
-    from app.services.analytics_service import get_elbow_data
     return get_elbow_data(db, k_max)
  
