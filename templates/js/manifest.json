@@ -15,7 +15,7 @@
         },
         {
             "src": "/templates/images/NTG1.png",
-            "sizes": "400x460",
+            "sizes": "500x500",
             "type": "image/png",
             "purpose": "maskable"
         }
