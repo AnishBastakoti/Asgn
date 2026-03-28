@@ -1,19 +1,21 @@
 import logging
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.templating import Jinja2Templates
+
 from config import settings
+
 from app.routers import skills, occupations, analytics, jobs, pipeline, auth
 from app.logger import setup_logging
 from app.database import verify_connection
-from core.auth_middleware import AuthMiddleware
  
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
 
-
+from core.auth_middleware import AuthMiddleware
 from core.rate_limiter import limiter
 # ── Logging Setup 
 setup_logging()
@@ -132,6 +134,15 @@ def serve_login(request: Request):
 def serve_model_status(request: Request):
     return _render(request, "model_status.html", "model_status")
 
+
+@app.get("/service-worker.js")
+async def get_sw():
+    # Point this to the actual physical path of the file
+    return FileResponse("templates/js/service-worker.js", media_type="application/javascript")
+
+@app.get("/manifest.json")
+async def get_manifest():
+    return FileResponse("templates/js/manifest.json")
 # ── Health Check ─
 @app.get("/health", tags=["System"])
 def health_check():
