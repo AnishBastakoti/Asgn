@@ -9,7 +9,7 @@
     "icons": [
         {
             "src": "/templates/images/NTG1.png",
-            "sizes": "any", 
+            "sizes": "500x500", 
             "type": "image/png",
             "purpose": "any"
         },
