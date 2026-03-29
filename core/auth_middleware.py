@@ -13,6 +13,8 @@ EXEMPT_PATHS = {
     "/docs",
     "/redocs",
     "/openapi.json",
+    "/manifest.json",
+    "/service-worker.js",
 }
 
 EXEMPT_PREFIXES = (
