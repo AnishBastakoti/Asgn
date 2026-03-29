@@ -36,14 +36,14 @@ def get_occupation_similarity(db: Session, occupation_id: int, top_n: int = 8) -
         )
  
         if not rows:
-            return {"error": "No skill mapping data available"}
+            return {"similar": [], "total_skills": 0}
  
         # Build skill universe and occupation index
-        all_skill_ids   = sorted(set(r.skill_id     for r in rows))
+        all_skill_ids   = sorted(set(r.skill_id for r in rows))
         all_occ_ids     = sorted(set(r.occupation_id for r in rows))
  
         if occupation_id not in all_occ_ids:
-            return {"error": "Occupation has no mapped skills"}
+            raise ValueError(f"Occupation {occupation_id} has no mapped skills.")
  
         skill_index = {sid: i for i, sid in enumerate(all_skill_ids)}
         occ_index   = {oid: i for i, oid in enumerate(all_occ_ids)}
