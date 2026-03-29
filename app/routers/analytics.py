@@ -18,8 +18,8 @@ from app.services.demand_service import (
     get_career_transition,
 )
 from app.services.ridge_service import (
-    get_occupation_features,
-    get_regression_data,
+    # get_occupation_features,
+    # get_regression_data,
     get_demand_forecast,
     get_model_status,
     get_occupation_prediction,
@@ -101,6 +101,7 @@ class OccupationProfileResponse(BaseModel):
     skill_attributes: str
     total_skills:     int
     skill_breakdown:  dict
+    information_card: str
 # ══════════════════════════════════════════════════════════════════════════════
 # RESPONSE MODELS FOR ANALYTICS ENDPOINTS
 
@@ -248,7 +249,6 @@ def occupation_similarity(
     db: Session = Depends(get_db)
 ):
     """Top N occupations most similar to the selected one using cosine similarity on skill vectors."""
-    from app.services.analytics_service import get_occupation_similarity
     return get_occupation_similarity(db, occupation_id, top_n)
  
  
@@ -262,7 +262,6 @@ def occupation_clusters(
     db: Session = Depends(get_db)
 ):
     """Returns the K-Means cluster the occupation belongs to and its cluster peers."""
-    from app.services.analytics_service import get_occupation_clusters
     return get_occupation_clusters(db, occupation_id, n_clusters)
 
 

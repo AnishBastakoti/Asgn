@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 # Cache paths for trained models and K-Means results
 
 _CACHE_DIR        = os.path.dirname(os.path.abspath(__file__))
-_MODEL_PKL_PATH   = os.path.join(_CACHE_DIR, "skillpulse_model.pkl")
 _KMEANS_PKL_PATH  = os.path.join(_CACHE_DIR, "skillpulse_kmeans.pkl")
 
 
@@ -22,40 +21,6 @@ _OPTIMAL_K_CACHE: dict = {"k": None, "occ_count": None}
 
 # ── Model cache functions ────────────────────────────────────
 
-def _save_model_cache(cache: dict) -> None:
-    """Serialise model cache to disk so it survives restarts."""
-    try:
-        # Save everything except the model object itself is fine with pickle
-        with open(_MODEL_PKL_PATH, "wb") as f:
-            pickle.dump(cache, f, protocol=pickle.HIGHEST_PROTOCOL)
-        logger.info(f"[MSIT402|SP] Model cache saved to {_MODEL_PKL_PATH}")
-    except Exception as e:
-        logger.warning(f"[MSIT402|SP] Could not save model cache: {e}")
- 
- 
-def _load_model_cache() -> dict:
-    """Load model cache from disk if it exists."""
-    empty = {
-        "model": None, "scaler": None, "feature_cols": None,
-        "occ_count": None, "job_count": None,
-        "r2_score": None, "trained_at": None,
-    }
-    if not os.path.exists(_MODEL_PKL_PATH):
-        return empty
-    try:
-        with open(_MODEL_PKL_PATH, "rb") as f:
-            cache = pickle.load(f)
-        logger.info(
-            f"[MSIT402|SP] Loaded cached model from disk "
-            f"(R²={cache.get('r2_score', 'N/A')}, "
-            f"trained={cache.get('trained_at', 'unknown')})"
-        )
-        return cache
-    except Exception as e:
-        logger.warning(f"[MSIT402|SP] Could not load model cache: {e}")
-        return empty
- 
- 
 def _save_kmeans_cache(cache: dict) -> None:
     """Serialise K-Means cache to disk."""
     try:
@@ -77,7 +42,6 @@ def _load_kmeans_cache() -> dict:
  
  
 # ── Load caches from disk on module import ──
-_MODEL_CACHE    = _load_model_cache()
 _OPTIMAL_K_CACHE = _load_kmeans_cache()
  
  

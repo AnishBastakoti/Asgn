@@ -1,16 +1,10 @@
-import os
 import logging
-import pandas as pd
-import numpy as np
-import pickle
 
-from sklearn.linear_model import Ridge # Ridge handles multicollinearity
-from sklearn.preprocessing import StandardScaler
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, not_, exists
+from sqlalchemy import func
 
-from app.models.skills import EscoSkill, OscaOccupationSkill, OscaOccupationSkillSnapshot, SkillpulseCityOccupationDemand
+from app.models.skills import EscoSkill, OscaOccupationSkill, OscaOccupationSkillSnapshot
 from app.models.jobs import JobPostLog, JobPostSkill
 
 logger = logging.getLogger(__name__)
