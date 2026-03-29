@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // // ── Called by dashboard.js when occupation is clicked ────────────────────────
-window.selectOccupation = function(el) {
+window.selectOccupation = async function(el) {
   const id    = parseInt(el.dataset.id, 10);
   const title = el.dataset.title;
   const level = el.dataset.level;

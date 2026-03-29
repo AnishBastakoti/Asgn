@@ -113,10 +113,6 @@ def serve_occupations(request: Request):
 def serve_analytics(request: Request):
     return _render(request, "analytics.html", "analytics")
 
-@app.get("/occupations", response_class=HTMLResponse)
-async def occupations_page(request: Request):
-    return templates.TemplateResponse("occupations.html", {"request": request})
-
 @app.get("/pipeline", response_class=HTMLResponse, include_in_schema=False)
 def serve_pipeline(request: Request):
     return _render(request, "pipeline.html", "pipeline")
