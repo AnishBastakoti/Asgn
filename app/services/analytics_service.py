@@ -13,46 +13,85 @@ logger = logging.getLogger(__name__)
 # HOT SKILLS
 # Returns top 50 most-mentioned skills from job posts in the last N days.
 # ─────────────────────────────────────────────
-
 def get_hot_skills(db: Session, days: int = 30) -> list[dict]:
-    """
-    Top skills extracted from job postings in the last N days.
-    Ranks by raw mention count across all occupations.
-    """
     try:
+        # recent window first
         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
-
-        rows = (
-            db.query(
+        
+        def run_query(timestamp_filter=None):
+            q = db.query(
                 EscoSkill.preferred_label.label("skill_name"),
                 func.count(JobPostSkill.id).label("total_mentions")
-            )
-            .join(JobPostSkill, JobPostSkill.skill_id == EscoSkill.id)
-            .join(JobPostLog, JobPostLog.id == JobPostSkill.job_post_id)
-            .filter(JobPostLog.ingested_at >= cutoff)
-            .group_by(EscoSkill.preferred_label)
-            .order_by(func.count(JobPostSkill.id).desc())
-            .limit(50)
-            .all()
-        )
+            ).join(JobPostSkill, JobPostSkill.skill_id == EscoSkill.id) \
+             .join(JobPostLog, JobPostLog.id == JobPostSkill.job_post_id)
+            
+            if timestamp_filter:
+                q = q.filter(JobPostLog.ingested_at >= timestamp_filter)
+            
+            return q.group_by(EscoSkill.preferred_label) \
+                    .order_by(func.count(JobPostSkill.id).desc()) \
+                    .limit(50).all()
 
+        rows = run_query(cutoff)
+
+        # Fallback: If empty, just get the most recent 50 overall
         if not rows:
-            return []
+            logger.warning(f"No hot skills in last {days} days. Falling back to all-time.")
+            rows = run_query(None) 
+
+        if not rows: return []
 
         max_mentions = rows[0].total_mentions or 1
-
         return [
             {
-                "skill_name":     r.skill_name.title() if r.skill_name else r.skill_name,
+                "skill_name": r.skill_name.title() if r.skill_name else "Unknown",
                 "total_mentions": r.total_mentions,
-                "share_pct":      round((r.total_mentions / max_mentions) * 100, 2)
+                "share_pct": round((r.total_mentions / max_mentions) * 100, 2)
             }
             for r in rows
         ]
-
     except Exception as e:
-        logger.error(f"[MSIT402|SP] get_hot_skills failed: {e}")
+        logger.error(f"get_hot_skills failed: {e}")
         return []
+# def get_hot_skills(db: Session, days: int = 30) -> list[dict]:
+#     """
+#     Top skills extracted from job postings in the last N days.
+#     Ranks by raw mention count across all occupations.
+#     """
+#     try:
+#         cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+#         rows = (
+#             db.query(
+#                 EscoSkill.preferred_label.label("skill_name"),
+#                 func.count(JobPostSkill.id).label("total_mentions")
+#             )
+#             .join(JobPostSkill, JobPostSkill.skill_id == EscoSkill.id)
+#             .join(JobPostLog, JobPostLog.id == JobPostSkill.job_post_id)
+#             .filter(JobPostLog.ingested_at >= cutoff)
+#             .group_by(EscoSkill.preferred_label)
+#             .order_by(func.count(JobPostSkill.id).desc())
+#             .limit(50)
+#             .all()
+#         )
+
+#         if not rows:
+#             return []
+
+#         max_mentions = rows[0].total_mentions or 1
+
+#         return [
+#             {
+#                 "skill_name":     r.skill_name.title() if r.skill_name else r.skill_name,
+#                 "total_mentions": r.total_mentions,
+#                 "share_pct":      round((r.total_mentions / max_mentions) * 100, 2)
+#             }
+#             for r in rows
+#         ]
+
+#     except Exception as e:
+#         logger.error(f"[MSIT402|SP] get_hot_skills failed: {e}")
+#         return []
 
 
 # ─────────────────────────────────────────────
