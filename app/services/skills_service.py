@@ -28,7 +28,13 @@ def _apply_signature_score(mention_count: int, skill_id: int) -> float:
 # ══════════════════════════════════════════════════════════════════════════════
 #  TOP SKILLS FOR OCCUPATION
 #    Primary data source for the skills bar chart on the Skill page.
+#   Capatilise function
 # ══════════════════════════════════════════════════════════════════════════════
+
+def capitalize_first(s: str | None) -> str | None:
+        return s[:1].upper() + s[1:] if s else s
+
+
 def get_top_skills_for_occupation(
     db: Session,
     occupation_id: int,
@@ -67,7 +73,7 @@ def get_top_skills_for_occupation(
             demand_score = _apply_signature_score(row.mention_count, row.skill_id)
             skills.append({
                 "skill_id":      row.skill_id,
-                "skill_name":    row.skill_name,
+                "skill_name":    _capitalize_first(row.skill_name),
                 "skill_type":    row.skill_type or "unknown",
                 "mention_count": row.mention_count,
                 "demand_score":  demand_score,

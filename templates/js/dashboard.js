@@ -168,7 +168,7 @@ async function loadOccupations() {
     }));
 
     state.filtered = occs;
-    renderOccList(occs.slice(0, 50)); //Limit initial render
+    renderOccList(occs.slice(0, 20)); //Limit initial render
   } catch (err) {
     list.innerHTML = '<div class="sp-occ-empty">Failed to load</div>';
     console.warn('Failed to load occupations:', err.message);
@@ -280,7 +280,7 @@ async function renderDashboard() {
       nd.className = 'sp-no-data';
       nd.innerHTML = `<div class="sp-no-data-icon">&#128269;</div>
                       <strong>No skill data yet</strong>
-                      <span>This occupation has not been processed by the AI pipeline yet.</span>`;
+                      <span>This occupation has not been processed by the pipeline yet.</span>`;
       panel.appendChild(nd);
       return;
     }
@@ -294,6 +294,8 @@ async function renderDashboard() {
 // ── Load occupation info card ──
 async function loadOccupationInfo(occId) {
   //console.log('[loadOccupationInfo] occId:', occId); // debug
+  if (!occId || isNaN(occId)) return;
+
   const backdropEl = document.getElementById('occModalBackdrop');
   const modalEl = document.getElementById('occDetailModal');
   const body    = $('occModalBody');
