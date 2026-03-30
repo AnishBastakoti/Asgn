@@ -43,7 +43,7 @@ const jt = {
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  loadHotSkills();
+  //loadHotSkills();
   loadOccupations();
   initTabs();
 
@@ -62,46 +62,46 @@ document.addEventListener('DOMContentLoaded', () => {
 function togglePicker() {
   document.querySelector('.jt-layout').classList.toggle('picker-collapsed');
 }
-// ═════════════════════════════════════════════════════════════════════════════
-// GLOBAL HOT SKILLS BANNER
-//    Source: /api/analytics/hot-skills?days=30.
-// ═════════════════════════════════════════════════════════════════════════════
-async function loadHotSkills() {
-  const wrap = document.getElementById('hotSkillsList');
-  try {
-    const data = await api('/api/analytics/hot-skills?days=30');
+// // ═════════════════════════════════════════════════════════════════════════════
+// // GLOBAL HOT SKILLS BANNER
+// //    Source: /api/analytics/hot-skills?days=30.
+// // ═════════════════════════════════════════════════════════════════════════════
+// async function loadHotSkills() {
+//   const wrap = document.getElementById('hotSkillsList');
+//   try {
+//     const data = await api('/api/analytics/hot-skills?days=30');
 
-    if (!data || !data.length) {
-      wrap.innerHTML = `
-        <div class="jt-empty">
-          <i class="bi bi-hourglass-split me-2"></i>
-          No hot skill data yet — the pipeline is still processing job posts.
-        </div>`;
-      return;
-    }
+//     if (!data || !data.length) {
+//       wrap.innerHTML = `
+//         <div class="jt-empty">
+//           <i class="bi bi-hourglass-split me-2"></i>
+//           No hot skill data yet — the pipeline is still processing job posts.
+//         </div>`;
+//       return;
+//     }
 
-    const max = data[0].total_mentions || 1; // avoid divide-by-zero; if no mentions, all bars will be 0% width
-    const rows = data.slice(0, 12).map((skill, i) => {
-      const barPct = Math.round((skill.total_mentions / max) * 100);
-      return `
-        <div class="jt-hot-row">
-          <span class="jt-hot-rank">${i + 1}</span>
-          <span class="jt-hot-name">${esc(skill.skill_name)}</span>
-          <div class="jt-hot-bar-wrap">
-            <div class="jt-hot-bar" style="width:${barPct}%"></div>
-          </div>
-          <span class="jt-hot-count">${fmt(skill.total_mentions)}</span>
-        </div>`;
-    }).join('');
+//     const max = data[0].total_mentions || 1; // avoid divide-by-zero; if no mentions, all bars will be 0% width
+//     const rows = data.slice(0, 12).map((skill, i) => {
+//       const barPct = Math.round((skill.total_mentions / max) * 100);
+//       return `
+//         <div class="jt-hot-row">
+//           <span class="jt-hot-rank">${i + 1}</span>
+//           <span class="jt-hot-name">${esc(skill.skill_name)}</span>
+//           <div class="jt-hot-bar-wrap">
+//             <div class="jt-hot-bar" style="width:${barPct}%"></div>
+//           </div>
+//           <span class="jt-hot-count">${fmt(skill.total_mentions)}</span>
+//         </div>`;
+//     }).join('');
 
-    wrap.innerHTML = `<div class="jt-hot-list">${rows}</div>`;
+//     wrap.innerHTML = `<div class="jt-hot-list">${rows}</div>`;
 
-  } catch (err) {
-    wrap.innerHTML = `<span style="font-size:var(--fs-xs);color:var(--muted)">
-      Could not load trending skills.</span>`;
-    console.warn('[SkillPulse|JT] loadHotSkills:', err.message);
-  }
-}
+//   } catch (err) {
+//     wrap.innerHTML = `<span style="font-size:var(--fs-xs);color:var(--muted)">
+//       Could not load trending skills.</span>`;
+//     console.warn('[SkillPulse|JT] loadHotSkills:', err.message);
+//   }
+// }
 
 // Called when user clicks an occupation row
 window.selectOccupation = function(el) {
@@ -115,7 +115,7 @@ window.selectOccupation = function(el) {
 
   // Update state — reset loaded flags for new occupation
   jt.selected = { id, title, level };
-  jt.loaded   = { cities: false, trends: false, overlap: false, companies: false };
+  jt.loaded   = { cities: false, trends: false, overlap: false, companies: false, topskills: false };
 
   // Update header
   document.getElementById('jtWelcome').style.display      = 'none';
@@ -183,6 +183,7 @@ async function loadTabData(tab) {
   if (tab === 'trends')    await renderTrends(id);
   if (tab === 'overlap')   await renderOverlap(id);
   if (tab === 'companies') await renderCompanies(id);
+  if (tab === 'topskills') await renderTopSkills(id);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -488,7 +489,7 @@ async function renderOverlap(occId) {
       html += `<tr><td class="row-label">${esc(skill)}</td>`;
       const row = data.matrix[rowIdx] || [];
       row.forEach(val => {
-        html += `<td class="${val ? 'hm-cell-1' : 'hm-cell-0'}">${val ? '✓' : '·'}</td>`;
+        html += `<td class="${val ? 'hm-cell-1' : 'hm-cell-0'}">${val ? '✓' : 'x'}</td>`;
       });
       html += `</tr>`;
     });
@@ -557,5 +558,80 @@ async function renderCompanies(occId) {
     wrap.innerHTML = `<div class="jt-empty">Could not load company data.</div>`;
     console.warn('[SkillPulse|JT] renderCompanies failed:', err.message);
     jt.loaded.companies = false;
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// TOP SKILLS PER OCCUPATION
+//    Source: /api/jobs/hot-skills/{occupation_id}?days=30
+//    Falls back to all-time if no pipeline run in last 30 days.
+// ═════════════════════════════════════════════════════════════════════════════
+async function renderTopSkills(occId) {
+  if (!occId || isNaN(occId)) {
+    console.error('[renderTopSkills] Invalid occId:', occId);
+    return;
+  }
+
+  const wrap = document.getElementById('topSkillsWrap');
+  const sub  = document.getElementById('topSkillsSub');
+
+  wrap.innerHTML = `<div class="jt-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>`;
+
+  try {
+    const d = await api(`/api/jobs/hot-skills/${occId}?days=30`);
+
+    // Update subtitle — warn user if showing fallback data
+    if (sub) {
+      sub.textContent = d.is_fallback
+        ? 'No pipeline run in last 30 days — showing all-time data until next run'
+        : 'Most mentioned skills from job posts in the last 30 days';
+      sub.style.color = d.is_fallback ? 'var(--orange)' : '';
+    }
+
+    if (!d.skills || !d.skills.length) {
+      wrap.innerHTML = `<div class="jt-empty">
+        <i class="bi bi-hourglass-split me-2"></i>
+        No skill data yet for this occupation.
+      </div>`;
+      return;
+    }
+
+    const max = d.skills[0].total_mentions || 1;
+    const typeColors = {
+      knowledge:         'var(--violet)',
+      'skill/competence':'var(--orange)',
+      attitude:          '#F59E0B',
+    };
+
+    const rows = d.skills.map((s, i) => {
+      const pct   = Math.round((s.total_mentions / max) * 100);
+      const color = typeColors[s.skill_type] || 'var(--muted)';
+
+      // Clickable if concept_uri exists
+      const nameHtml = s.concept_uri
+        ? `<a href="${s.concept_uri}" target="_blank" rel="noopener noreferrer"
+              class="sp-esco-link" title="Open ESCO skill page">${esc(s.skill_name)}</a>`
+        : esc(s.skill_name);
+
+      return `
+        <div class="jt-hot-row" style="gap:10px; margin-bottom:8px;">
+          <span class="jt-hot-rank">${i + 1}</span>
+          <span class="jt-hot-name" style="flex:1; font-size:13px;">${nameHtml}</span>
+          <div style="width:140px; height:6px; background:var(--orange-l);
+                      border-radius:99px; flex-shrink:0; overflow:hidden;">
+            <div style="width:${pct}%; height:100%; background:${color};
+                        border-radius:99px; transition:width 0.5s ease;"></div>
+          </div>
+          <span class="jt-hot-count">${fmt(s.total_mentions)}</span>
+        </div>`;
+    }).join('');
+
+    wrap.innerHTML = `<div style="margin-top:8px;">${rows}</div>`;
+
+  } catch (err) {
+    wrap.innerHTML = `<div class="jt-empty text-danger">
+      <i class="bi bi-exclamation-triangle me-2"></i>Could not load skill data.
+    </div>`;
+    console.warn('[SkillPulse|JT] renderTopSkills:', err.message);
   }
 }

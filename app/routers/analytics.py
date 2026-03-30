@@ -5,7 +5,6 @@ from core.rate_limiter import limiter
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.analytics_service import (
-    get_hot_skills,
     get_shadow_skills,
     get_skill_decay, 
     get_skill_velocity,
@@ -38,11 +37,6 @@ router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
 
 # ── Schemas ──────────────────────────────────────────────
-class HotSkillResponse(BaseModel):
-    skill_name:     str
-    total_mentions: int
-    share_pct:      float
-
 class ShadowSkillResponse(BaseModel):
     skill_name: str
 
@@ -116,14 +110,6 @@ class DemandPredictionResponse(BaseModel):
     r2_score: Optional[float] = None
 
 # ── Endpoints ────────────────────────────────────────────
-
-# HOT SKILLS — no occupation filter, across all job posts
-@router.get("/hot-skills", response_model=List[HotSkillResponse])
-@limiter.limit("10/minute")
-def hot_skills(request: Request, days: int = 30, db: Session = Depends(get_db)):
-    """Top skills across all job posts in the last N days."""
-    return get_hot_skills(db, days)
-
 
 # SHADOW SKILLS 
 @router.get("/shadow-skills/{occupation_id}", response_model=List[ShadowSkillResponse])

@@ -775,6 +775,8 @@ button.info:hover { background: var(--orange); color: #fff; }
   gap: 0.875rem;
   padding: 3rem 2rem;
   text-align: center;
+  margin-top: 0;
+  min-height: 0
 }
 .sp-welcome-title {
   font-size: 1.3rem;

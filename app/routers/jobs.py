@@ -8,7 +8,8 @@ from app.services.jobs_service import (
     get_skill_trends_by_occupation,
     get_skill_overlap,
     get_top_companies,
-    get_city_lead_indicator
+    get_city_lead_indicator,
+    get_hot_skills_for_occupation,
 )
 
 router = APIRouter(prefix="/api/jobs", tags=["Jobs"])
@@ -45,6 +46,11 @@ class CityLeadResponse(BaseModel):
     is_lead:        bool
     rank:           int
 
+class HotSkillResponse(BaseModel):
+    skill_name:     str
+    total_mentions: int
+    share_pct:      float
+
 
 # ── Endpoints ──────────────────────────────────────────────
 @router.get("/cities/", response_model=list[CityResponse])
@@ -75,3 +81,10 @@ def top_companies(occupation_id: int, db: Session = Depends(get_db)):
 def lead_cities(occupation_id: int, db: Session = Depends(get_db)):
     """City lead indicators — which cities post first."""
     return get_city_lead_indicator(db, occupation_id)
+
+# HOT SKILLS — no occupation filter, across all job posts
+@router.get("/hot-skills/", response_model=list[HotSkillResponse])
+def hot_skills_for_occupation(occupation_id: int, days: int = 30, db: Session = Depends(get_db)):
+    """Top skills across all job posts in the last N days."""
+    return get_hot_skills_for_occupation(db, occupation_id, days)
+
