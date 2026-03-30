@@ -24,13 +24,8 @@ from app.services.ridge_service import (
     get_model_status,
     get_occupation_prediction,
 )
-from app.services.similarity_service import (
-    get_occupation_similarity,
-)
-from app.services.cluster_service import (
-    get_occupation_clusters,
-    get_elbow_data,
-)
+from app.services.similarity_service import get_occupation_similarity
+from app.services.cluster_service import get_occupation_clusters, get_elbow_data
 
 #from main import Limiter
 
