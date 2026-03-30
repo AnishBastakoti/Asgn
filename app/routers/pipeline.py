@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.services.pipeline_service import get_pipeline_executions
+from app.services.pipeline_service import get_last_pipeline_run
 
 router = APIRouter(prefix="/api/pipeline", tags=["Pipeline"])
 
-@router.get("/executions")
-def pipeline_executions(limit: int = 20, db: Session = Depends(get_db)):
-    """Recent Spring Batch pipeline executions with duration and error detail."""
-    return get_pipeline_executions(db, limit)
+@router.get("/last-run")
+def pipeline_last_run(db: Session = Depends(get_db)):
+    """Returns the timestamp of the most recent completed pipeline run."""
+    result = get_last_pipeline_run(db)
+    if not result:
+        return {"last_run": None, "status": "UNKNOWN"}
+    return result

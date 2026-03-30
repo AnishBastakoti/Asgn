@@ -113,9 +113,9 @@ def serve_occupations(request: Request):
 def serve_analytics(request: Request):
     return _render(request, "analytics.html", "analytics")
 
-@app.get("/pipeline", response_class=HTMLResponse, include_in_schema=False)
-def serve_pipeline(request: Request):
-    return _render(request, "pipeline.html", "pipeline")
+# @app.get("/pipeline", response_class=HTMLResponse, include_in_schema=False)
+# def serve_pipeline(request: Request):
+#     return _render(request, "pipeline.html", "pipeline")
 
 
 @app.get("/career", response_class=HTMLResponse, include_in_schema=False)
