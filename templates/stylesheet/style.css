@@ -226,7 +226,7 @@ button.info:hover { background: var(--orange); color: #fff; }
   padding: 1.125rem 1.125rem 1rem;
   border-bottom: 1px solid var(--border);
 }
-.sp-logo-icon svg { width: 30px; height: 30px; flex-shrink: 0; }
+.sp-top-bar-icon svg { width: 30px; height: 30px; flex-shrink: 0; }
 .sp-logo-name {
   display: block;
   font-size: 0.95rem;
@@ -241,18 +241,6 @@ button.info:hover { background: var(--orange); color: #fff; }
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.12em;
-}
-.sp-right-panel {
-  background: var(--card-bg);
-  border-left: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-.sp-right-panel .sp-occ-list {
-  flex: 1;
-  overflow-y: auto;
 }
 .sp-right-header {
   padding: 1rem;
@@ -1460,7 +1448,7 @@ input.flatpickr-input:focus {
 
 .sp-shell-layout {
   display: grid;
-  grid-template-columns: 280px 1fr 133px;
+  grid-template-columns: 280px 1fr;
   height: calc(100vh - 180px);
   gap: 0;
 }
