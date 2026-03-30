@@ -1,8 +1,11 @@
 import logging
 import hashlib
 import numpy as np
+
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
-from sqlalchemy import func, text
+from sqlalchemy import func
+
 from app.models.jobs import JobPostLog
 from app.models.skills import EscoSkill, OscaOccupationSkillSnapshot, OscaOccupationSkill
 from app.models.osca import OscaOccupation
@@ -262,3 +265,68 @@ def get_city_lead_indicator(db: Session, occupation_id: int) -> list[dict]:
     except Exception as e:
         logger.error(f"[MSIT402|SP] get_city_lead_indicator failed: {e}")
         return []
+
+# ─────────────────────────────────────────────
+# HOT SKILLS FOR EACH OCCUPATIONS
+# Returns top most-mentioned skills from job posts in the last N days.
+# ─────────────────────────────────────────────
+def get_hot_skills_for_occupation(db: Session, occupation_id:int, days: int = 30) -> list[dict]:
+    
+    """
+    Top skills for a specific occupation from job posts in last N days.
+    Falls back to all-time data if no pipeline has run in that window.
+    Returns the data + a flag indicating whether fallback was used.
+    """
+    try:
+        # recent window first
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        
+        def run_query(timestamp_filter=None):
+            q = (
+                db.query(
+                    EscoSkill.preferred_label.label("skill_name"),
+                    EscoSkill.concept_uri,
+                    EscoSkill.skill_type,
+                    func.count(JobPostSkill.id).label("total_mentions")
+                )
+                .join(JobPostSkill, JobPostSkill.skill_id == EscoSkill.id)
+                .join(JobPostLog, JobPostLog.id == JobPostSkill.job_post_id)
+                .filter(JobPostLog.occupation_id == occupation_id)
+            )
+            if timestamp_filter:
+                q = q.filter(JobPostLog.ingested_at >= timestamp_filter)
+
+            return q.group_by(
+                EscoSkill.preferred_label,
+                EscoSkill.concept_uri,
+                EscoSkill.skill_type
+            ).order_by(func.count(JobPostSkill.id).desc()).limit(20).all()
+
+        rows = run_query(cutoff)
+        is_fallback = False
+
+        # Fallback: If empty, just get the most recent 50 overall
+        if not rows:
+            logger.warning(f"No hot skills in last {days} for occupation {occupation_id}. Falling back to all-time.")
+            rows = run_query(None) 
+
+        if not rows: return []
+
+        max_mentions = rows[0].total_mentions or 1
+        return {
+            "skills": [
+                {
+                    "skill_name":     r.skill_name[:1].upper() + r.skill_name[1:] if r.skill_name else "Unknown",
+                    "concept_uri":    r.concept_uri,
+                    "skill_type":     r.skill_type or "unknown",
+                    "total_mentions": r.total_mentions,
+                    "share_pct":      round((r.total_mentions / max_m) * 100, 1),
+                }
+                for r in rows
+            ],
+            "is_fallback": is_fallback,
+            "days":        days,
+        }
+    except Exception as e:
+        logger.error(f"get_hot_skills_for_occupation failed occ={occupation_id}: {e}")
+        return {"skills": [], "is_fallback": False, "days": days}

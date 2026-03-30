@@ -32,7 +32,7 @@
 .jt-occ-item.active .jt-occ-badge { background: var(--orange); color: #fff; }
 .jt-occ-item.no-data { opacity: 0.4; cursor: default; }
 .jt-occ-item.no-data:hover { background: none; }
-.jt-chart-panel { display: flex; flex-direction: column; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--rad); box-shadow: var(--shadow-card); }
+.jt-chart-panel { display: flex; flex-direction: column; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--rad); box-shadow: var(--shadow-card); min-width: 0; overflow: auto; }
 .jt-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
 .jt-chip { padding: 6px 14px; border: 1px solid var(--border2); border-radius: 99px; font-size: 12px; cursor: pointer; color: var(--text2); transition: all .15s; }
 .jt-chip:hover { background: var(--orange-l); border-color: var(--orange); color: var(--orange); }
@@ -116,6 +116,7 @@
 {% block content %}
 
 <!-- Global Hot Skills Banner -->
+<!--  
 <div class="jt-global-section">
   <div class="jt-section-title">
     <i class="bi bi-fire me-1" style="color:#F43F5E"></i>
@@ -125,9 +126,9 @@
     <div class="jt-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading&hellip;</div>
   </div>
 </div>
-
+ -->
 <!-- Two-column layout -->
-<div class="jt-layout" style="height: calc(100vh - 330px);">
+<div class="jt-layout">
 
   <!-- LEFT: Occupation Picker -->
   <div class="jt-picker">
@@ -172,6 +173,7 @@
         <div class="jt-tab" data-tab="trends"><i class="bi bi-graph-up me-1"></i>Skill Trends</div>
         <div class="jt-tab" data-tab="overlap"><i class="bi bi-grid-3x3 me-1"></i>Skill Overlap</div>
         <div class="jt-tab" data-tab="companies"><i class="bi bi-building me-1"></i>Companies</div>
+        <div class="jt-tab" data-tab="topskills"><i class="bi bi-bar-chart-fill me-1"></i>Top Skills</div>
       </div>
 
       <div class="jt-tab-content">
@@ -202,6 +204,18 @@
           <div class="jt-chart-sub">Most active employers for this occupation</div>
           <div id="companiesWrap">
             <div class="jt-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading&hellip;</div>
+          </div>
+        </div>
+
+        <div class="jt-pane" id="pane-topskills">
+          <div class="jt-chart-title">Top Skills in Demand</div>
+          <div class="jt-chart-sub" id="topSkillsSub">
+            Most mentioned skills from job posts in the last 30 days
+          </div>
+          <div id="topSkillsWrap">
+            <div class="jt-loading">
+              <div class="sp-spinner-sm"></div>&nbsp;Loading…
+            </div>
           </div>
         </div>
 
