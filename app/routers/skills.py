@@ -58,6 +58,7 @@ def get_top_skills(
         db.query(
             EscoSkill.preferred_label.label("skill_name"),
             EscoSkill.skill_type,
+            EscoSkill.concept_uri,
             OscaOccupationSkill.mention_count,
             OscaOccupationSkill.first_seen_at.label("first_seen"),
             OscaOccupationSkill.last_seen_at.label("last_seen"),
@@ -81,6 +82,7 @@ def get_top_skills(
         {
             "skill_name":    r.skill_name,
             "skill_type":    r.skill_type,
+            "concept_uri":   r.concept_uri,
             "mention_count": r.mention_count,
             "demand_score":  round((r.mention_count / max_count) * 100, 1),
             "first_seen":    r.first_seen.isoformat() if r.first_seen else None,
