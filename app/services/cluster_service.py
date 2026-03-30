@@ -1,197 +1,210 @@
 import os
 import logging
-import numpy as np
 import pickle
+import threading
+import numpy as np
+import time 
 
+from dataclasses import dataclass
+from typing import Optional
 from sqlalchemy.orm import Session
 
-from app.models.skills import OscaOccupationSkill
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.cluster import KMeans
+from app.models.osca import OscaOccupation
+from app.services.matrix_cache import get_matrix
 
 logger = logging.getLogger(__name__)
 
 
-# Cache paths for trained models and K-Means results
+# ── KMeans model cache ───────────────────────────────────────────────────────
 
-_CACHE_DIR        = os.path.dirname(os.path.abspath(__file__))
-_KMEANS_PKL_PATH  = os.path.join(_CACHE_DIR, "skillpulse_kmeans.pkl")
+@dataclass
+class _KMeansCache:
+    model:      object     # fitted sklearn KMeans instance
+    labels:    np.ndarray[np.float64, np.dtype[np.float64]]  # shape: (n_occupations,)  int labels per occ
+    k:          int
+    occ_count:  int        # occupation count at fit time — used for invalidation
+
+_KMEANS_CACHE: Optional[_KMeansCache] = None
+_KMEANS_LOCK  = threading.Lock()
+
+_CACHE_DIR       = os.path.dirname(os.path.abspath(__file__))
+_KMEANS_PKL_PATH = os.path.join(_CACHE_DIR, "skillpulse_kmeans.pkl")
 
 
-# ── K-Means optimal K cache ────────────────────────────────────
-_OPTIMAL_K_CACHE: dict = {"k": None, "occ_count": None}
+# ── Disk cache ─────────────────────────────────────────────────────────
 
-# ── Model cache functions ────────────────────────────────────
-
-def _save_kmeans_cache(cache: dict) -> None:
-    """Serialise K-Means cache to disk."""
+def _save_kmeans_to_disk(cache: _KMeansCache) -> None:
     try:
         with open(_KMEANS_PKL_PATH, "wb") as f:
             pickle.dump(cache, f, protocol=pickle.HIGHEST_PROTOCOL)
+        logger.info(f"[ClusterService] KMeans cache saved to disk (k={cache.k})")
     except Exception as e:
-        logger.warning(f"[MSIT402|SP] Could not save K-Means cache: {e}")
- 
- 
-def _load_kmeans_cache() -> dict:
-    """Load K-Means cache from disk if it exists."""
+        logger.warning(f"[ClusterService] Could not save KMeans to disk: {e}")
+
+
+def _load_kmeans_from_disk() -> Optional[_KMeansCache]:
     if not os.path.exists(_KMEANS_PKL_PATH):
-        return {"k": None, "occ_count": None}
+        return None
     try:
         with open(_KMEANS_PKL_PATH, "rb") as f:
-            return pickle.load(f)
-    except Exception:
-        return {"k": None, "occ_count": None}
- 
- 
-# ── Load caches from disk on module import ──
-_OPTIMAL_K_CACHE = _load_kmeans_cache()
- 
- 
-# ─────────────────────────────────────────────
-# ELBOW METHOD FOR K-MEANS 
-# `get_elbow_data` computes the optimal number of clusters (K) for K-Means
-# by analyzing the inertia (within-cluster sum of squares) across a range of K values
-# ─────────────────────────────────────────────
+            cache = pickle.load(f)
+        logger.info(f"[ClusterService] KMeans cache loaded from disk (k={cache.k})")
+        return cache
+    except Exception as e:
+        logger.warning(f"[ClusterService] Could not load KMeans from disk: {e}")
+        return None
+
+
+# ── Load from disk at module import ──────────────────────────────────────────
+_KMEANS_CACHE = _load_kmeans_from_disk()
+
+
+# ── get or fit KMeans ──────────────────────────────────────────────
+
+def _get_kmeans(db: Session, n_clusters: Optional[int] = None) -> _KMeansCache:
+    """
+    Returns a fitted KMeans cache, rebuilding only when:
+      - cache is empty, OR
+      - occupation count has changed
+    """
+    global _KMEANS_CACHE
+
+    mc = get_matrix(db)   # shared matrix — already cached after first call
+
+    with _KMEANS_LOCK:
+        # Cache hit: same occupation count and no explicit override
+        if (
+            _KMEANS_CACHE is not None
+            and _KMEANS_CACHE.occ_count == mc.n_occupations
+            and (n_clusters is None or n_clusters == _KMEANS_CACHE.k)
+        ):
+            return _KMEANS_CACHE
+
+        # Determine K
+        if n_clusters is None:
+            if _KMEANS_CACHE is not None and _KMEANS_CACHE.occ_count == mc.n_occupations:
+                # occupation count unchanged — reuse stored K
+                k = _KMEANS_CACHE.k
+            else:
+                logger.info("[ClusterService] Computing optimal K via elbow method …")
+                k = _compute_optimal_k(mc.matrix)
+                logger.info(f"[ClusterService] Optimal K = {k}")
+        else:
+            k = n_clusters
+
+        k = min(k, mc.n_occupations)
+
+        logger.info(f"[ClusterService] Fitting KMeans k={k} on {mc.n_occupations} occupations …")
+        from sklearn.cluster import KMeans
+        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+        labels = kmeans.fit_predict(mc.matrix)
+
+        _KMEANS_CACHE = _KMeansCache(
+            model=kmeans,
+            labels=labels,
+            k=k,
+            occ_count=mc.n_occupations,
+        )
+        _save_kmeans_to_disk(_KMEANS_CACHE)
+        return _KMEANS_CACHE
+
+
+def _compute_optimal_k(matrix: np.ndarray, k_max: int = 20) -> int:
+    """Elbow method on the already-built matrix — no DB access needed."""
+
+    k_max    = min(k_max, matrix.shape[0])
+    k_range  = list(range(2, k_max + 1))
+    inertias = []
+
+    for k in k_range:
+        km = KMeans(n_clusters=k, random_state=42, n_init=5, max_iter=100)
+        km.fit(matrix)
+        inertias.append(float(km.inertia_))
+
+    inertia_arr  = np.array(inertias)
+    denom        = inertia_arr.max() - inertia_arr.min() + 1e-9
+    inertia_norm = (inertia_arr - inertia_arr.min()) / denom
+
+    if len(inertia_norm) >= 3:
+        second_deriv = np.diff(inertia_norm, n=2)
+        optimal_k    = k_range[int(np.argmax(np.abs(second_deriv))) + 1]
+    else:
+        optimal_k = k_range[0]
+
+    return optimal_k
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
 
 def get_elbow_data(db: Session, k_max: int = 25) -> dict:
+    """
+    Returns inertia values and optimal K.
+    Re-uses the shared matrix — never queries OscaOccupationSkill directly.
+    """
     try:
-        import numpy as np
-        from sklearn.cluster import KMeans
-
-        rows = (
-            db.query(
-                OscaOccupationSkill.occupation_id,
-                OscaOccupationSkill.skill_id
-            ).all()
-        )
-
-        if not rows:
-            return {"optimal_k": 16}
-
-        all_skill_ids = sorted(set(r.skill_id      for r in rows))
-        all_occ_ids   = sorted(set(r.occupation_id for r in rows))
-
-        skill_index = {sid: i for i, sid in enumerate(all_skill_ids)}
-        occ_index   = {oid: i for i, oid in enumerate(all_occ_ids)}
-
-        matrix = np.zeros((len(all_occ_ids), len(all_skill_ids)), dtype=np.float32)
-        for r in rows:
-            matrix[occ_index[r.occupation_id], skill_index[r.skill_id]] = 1.0
-
-        k_max    = min(k_max, len(all_occ_ids))
+        mc       = get_matrix(db)
+        k_max    = min(k_max, mc.n_occupations)
         k_range  = list(range(2, k_max + 1))
         inertias = []
 
         for k in k_range:
             km = KMeans(n_clusters=k, random_state=42, n_init=5, max_iter=100)
-            km.fit(matrix)
+            km.fit(mc.matrix)
             inertias.append(float(km.inertia_))
 
-        inertia_arr  = np.array(inertias)
-        inertia_norm = (inertia_arr - inertia_arr.min()) / (inertia_arr.max() - inertia_arr.min() + 1e-9)
-
-        if len(inertia_norm) >= 3:
-            second_deriv = np.diff(inertia_norm, n=2)
-            elbow_idx    = int(np.argmax(np.abs(second_deriv))) + 2
-            # If index 0 of second_deriv represents k=3
-            optimal_k = k_range[int(np.argmax(np.abs(second_deriv))) + 1]
-        else:
-            optimal_k = k_range[0]
+        optimal_k = _compute_optimal_k(mc.matrix, k_max=k_max)
 
         return {"optimal_k": optimal_k, "k_range": k_range, "inertias": inertias}
 
     except Exception as e:
-        logger.error(f"[MSIT402|SP] get_elbow_data failed: {e}")
+        logger.error(f"[ClusterService] get_elbow_data failed: {e}")
         return {"optimal_k": 16}
 
-# ─────────────────────────────────────────────
-# OCCUPATION CLUSTERING
-# Uses K-Means on binary skill vectors to group all occupations
-# into clusters based on shared skill profiles.
-# Returns the cluster the selected occupation belongs to,
-# and all other members of that cluster.
-# ─────────────────────────────────────────────
- 
-def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: int = None) -> dict:
+
+def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: Optional[int] = None) -> dict:
     """
     Clusters all occupations by skill profile using K-Means.
     Returns the cluster the selected occupation belongs to
-    and the other members of that cluster ranked by similarity.
+    and its members ranked by cosine similarity.
     """
     try:
-        from sklearn.cluster import KMeans
-        from sklearn.metrics.pairwise import cosine_similarity
- 
-        # Fetch all occupation-skill mappings
-        rows = (
-            db.query(
-                OscaOccupationSkill.occupation_id,
-                OscaOccupationSkill.skill_id
-            )
-            .all()
-        )
- 
-        if not rows:
-            return {"error": "No skill mapping data available"}
- 
-        all_skill_ids = sorted(set(r.skill_id      for r in rows))
-        all_occ_ids   = sorted(set(r.occupation_id for r in rows))
- 
-        if occupation_id not in all_occ_ids:
+        starttime= time.time()
+        mc     = get_matrix(db)
+        kc     = _get_kmeans(db, n_clusters)
+
+        if occupation_id not in mc.occ_index:
             return {"error": "Occupation has no mapped skills — cannot cluster"}
- 
-        skill_index = {sid: i for i, sid in enumerate(all_skill_ids)}
-        occ_index   = {oid: i for i, oid in enumerate(all_occ_ids)}
- 
-        # Build binary skill matrix
-        matrix = np.zeros((len(all_occ_ids), len(all_skill_ids)), dtype=np.float32)
-        for r in rows:
-            matrix[occ_index[r.occupation_id], skill_index[r.skill_id]] = 1.0
 
+        target_idx     = mc.occ_index[occupation_id]
+        target_cluster = int(kc.labels[target_idx])
 
-        # Auto-detect optimal K unless explicitly overridden
-        if n_clusters is None:
-            global _OPTIMAL_K_CACHE
-            current_count = len(all_occ_ids)
-            if (_OPTIMAL_K_CACHE["k"] is not None and
-                    _OPTIMAL_K_CACHE["occ_count"] == current_count):
-                n_clusters = _OPTIMAL_K_CACHE["k"]
-                logger.info(f"[MSIT402|SP] Using cached K={n_clusters}")
-            else:
-                logger.info("[MSIT402|SP] Recomputing optimal K via elbow method...")
-                elbow      = get_elbow_data(db, k_max=20)
-                n_clusters = elbow.get("optimal_k", 16)
-                _OPTIMAL_K_CACHE["k"]         = n_clusters
-                _OPTIMAL_K_CACHE["occ_count"] = current_count
-                logger.info(f"[MSIT402|SP] Optimal K = {n_clusters} for {current_count} occupations")
-
-        # K-Means clustering — cap n_clusters to available occupations
-        k = min(n_clusters, len(all_occ_ids))
-        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
-        labels = kmeans.fit_predict(matrix)
- 
-        # Find the cluster of the selected occupation
-        target_cluster = int(labels[occ_index[occupation_id]])
- 
-        # Members of the same cluster
         cluster_member_ids = [
-            all_occ_ids[i] for i, lbl in enumerate(labels)
-            if lbl == target_cluster and all_occ_ids[i] != occupation_id
+            mc.all_occ_ids[i]
+            for i, lbl in enumerate(kc.labels)
+            if lbl == target_cluster and mc.all_occ_ids[i] != occupation_id
         ]
- 
-        # Rank cluster members by cosine similarity to target
-        target_vec = matrix[occ_index[occupation_id]].reshape(1, -1)
+
+        endtime1=time.time()
+        print("time check for cluster ",starttime-endtime1)
+
+
+        target_vec = mc.matrix[target_idx].reshape(1, -1)
         if cluster_member_ids:
-            member_indices = [occ_index[oid] for oid in cluster_member_ids]
-            member_matrix  = matrix[member_indices]
-            sim_scores     = cosine_similarity(target_vec, member_matrix)[0]
+            member_indices = [mc.occ_index[oid] for oid in cluster_member_ids]
+            sim_scores     = cosine_similarity(target_vec, mc.matrix[member_indices])[0]
             ranked_members = sorted(
                 zip(cluster_member_ids, sim_scores.tolist()),
-                key=lambda x: x[1], reverse=True
+                key=lambda x: x[1],
+                reverse=True,
             )[:10]
+
+            endtime2=time.time()
+            print("time check for cluster1 ",endtime1-endtime2)
         else:
             ranked_members = []
- 
-        # Fetch titles
-        from app.models.osca import OscaOccupation
+
         all_needed_ids = [occupation_id] + [r[0] for r in ranked_members]
         occ_rows = (
             db.query(OscaOccupation.id, OscaOccupation.principal_title, OscaOccupation.skill_level)
@@ -199,7 +212,7 @@ def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: int = N
             .all()
         )
         title_map = {o.id: {"title": o.principal_title, "level": o.skill_level} for o in occ_rows}
- 
+
         members = [
             {
                 "occupation_id":    oid,
@@ -210,17 +223,18 @@ def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: int = N
             for oid, score in ranked_members
             if oid in title_map
         ]
- 
+        endtime3=time.time()
+        print("time check for cluster2 ",endtime2-endtime3)
+
         return {
-            "occupation_id":    occupation_id,
-            "cluster_id":       target_cluster,
-            "cluster_label":    f"{target_cluster + 1}",
-            "cluster_size":     len(cluster_member_ids) + 1,
-            "n_clusters":       k,
-            "cluster_members":  members,
+            "occupation_id":   occupation_id,
+            "cluster_id":      target_cluster,
+            "cluster_label":   f"{target_cluster + 1}",
+            "cluster_size":    len(cluster_member_ids) + 1,
+            "n_clusters":      kc.k,
+            "cluster_members": members,
         }
- 
+
     except Exception as e:
-        logger.error(f"[MSIT402|SP] get_occupation_clusters failed: {e}")
+        logger.error(f"[ClusterService] get_occupation_clusters failed: {e}")
         return {"error": str(e)}
- 
