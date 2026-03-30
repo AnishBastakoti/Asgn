@@ -284,9 +284,8 @@ async function renderDashboard() {
       panel.appendChild(nd);
       return;
     }
-
-    panel.appendChild(buildBarChart(skills));
     if (breakdown?.breakdown?.length) panel.appendChild(buildBreakdown(breakdown));
+    panel.appendChild(buildBarChart(skills));
 
   } catch (err) {
     panel.innerHTML = `<div class="sp-error-bar">${esc(err.message)}</div>`;
@@ -402,6 +401,15 @@ function buildBarChart(skills) {
   const max = Math.max(...skills.map(s => s.mention_count));
   const colors = { knowledge:'var(--violet)', 'skill/competence':'var(--orange)', attitude:'#F59E0B' };
 
+  // ── Column size control ──────────────────
+  const COL = {
+    rank:    { width: '28px',  flexShrink: '0' },  // rank number
+    label:   { width: '50%', flexShrink: '0' },    // skill name + tag
+    bar:     { flex: '1',      minWidth: '120px', maxWidth: '400px' },   // bar track
+    count:   { width: '70px',  flexShrink: '0',  textAlign: 'right' },  // mentions
+  };
+  // ─────────────────────────────────────────────────────────────────────
+
   function tc(t) {
     if (!t) return '';
     if (t.includes('knowledge')) return 'knowledge';
@@ -419,23 +427,55 @@ function buildBarChart(skills) {
     </div>`;
 
   skills.forEach((s, i) => {
-    const pct = (s.mention_count / max) * 100;
-    const t = tc(s.skill_type || '');
+    const pct   = (s.mention_count / max) * 100;
+    const t     = tc(s.skill_type || '');
     const color = colors[s.skill_type] || 'var(--muted)';
+
+    // clickable for concept_uri of ESCO_SKIL
+    const nameHtml = s.concept_uri
+      ? `<a href="${s.concept_uri}" target="_blank" rel="noopener noreferrer"
+            class="sp-esco-link" title="Open ESCO skill page">${esc(s.skill_name)}</a>`
+      : esc(s.skill_name);
 
     const row = document.createElement('div');
     row.className = 'sp-bar-row';
     row.style.animationDelay = `${i * 0.022}s`;
-    row.innerHTML = `<div class="sp-bar-rank">${i+1}</div>
-      <div class="sp-bar-label-col">
-        <div class="sp-bar-label" title="${esc(s.skill_name)}">${esc(s.skill_name)}
+
+    // used nameHtml for clickable
+    row.innerHTML = `
+      <!-- Rank -->
+      <div style="width:${COL.rank.width}; flex-shrink:${COL.rank.flexShrink};
+                  font-size:11px; color:var(--muted); font-weight:600;
+                  display:flex; align-items:center;">
+        ${i + 1}
+      </div>
+
+      <!-- Skill Name + Tag -->
+      <div style="width:${COL.label.width}; flex-shrink:${COL.label.flexShrink};
+                  overflow:hidden; display:flex; align-items:center; gap:6px;">
+        <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                    font-size:13px; font-weight:500; color:var(--text);">
+          ${nameHtml}
           ${t ? `<span class="sp-skill-tag sp-skill-tag--${t}">${t}</span>` : ''}
         </div>
       </div>
-      <div class="sp-bar-track"><div class="sp-bar-fill" style="width:0%;background:${color}"></div></div>
-      <div class="sp-bar-count-col">
-        <span class="sp-bar-count">${fmt(s.mention_count)}</span>
-        <span class="sp-bar-count-sub">mentions</span>
+
+      <!-- Bar Track -->
+      <div style="flex:${COL.bar.flex}; min-width:${COL.bar.minWidth};
+                  max-width:${COL.bar.maxWidth}; display:flex; align-items:center; padding:0 12px;">
+        <div style="width:100%; height:8px; background:var(--shell-bg);
+                    border-radius:99px; overflow:hidden; border:1px solid var(--border);">
+          <div class="sp-bar-fill" style="width:0%; height:100%;
+               background:${color}; border-radius:99px; transition:width 0.6s ease;"></div>
+        </div>
+      </div>
+
+      <!-- Mention Count -->
+      <div style="width:${COL.count.width}; flex-shrink:${COL.count.flexShrink};
+                  text-align:${COL.count.textAlign}; display:flex; flex-direction:column;
+                  align-items:flex-end; justify-content:center;">
+        <span style="font-size:13px; font-weight:700; color:var(--text);">${fmt(s.mention_count)}</span>
+        <span style="font-size:10px; color:var(--muted);">mentions</span>
       </div>`;
 
     row.addEventListener('mouseenter', e => {
@@ -445,7 +485,7 @@ function buildBarChart(skills) {
          <div class="tt-row">Score: <span>${s.demand_score}</span></div>
          <div class="tt-row">Type: <span>${s.skill_type || 'N/A'}</span></div>
          ${s.first_seen ? `<div class="tt-row">First seen: <span>${s.first_seen.split('T')[0]}</span></div>` : ''}
-         ${s.last_seen ? `<div class="tt-row">Last seen: <span>${s.last_seen.split('T')[0]}</span></div>` : ''}`
+         ${s.last_seen  ? `<div class="tt-row">Last seen: <span>${s.last_seen.split('T')[0]}</span></div>`  : ''}`
       );
     });
     row.addEventListener('mousemove', moveTip);
