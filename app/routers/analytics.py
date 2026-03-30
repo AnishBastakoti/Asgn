@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from core.rate_limiter import limiter
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
 from app.database import get_db
 from app.services.analytics_service import (
     get_shadow_skills,
@@ -172,7 +173,6 @@ def predict_occ_demand(
     """
     prediction = get_occupation_prediction(db, occupation_id, model_preference=model)
     if not prediction:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="No demand data found")
     return prediction
 
