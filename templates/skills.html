@@ -5,15 +5,6 @@
 
 {% block extra_css %}
 <style>
-.jt-global-section {
-  background: var(--card-bg); border: 1px solid var(--border);
-  border-radius: var(--rad); padding: 20px 24px; margin-bottom: 16px;
-  box-shadow: var(--shadow-card);
-}
-.jt-section-title {
-  font-size: 11px; font-weight: 700; letter-spacing: .08em;
-  text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
-}
 .jt-hot-list { display: flex; flex-direction: column; gap: 7px; max-height: 150px; overflow-y: auto; }
 .jt-hot-row  { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
 .jt-hot-rank { width: 20px; text-align: right; color: var(--muted); font-family: var(--mono); font-size: 11px; flex-shrink: 0; }
@@ -115,18 +106,6 @@
 
 {% block content %}
 
-<!-- Global Hot Skills Banner -->
-<!--  
-<div class="jt-global-section">
-  <div class="jt-section-title">
-    <i class="bi bi-fire me-1" style="color:#F43F5E"></i>
-    Hottest Skills Right Now &mdash; Last 30 Days Across All Occupations
-  </div>
-  <div id="hotSkillsList">
-    <div class="jt-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading&hellip;</div>
-  </div>
-</div>
- -->
 <!-- Two-column layout -->
 <div class="jt-layout">
 

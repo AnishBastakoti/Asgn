@@ -62,47 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
 function togglePicker() {
   document.querySelector('.jt-layout').classList.toggle('picker-collapsed');
 }
-// // ═════════════════════════════════════════════════════════════════════════════
-// // GLOBAL HOT SKILLS BANNER
-// //    Source: /api/analytics/hot-skills?days=30.
-// // ═════════════════════════════════════════════════════════════════════════════
-// async function loadHotSkills() {
-//   const wrap = document.getElementById('hotSkillsList');
-//   try {
-//     const data = await api('/api/analytics/hot-skills?days=30');
-
-//     if (!data || !data.length) {
-//       wrap.innerHTML = `
-//         <div class="jt-empty">
-//           <i class="bi bi-hourglass-split me-2"></i>
-//           No hot skill data yet — the pipeline is still processing job posts.
-//         </div>`;
-//       return;
-//     }
-
-//     const max = data[0].total_mentions || 1; // avoid divide-by-zero; if no mentions, all bars will be 0% width
-//     const rows = data.slice(0, 12).map((skill, i) => {
-//       const barPct = Math.round((skill.total_mentions / max) * 100);
-//       return `
-//         <div class="jt-hot-row">
-//           <span class="jt-hot-rank">${i + 1}</span>
-//           <span class="jt-hot-name">${esc(skill.skill_name)}</span>
-//           <div class="jt-hot-bar-wrap">
-//             <div class="jt-hot-bar" style="width:${barPct}%"></div>
-//           </div>
-//           <span class="jt-hot-count">${fmt(skill.total_mentions)}</span>
-//         </div>`;
-//     }).join('');
-
-//     wrap.innerHTML = `<div class="jt-hot-list">${rows}</div>`;
-
-//   } catch (err) {
-//     wrap.innerHTML = `<span style="font-size:var(--fs-xs);color:var(--muted)">
-//       Could not load trending skills.</span>`;
-//     console.warn('[SkillPulse|JT] loadHotSkills:', err.message);
-//   }
-// }
-
 // Called when user clicks an occupation row
 window.selectOccupation = function(el) {
   const id    = parseInt(el.dataset.id, 10);
