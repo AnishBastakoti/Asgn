@@ -22,7 +22,7 @@
 .jt-hot-bar  { height: 100%; background: var(--orange); border-radius: 99px; }
 .jt-hot-count { width: 38px; text-align: right; font-family: var(--mono); font-size: 11px; color: var(--text2); flex-shrink: 0; }
 .jt-layout   { display: grid; grid-template-columns: 260px 1fr; gap: 16px; min-height: 0; }
-.jt-picker   { display: flex; flex-direction: column; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--rad); overflow: hidden; box-shadow: var(--shadow-card); }
+.jt-picker   { display: flex; flex-direction: column; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--rad); overflow: scroll; box-shadow: var(--shadow-card); }
 .jt-picker-header { padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .jt-occ-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 16px; cursor: pointer; font-size: 12.5px; color: var(--text2); transition: background .12s; gap: 8px; }
 .jt-occ-item:hover  { background: var(--orange-l); color: var(--text); }
@@ -106,7 +106,6 @@
 }
 .jt-layout.picker-collapsed .jt-picker {
   align-items: center;
-  justify-content: center;
 }
 
 /* Smooth transition */

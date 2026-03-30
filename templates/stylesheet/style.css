@@ -866,7 +866,7 @@ button.info:hover { background: var(--orange); color: #fff; }
 .sp-bar-count-sub { font-size: 0.54rem; color: var(--muted); font-family: var(--mono); }
 
 /* Type breakdown */
-.sp-breakdown-wrap { border-top: 1px solid var(--border); padding: 1.125rem 1.25rem; }
+.sp-breakdown-wrap { border-bottom: 1px solid var(--border); padding: 1.125rem 1.25rem; }
 .sp-breakdown-grid { display: grid; grid-template-columns: 88px 1fr; gap: 1.5rem; align-items: center; }
 .sp-donut-wrap { position: relative; width: 88px; height: 88px; }
 .sp-donut-wrap svg { width: 88px; height: 88px; }
@@ -1466,7 +1466,7 @@ input.flatpickr-input:focus {
 .sp-center-panel {
   background: var(--shell-bg);
   padding: 1.5rem;
-  /* overflow: hidden; */
+  overflow: auto; 
   min-width: 0;
 }
 

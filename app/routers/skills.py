@@ -80,7 +80,8 @@ def get_top_skills(
 
     return [
         {
-            "skill_name":    r.skill_name,
+            # In routers/skills.py return dict
+            "skill_name":    r.skill_name[:1].upper() + r.skill_name[1:] if r.skill_name else r.skill_name,
             "skill_type":    r.skill_type,
             "concept_uri":   r.concept_uri,
             "mention_count": r.mention_count,

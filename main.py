@@ -77,6 +77,17 @@ app.include_router(auth.router)
 app.mount("/templates", StaticFiles(directory="templates"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# After mount on  static files, add a middleware:
+@app.middleware("http")
+async def no_cache_middleware(request: Request, call_next):
+    response = await call_next(request)
+    # Only apply to JS/CSS/HTML files
+    if request.url.path.startswith("/templates/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 
 def _render(request: Request, template: str, active_page: str, **extra):
     """Thin wrapper so every template gets the standard context."""
