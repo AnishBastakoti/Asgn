@@ -158,9 +158,9 @@ async function loadTabData(tab) {
   jt.loaded[tab] = true;
   const pane = document.getElementById(`pane-${tab}`);
   if (pane) {
-    if (tab === 'overlap' || tab === 'companies') {
+    if (tab === 'overlap' || tab === 'companies' || tab === 'topskills') {
       // These panes use innerHTML directly — safe to overwrite
-      const target = pane.querySelector('#heatmapWrap, #companiesWrap');
+      const target = pane.querySelector('#heatmapWrap, #companiesWrap, #topskillswrap');
       if (target) target.innerHTML =
         `<div class="jt-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading&hellip;</div>`;
     } else {
@@ -575,10 +575,12 @@ async function renderTopSkills(occId) {
   const wrap = document.getElementById('topSkillsWrap');
   const sub  = document.getElementById('topSkillsSub');
 
+  document.querySelectorAll('#pane-topskills .jt-pane-spinner')
+    .forEach(el => el.remove());
   wrap.innerHTML = `<div class="jt-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading…</div>`;
 
   try {
-    const d = await api(`/api/jobs/hot-skills/${occId}?days=30`);
+    const d = await api(`/api/jobs/hot-skills/?occupation_id=${occId}&days=30`);
 
     // Update subtitle — warn user if showing fallback data
     if (sub) {
@@ -634,4 +636,5 @@ async function renderTopSkills(occId) {
     </div>`;
     console.warn('[SkillPulse|JT] renderTopSkills:', err.message);
   }
+  jt.loaded.topskills = false;
 }

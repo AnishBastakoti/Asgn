@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.models.jobs import JobPostLog
+from app.models.jobs import JobPostLog, JobPostSkill
 from app.models.skills import EscoSkill, OscaOccupationSkillSnapshot, OscaOccupationSkill
 from app.models.osca import OscaOccupation
 
@@ -320,7 +320,7 @@ def get_hot_skills_for_occupation(db: Session, occupation_id:int, days: int = 30
                     "concept_uri":    r.concept_uri,
                     "skill_type":     r.skill_type or "unknown",
                     "total_mentions": r.total_mentions,
-                    "share_pct":      round((r.total_mentions / max_m) * 100, 1),
+                    "share_pct":      round((r.total_mentions / max_mentions) * 100, 1),
                 }
                 for r in rows
             ],
