@@ -1,61 +1,75 @@
+import sys
 import os
-import asyncio
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import FileResponse
 from fastapi.templating import Jinja2Templates
 from playwright.async_api import async_playwright
+from sqlalchemy.orm import Session
+
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from logger import get_logger
+from app.database import get_db
+from app.services.jobs_service import get_skill_overlap, get_hot_skills_for_occupation
+
+logger = get_logger(__name__)
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
-@router.post("/export-pdf/{occupation_id}")
-async def export_occupation_pdf(request: Request, occupation_id: int):
-    # user choices from the request body
-    body = await request.json()
-    include_top = body.get("include_top_skills", True)
-    include_overlap = body.get("include_overlap", True)
+@router.post("/api/export-pdf/{occupation_id}")
+async def export_occupation_pdf(request: Request, occupation_id: int, db: Session = Depends(get_db)):
+    try:
+        logger.info(f"Starting PDF export for occupation_id: {occupation_id}")
+        body = await request.json()
+        occ_name = body.get("occupation_name", "Occupation_Report")
 
-    # Fetch database data
-    # heatmap_data = get_heatmap_data(db, occupation_id)
-    # top_skills = get_hot_skills(db, days=30)
-    heatmap_data = [] # get_overlap_data(occupation_id) 
-    top_skills = []    # get_top_skills(occupation_id, limit=20)
-    occ_name = "Data Scientist" # get_occupation_name(occupation_id)
-    
-    # Render HTML using Jinja2 (Directly to a string)
-    template_vars = {
-        "request": request,
-        "include_top": include_top,
-        "include_overlap": include_overlap,
-        "heatmap_data": heatmap_data, # Pass raw Python data
-        "top_skills": top_skills,
-        "occ_name": "Data Scientist" # Example
-    }
-    
-    # We use .get_template() + .render() to get a string
-    html_content = templates.get_template("print_report.html").render(template_vars)
+        #Fetch Real Data from services
+        heatmap_data = get_skill_overlap(db, occupation_id)
+        top_skills_data = get_hot_skills_for_occupation(db, occupation_id)
 
-    # Use Playwright to turn that string into a PDF
-    pdf_filename = f"report_{occupation_id}.pdf"
-    pdf_path = os.path.join("outputs", pdf_filename)
-    
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
+        #Template Variables
+        template_vars = {
+            "request": request,
+            "occ_name": occ_name,
+            "include_trends": body.get("include_top_skills", True),
+            "include_overlap": body.get("include_overlap", True),
+            "trends": top_skills_data, # {% for s in skills_data.skills %}
+            "heatmap": heatmap_data,         #  {{ heatmap.occupations }}
+        }
+
+        # Render HTML
+        html_content = templates.get_template("print_report.html").render(template_vars)
+
+        # Playwright to generate PDF
+        os.makedirs("exports", exist_ok=True)
+        # Use a path inside the exports folder
+        pdf_path = f"exports/report_{occupation_id}.pdf"
         
-        #  set_content for petter performance, injecting the hltlf file
-        await page.set_content(html_content, wait_until="networkidle")
-        
-        # Wait for D3 to finish drawing (if overlap is included)
-        if show_overlap:
-            await page.wait_for_selector(".jt-heatmap-table", timeout=5000)
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
+            page = await browser.new_page()
+            
+            # Injecting the rendered HTML
+            await page.set_content(html_content, wait_until="networkidle")
+            
+            #  Wait for CSS container class to ensure content is ready
+            await page.wait_for_selector(".pdf-body", timeout=5000)
 
-        await page.pdf(
-            path=pdf_path, 
-            format="A4", 
-            print_background=True,
-            margin={"top": "1cm", "bottom": "1cm", "left": "1cm", "right": "1cm"}
-        )
-        await browser.close()
+            await page.pdf(
+                path=pdf_path, 
+                format="A4", 
+                print_background=True,
+                margin={"top": "1cm", "bottom": "1cm", "left": "1cm", "right": "1cm"}
+            )
+            await browser.close()
+        logger.info(f"PDF successfully generated: {pdf_path} for {occ_name}")
 
-    return FileResponse(pdf_path, filename=f"{occ_name}_Report.pdf")
+        # Clean filename for the download
+        safe_name = occ_name.replace(" ", "_")
+        return FileResponse(pdf_path, filename=f"{safe_name}_Report.pdf")
+
+    except Exception as e: 
+        logger.error(f"CRITICAL ERROR in export_occupation_pdf {occupation_id}: {str(e)}", exc_info=True)
+        # Log the full traceback needed here for later
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
