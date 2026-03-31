@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        /* Heatmap Table Styles */
+        .jt-heatmap-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+        .jt-heatmap-table th { background: #f8f9fa; padding: 8px; border: 1px solid #dee2e6; }
+        .jt-heatmap-table td { border: 1px solid #dee2e6; text-align: center; height: 30px; }
+        .hm-cell-1 { background-color: #6366F1; color: white; } /* matches your --indigo */
+        .hm-cell-0 { background-color: #f1f3f9; color: #ccc; }
+        .row-label { text-align: left !important; font-weight: bold; padding-left: 8px; width: 150px; }
+    </style>
+</head>
+<body class="pdf-body">
+    <h1>Occupation Analysis</h1>
+
+    {% if show_skills %}
+    <div id="topSkills">
+        <h2>Top Skills (Last 30 Days)</h2>
+        {% for s in skills.skills %}
+        <div style="display:flex; align-items:center; margin-bottom:5px;">
+            <div style="width:150px;">{{ s.skill_name }}</div>
+            <div style="flex:1; background:#eee; height:8px; border-radius:4px;">
+                <div style="width:{{ (s.total_mentions / skills.skills[0].total_mentions * 100)|int }}%; background:orange; height:100%;"></div>
+            </div>
+            <div style="width:40px; text-align:right;">{{ s.total_mentions }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if show_overlap %}
+    <div style="page-break-before: always;">
+        <h2>Skill Overlap Heatmap</h2>
+        <table class="jt-heatmap-table">
+            <thead>
+                <tr>
+                    <th>Skill</th>
+                    {% for occ in heatmap.occupations %}<th>{{ occ[:15] }}</th>{% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for skill in heatmap.skills %}
+                <tr>
+                    <td class="row-label">{{ skill }}</td>
+                    {% set outer_loop = loop %}
+                    {% for val in heatmap.matrix[outer_loop.index0] %}
+                    <td class="{{ 'hm-cell-1' if val else 'hm-cell-0' }}">{{ '✓' if val else 'x' }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</body>
+</html>

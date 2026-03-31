@@ -95,6 +95,10 @@ const _tip = $('spTooltip');
 
 function showTip(e, html) {
   if (!_tip) return;
+  // Only show tooltip if the event target is inside the chart container
+  const chartContainer = document.getElementByElement('div');
+  if (!chartContainer.contains(e.target)) return;
+
   _tip.innerHTML = html;
   _tip.classList.add('visible');
   moveTip(e);

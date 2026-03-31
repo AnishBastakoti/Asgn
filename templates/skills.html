@@ -101,6 +101,26 @@
 
 /* Smooth transition */
 .jt-layout { transition: grid-template-columns 0.25s ease; }
+
+/* print button */
+.jt-occ-header { display: flex; align-items: center; gap: 15px; }
+
+.jt-print-btn { background: #fff; border: 1px solid #e2e8f0;
+    color: var(--orange);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.jt-print-btn:hover { background: #f8fafc; border-color: var(--orange); box-shadow: 0 2px 4px rgba(99, 102, 241, 0.1); }
+
+.jt-print-btn.is-loading { opacity: 0.7; pointer-events: none; }
 </style>
 {% endblock %}
 
@@ -144,6 +164,10 @@
           <div class="jt-occ-header-name" id="jtOccName">&mdash;</div>
           <div class="jt-occ-header-sub">Job demand analysis</div>
         </div>
+        <button id="btnPdfExport" class="jt-print-btn" onclick="downloadPDF()" style="display:none;">
+          <i class="bi bi-file-earpath-pdf"></i> 
+          <span>Print Report</span>
+        </button>
         <span class="jt-level-badge" id="jtOccLevel">&mdash;</span>
       </div>
 

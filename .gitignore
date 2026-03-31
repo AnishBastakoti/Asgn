@@ -5,3 +5,4 @@ __pycache__/
 .env.*
 styleq.css
 .vscode
+main.py
