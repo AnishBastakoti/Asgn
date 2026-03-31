@@ -310,7 +310,7 @@ def get_hot_skills_for_occupation(db: Session, occupation_id:int, days: int = 30
             logger.warning(f"No hot skills in last {days} for occupation {occupation_id}. Falling back to all-time.")
             rows = run_query(None) 
 
-        if not rows: return []
+        if not rows: return {"skills": [], "is_fallback": False, "days": days}
 
         max_mentions = rows[0].total_mentions or 1
         return {

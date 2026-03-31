@@ -605,41 +605,56 @@ async function renderTopSkills(occId) {
 
 //for print
 async function downloadPDF() {
-    if (!jt.selected) return;
-
+    if (!jt.selected) {
+        alert("Please select an occupation first.");
+        return;
+    }
     const btn = document.getElementById('btnPdfExport');
     const originalContent = btn.innerHTML;
     
     // Show loading state
+    btn.disabled = true;
     btn.classList.add('is-loading');
     btn.innerHTML = `<div class="sp-spinner-sm"></div> Generating...`;
 
     try {
-        const response = await fetch(`/api/export-report/${jt.selected.id}`, {
+        const response = await fetch(`/api/export-pdf/${jt.selected.id}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                include_top_skills: true, // can link these to checkboxes if we have
-                include_overlap: true
+              include_top_skills: true, // can link these to checkboxes if we have
+              include_overlap: true,
+              occupation_name: jt.selected.title
             })
         });
 
-        if (!response.ok) throw new Error('PDF Generation failed');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'PDF Generation failed');
+        }
 
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `SkillPulse_Report_${jt.selected.title.replace(/\s+/g, '_')}.pdf`;
+
+        // Clean filename
+        const fileName = `SkillPulse_${jt.selected.title.replace(/\s+/g, '_')}.pdf`;
+        a.download = fileName;
+
         document.body.appendChild(a);
         a.click();
+
+        window.URL.revokeObjectURL(url);
         a.remove();
+
     } catch (err) {
-        console.error(err);
-        alert("Failed to generate PDF. Please try again.");
+      console.error("PDF Export Error:", err);
+      alert(`Error: ${err.message}`);
     } finally {
-        // Reset button state
-        btn.classList.remove('is-loading');
-        btn.innerHTML = originalContent;
+      // Reset button state
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
+      btn.innerHTML = originalContent;
     }
 }
