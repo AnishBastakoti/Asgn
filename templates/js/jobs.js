@@ -82,6 +82,10 @@ window.selectOccupation = function(el) {
   document.getElementById('jtOccName').textContent        = title;
   document.getElementById('jtOccLevel').textContent       = level ? `Level ${level}` : 'Level —';
 
+  // Show the print button now that an occupation is selected
+  const printBtn = document.getElementById('btnPdfExport');
+  if (printBtn) printBtn.style.display = 'flex';
+
   // Always land on cities tab when switching occupation
   switchTab('cities');
   loadTabData('cities');
@@ -596,4 +600,46 @@ async function renderTopSkills(occId) {
     console.warn('[SkillPulse|JT] renderTopSkills:', err.message);
   }
   jt.loaded.topskills = false;
+}
+
+
+//for print
+async function downloadPDF() {
+    if (!jt.selected) return;
+
+    const btn = document.getElementById('btnPdfExport');
+    const originalContent = btn.innerHTML;
+    
+    // Show loading state
+    btn.classList.add('is-loading');
+    btn.innerHTML = `<div class="sp-spinner-sm"></div> Generating...`;
+
+    try {
+        const response = await fetch(`/api/export-report/${jt.selected.id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                include_top_skills: true, // can link these to checkboxes if we have
+                include_overlap: true
+            })
+        });
+
+        if (!response.ok) throw new Error('PDF Generation failed');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `SkillPulse_Report_${jt.selected.title.replace(/\s+/g, '_')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    } catch (err) {
+        console.error(err);
+        alert("Failed to generate PDF. Please try again.");
+    } finally {
+        // Reset button state
+        btn.classList.remove('is-loading');
+        btn.innerHTML = originalContent;
+    }
 }
