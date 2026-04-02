@@ -146,6 +146,39 @@ async function analyzeTransition() {
         </div>
       </div>
 
+      <!-- Score breakdown, Hard/Moderate/Easy -->
+      ${d.score_breakdown ? `
+      <div style="margin-bottom:16px; padding:12px 14px; background:var(--shell-bg);
+                  border:1px solid var(--border); border-radius:8px;">
+        <div style="font-size:10.5px; font-weight:700; text-transform:uppercase;
+                    letter-spacing:0.08em; color:var(--muted); margin-bottom:10px;">
+          Score Breakdown
+        </div>
+        ${[
+          { label: 'Skill Gap (weighted)', val: d.score_breakdown.weighted_skill_gap, w: '45%', tip: 'Missing target skills weighted by job demand frequency' },
+          { label: 'Qualification Jump',   val: d.score_breakdown.level_jump,         w: '25%', tip: 'OSCA skill level difference between roles' },
+          { label: 'Sector Distance',      val: d.score_breakdown.taxonomy_distance,  w: '20%', tip: 'How far apart the roles sit in the OSCA hierarchy' },
+          { label: 'Skill Breadth',        val: d.score_breakdown.breadth_penalty,    w: '10%', tip: 'Target role requires significantly more skills overall' },
+        ].map(f => {
+          const barColor = f.val >= 65 ? '#EF4444' : f.val >= 35 ? '#F59E0B' : '#10B981';
+          return `
+            <div style="margin-bottom:8px;" title="${f.tip}">
+              <div style="display:flex; justify-content:space-between;
+                          font-size:11px; margin-bottom:3px;">
+                <span style="color:var(--text2); font-weight:600;">${f.label}</span>
+                <span style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:10px; color:var(--muted);">weight ${f.w}</span>
+                  <span style="font-family:var(--mono); color:${barColor}; font-weight:700;">${f.val}%</span>
+                </span>
+              </div>
+              <div style="height:5px; background:var(--border); border-radius:99px; overflow:hidden;">
+                <div style="height:100%; width:${f.val}%; background:${barColor};
+                            border-radius:99px; transition:width 0.6s ease;"></div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>` : ''}
+
       <!-- Skill columns -->
       <div class="ct-skills-grid">
         <div class="ct-skill-col">
