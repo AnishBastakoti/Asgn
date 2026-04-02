@@ -1,5 +1,13 @@
-from sqlalchemy import Column, BigInteger, String, DateTime
+from sqlalchemy import Column, BigInteger, String, DateTime, Integer
 from app.database import Base
+
+class PipelineRun(Base):
+    __tablename__ = "pipeline_runs"
+
+    id              = Column(Integer, primary_key=True)
+    run_date        = Column(DateTime(timezone=True), nullable=False)
+    total_jobs      = Column(Integer, nullable=False)   # ← the key field
+    status          = Column(String, default="completed")
 
 class BatchJobInstance(Base):
     __tablename__ = "batch_job_instance"

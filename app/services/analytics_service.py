@@ -247,15 +247,27 @@ def get_skill_velocity(db: Session, occupation_id: int) -> dict:
                 "status":       "rising" if slope > 0 else "falling"
             }
 
+            slope = round((last_c - first_c) / time_span, 4)
             if slope > 0:
                 rising.append(entry)
             else:
                 falling.append(entry)
 
         # Sort each group
-        rising  = sorted(rising,  key=lambda x: x["slope"],  reverse=True)[:15]
-        falling = sorted(falling, key=lambda x: x["slope"])[:15]
-        stable  = sorted(stable,  key=lambda x: x["latest_count"], reverse=True)[:15]
+        mean_count = sum(c for _, c in timeline) / len(timeline) or 1
+        raw_slope  = (last_c - first_c) / time_span
+        normalised = raw_slope / mean_count
+
+        slope = round(normalised * 100, 3)   # % per day
+
+        if normalised > 0.005:
+            entry["status"] = "rising"
+            rising.append(entry)
+        elif normalised < -0.005:
+            entry["status"] = "falling"
+            falling.append(entry)
+        else:
+            stable.append(entry)
 
         return {
             "snapshot_count": snapshot_count,

@@ -132,9 +132,9 @@ def get_city_demand_detail(db: Session, city: str, limit: int = 10, from_date: s
 #   complexity_ratio = occupation_skills / platform_avg_skills
 #   saturation_score = demand_ratio / complexity_ratio
 #
-#   score > 1.2  → HOT  (high demand, relatively low skill barrier)
-#   score < 0.8  → SATURATED (low demand, high skill barrier)
-#   otherwise    → BALANCED
+#   score > 1.2  --> HOT  (high demand, relatively low skill barrier)
+#   score < 0.8  --> SATURATED (low demand, high skill barrier)
+#   otherwise    --> BALANCED
 # ─────────────────────────────────────────────
 
 def get_market_saturation(db: Session, occupation_id: int) -> dict:
@@ -305,8 +305,33 @@ def get_occupation_profile(db: Session, occupation_id: int) -> dict:
 # CAREER TRANSITION ANALYZER
 # Compares two occupations' skill sets:
 #   - Shared skills 
-#   - Transition difficulty score (0–100)
+#   - Transition difficulty score (0-100)
 # ─────────────────────────────────────────────
+"""
+Difficulty is computed from 4 independent signals:
+    F1  Weighted Skill Gap  (45%)
+    Fraction of target skill demand-weight.
+    High-mention skills cost more than rarely-seen ones
+    what recruiters actually screen for.
+
+    F2  Skill Level Jump    (25%)
+    OSCA skill levels 1-4 represent formal qualification bands.
+    Every level crossed requires measurable investment.
+
+    F3  Taxonomy Distance   (20%)
+    How far apart the two occupations sit in the OSCA hierarchy
+    (Unit --> Minor --> Sub-Major --> Major). Reflects sector familiarity
+    and the size of the cultural/domain shift involved.
+    
+    F4  Skill Breadth Penalty (10%)
+    Target occupations with many more skills than the source demand
+    proportionally more new learning, regardless of overlap.
+
+    Score is clamped to 0-100.  Thresholds:
+   >= 65  Hard
+   >= 35  Moderate
+   <  35  Easy
+"""
 
 def get_career_transition(db: Session, from_id: int, to_id: int) -> dict:
     try:
@@ -373,7 +398,7 @@ def get_career_transition(db: Session, from_id: int, to_id: int) -> dict:
         shared_ids = from_ids & to_ids
         gap_ids    = to_ids - from_ids
 
-        #  Weighted Skill Gap (0.0 → 1.0) ────────────────────────
+        #  Weighted Skill Gap (0.0 --> 1.0) ────────────────────────
         # Log-scale so one extremely popular skill doesn't dominate everything.
         # log(200) ≈ 5.3 vs log(1) = 0 — meaningful difference, not 200×.
         def _log_weight(count: int) -> float:
@@ -383,10 +408,10 @@ def get_career_transition(db: Session, from_id: int, to_id: int) -> dict:
         gap_weight      = sum(_log_weight(to_skills[sid]["count"]) for sid in gap_ids)
         f1_weighted_gap = gap_weight / total_weight if total_weight > 0 else 0.0
 
-        # Skill Level Jump (0.0 → 1.0) ──────────────────────────
+        # Skill Level Jump (0.0 --> 1.0) ──────────────────────────
         # OSCA: Level 1 = degree-required, Level 4 = entry level.
         # Moving DOWN in number = harder (more qualification needed).
-        # Moving UP in number = easier (less qualification needed) → small bonus.
+        # Moving UP in number = easier (less qualification needed) --> small bonus.
         from_level  = from_occ.skill_level or 2
         to_level    = to_occ.skill_level   or 2
         level_delta = from_level - to_level  # positive = moving to harder role
@@ -398,7 +423,7 @@ def get_career_transition(db: Session, from_id: int, to_id: int) -> dict:
         else:
             f2_level_jump = 0.0
 
-        #Taxonomy Distance (0.0 → 1.0) ─────────────────────────
+        #Taxonomy Distance (0.0 --> 1.0) ─────────────────────────
         same_unit      = from_occ.unit_group_id     == to_occ.unit_group_id
         same_minor     = from_occ.minor_group_id    == to_occ.minor_group_id
         same_sub_major = from_occ.sub_major_group_id == to_occ.sub_major_group_id
@@ -415,7 +440,7 @@ def get_career_transition(db: Session, from_id: int, to_id: int) -> dict:
         else:
             f3_taxonomy = 1.0   # completely different sector
 
-        # Skill Breadth Penalty (0.0 → 1.0) ────────────────────
+        # Skill Breadth Penalty (0.0 --> 1.0) ────────────────────
         # Penalises targets that require far more skills overall.
         # Saturates at 3× breadth so extreme outliers don't dominate.
         from_count    = max(len(from_ids), 1)
