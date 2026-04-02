@@ -1,4 +1,5 @@
 import logging
+import math
 
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -6,6 +7,12 @@ from sqlalchemy import func
 
 from app.models.skills import EscoSkill, OscaOccupationSkill, SkillpulseCityOccupationDemand
 from app.models.jobs import JobPostLog
+from app.models.osca import (
+    OscaOccupation, 
+    OscaUnitGroup,
+    OscaMinorGroup,
+    OscaSubMajorGroup,
+)
 
 logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────
@@ -303,60 +310,180 @@ def get_occupation_profile(db: Session, occupation_id: int) -> dict:
 
 def get_career_transition(db: Session, from_id: int, to_id: int) -> dict:
     try:
-        from app.models.osca import OscaOccupation
-        from app.models.skills import OscaOccupationSkill
+        # both occupations with full hierarchy ──────────────────
+        def _get_occ_with_hierarchy(occ_id: int):
+            return (
+                db.query(
+                    OscaOccupation.id,
+                    OscaOccupation.principal_title,
+                    OscaOccupation.skill_level,
+                    OscaOccupation.unit_group_id,
+                    OscaUnitGroup.minor_group_id,
+                    OscaMinorGroup.sub_major_group_id,
+                    OscaSubMajorGroup.major_group_id,
+                )
+                .join(OscaUnitGroup,
+                      OscaUnitGroup.id == OscaOccupation.unit_group_id,
+                      isouter=True)
+                .join(OscaMinorGroup,
+                      OscaMinorGroup.id == OscaUnitGroup.minor_group_id,
+                      isouter=True)
+                .join(OscaSubMajorGroup,
+                      OscaSubMajorGroup.id == OscaMinorGroup.sub_major_group_id,
+                      isouter=True)
+                .filter(OscaOccupation.id == occ_id)
+                .first()
+            )
 
-        from_occ = db.query(OscaOccupation).filter(OscaOccupation.id == from_id).first()
-        to_occ   = db.query(OscaOccupation).filter(OscaOccupation.id == to_id).first()
+        from_occ = _get_occ_with_hierarchy(from_id)
+        to_occ   = _get_occ_with_hierarchy(to_id)
 
         if not from_occ or not to_occ:
             return {"error": "One or both occupations not found"}
 
-        def get_skills(occ_id):
+        # skill sets with mention counts ────────────────────────
+        def _get_skills(occ_id: int) -> dict:
             rows = (
                 db.query(
                     EscoSkill.id,
                     EscoSkill.preferred_label,
                     EscoSkill.skill_type,
-                    OscaOccupationSkill.mention_count
+                    OscaOccupationSkill.mention_count,
                 )
-                .join(OscaOccupationSkill, OscaOccupationSkill.skill_id == EscoSkill.id)
+                .join(OscaOccupationSkill,
+                      OscaOccupationSkill.skill_id == EscoSkill.id)
                 .filter(OscaOccupationSkill.occupation_id == occ_id)
                 .order_by(OscaOccupationSkill.mention_count.desc())
                 .all()
             )
-            return {r.id: {"name": r.preferred_label, "type": r.skill_type, "count": r.mention_count} for r in rows}
+            return {
+                r.id: {
+                    "name":  r.preferred_label,
+                    "type":  r.skill_type,
+                    "count": r.mention_count or 1,  # floor at 1 to avoid log(0)
+                }
+                for r in rows
+            }
 
-        from_skills = get_skills(from_id)
-        to_skills   = get_skills(to_id)
+        from_skills = _get_skills(from_id)
+        to_skills   = _get_skills(to_id)
 
-        from_ids = set(from_skills.keys())
-        to_ids   = set(to_skills.keys())
-
+        from_ids   = set(from_skills.keys())
+        to_ids     = set(to_skills.keys())
         shared_ids = from_ids & to_ids
         gap_ids    = to_ids - from_ids
 
-        shared = sorted(
-            [{"skill_name": to_skills[sid]["name"], "skill_type": to_skills[sid]["type"], "mention_count": to_skills[sid]["count"]} for sid in shared_ids],
-            key=lambda x: x["mention_count"], reverse=True
-        )[:20]
+        #  Weighted Skill Gap (0.0 → 1.0) ────────────────────────
+        # Log-scale so one extremely popular skill doesn't dominate everything.
+        # log(200) ≈ 5.3 vs log(1) = 0 — meaningful difference, not 200×.
+        def _log_weight(count: int) -> float:
+            return math.log1p(count)
 
-        gap = sorted(
-            [{"skill_name": to_skills[sid]["name"], "skill_type": to_skills[sid]["type"], "mention_count": to_skills[sid]["count"]} for sid in gap_ids],
-            key=lambda x: x["mention_count"], reverse=True
-        )[:20]
+        total_weight    = sum(_log_weight(to_skills[sid]["count"]) for sid in to_ids)
+        gap_weight      = sum(_log_weight(to_skills[sid]["count"]) for sid in gap_ids)
+        f1_weighted_gap = gap_weight / total_weight if total_weight > 0 else 0.0
 
-        difficulty_score = round((len(gap_ids) / len(to_ids)) * 100) if to_ids else 0
+        # Skill Level Jump (0.0 → 1.0) ──────────────────────────
+        # OSCA: Level 1 = degree-required, Level 4 = entry level.
+        # Moving DOWN in number = harder (more qualification needed).
+        # Moving UP in number = easier (less qualification needed) → small bonus.
+        from_level  = from_occ.skill_level or 2
+        to_level    = to_occ.skill_level   or 2
+        level_delta = from_level - to_level  # positive = moving to harder role
 
-        if difficulty_score >= 70:
+        if level_delta > 0:
+            f2_level_jump = min(level_delta / 3.0, 1.0)
+        elif level_delta < 0:
+            f2_level_jump = max(level_delta / 6.0, -0.15)  # small bonus
+        else:
+            f2_level_jump = 0.0
+
+        #Taxonomy Distance (0.0 → 1.0) ─────────────────────────
+        same_unit      = from_occ.unit_group_id     == to_occ.unit_group_id
+        same_minor     = from_occ.minor_group_id    == to_occ.minor_group_id
+        same_sub_major = from_occ.sub_major_group_id == to_occ.sub_major_group_id
+        same_major     = from_occ.major_group_id    == to_occ.major_group_id
+
+        if same_unit:
+            f3_taxonomy = 0.0   # same job family — very transferable
+        elif same_minor:
+            f3_taxonomy = 0.20  # adjacent roles in the same minor group
+        elif same_sub_major:
+            f3_taxonomy = 0.45  # same broad category e.g. both ICT Professionals
+        elif same_major:
+            f3_taxonomy = 0.70  # same major division e.g. both Professionals
+        else:
+            f3_taxonomy = 1.0   # completely different sector
+
+        # Skill Breadth Penalty (0.0 → 1.0) ────────────────────
+        # Penalises targets that require far more skills overall.
+        # Saturates at 3× breadth so extreme outliers don't dominate.
+        from_count    = max(len(from_ids), 1)
+        to_count      = max(len(to_ids),   1)
+        breadth_ratio = to_count / from_count
+
+        if breadth_ratio <= 1.0:
+            f4_breadth = 0.0
+        else:
+            f4_breadth = min((breadth_ratio - 1.0) / 2.0, 1.0)
+
+        # Composite Score ─────────────────────────────────────────────
+        W1, W2, W3, W4 = 0.45, 0.25, 0.20, 0.10
+
+        raw = (W1 * f1_weighted_gap) + \
+              (W2 * f2_level_jump)   + \
+              (W3 * f3_taxonomy)     + \
+              (W4 * f4_breadth)
+
+        difficulty_score = int(round(max(0.0, min(raw, 1.0)) * 100))
+
+        # Label & colour ──────────────────────────────────────────────
+        if difficulty_score >= 65:
             difficulty_label = "Hard"
             difficulty_color = "#EF4444"
-        elif difficulty_score >= 40:
+        elif difficulty_score >= 35:
             difficulty_label = "Moderate"
             difficulty_color = "#F59E0B"
         else:
             difficulty_label = "Easy"
             difficulty_color = "#10B981"
+
+        # Skill lists for display ─────────────────────────────────────
+        shared = sorted(
+            [
+                {
+                    "skill_name":    to_skills[sid]["name"],
+                    "skill_type":    to_skills[sid]["type"],
+                    "mention_count": to_skills[sid]["count"],
+                }
+                for sid in shared_ids
+            ],
+            key=lambda x: x["mention_count"],
+            reverse=True,
+        )[:20]
+
+        gap = sorted(
+            [
+                {
+                    "skill_name":    to_skills[sid]["name"],
+                    "skill_type":    to_skills[sid]["type"],
+                    "mention_count": to_skills[sid]["count"],
+                }
+                for sid in gap_ids
+            ],
+            key=lambda x: x["mention_count"],
+            reverse=True,
+        )[:20]
+
+        overlap_pct = round((len(shared_ids) / len(to_ids)) * 100) if to_ids else 0
+
+        # Factor breakdown (exposed to frontend for transparency) ────
+        score_breakdown = {
+            "weighted_skill_gap": round(f1_weighted_gap * 100),
+            "level_jump":         round(f2_level_jump   * 100),
+            "taxonomy_distance":  round(f3_taxonomy      * 100),
+            "breadth_penalty":    round(f4_breadth       * 100),
+        }
 
         return {
             "from_id":          from_id,
@@ -368,10 +495,11 @@ def get_career_transition(db: Session, from_id: int, to_id: int) -> dict:
             "shared_count":     len(shared_ids),
             "gap_count":        len(gap_ids),
             "total_target":     len(to_ids),
-            "overlap_pct":      round((len(shared_ids) / len(to_ids)) * 100) if to_ids else 0,
+            "overlap_pct":      overlap_pct,
             "difficulty_score": difficulty_score,
             "difficulty_label": difficulty_label,
             "difficulty_color": difficulty_color,
+            "score_breakdown":  score_breakdown,
             "shared_skills":    shared,
             "gap_skills":       gap,
         }
