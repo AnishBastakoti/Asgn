@@ -1,9 +1,3 @@
-import asyncio
-import sys
-
-if sys.platform == 'win32':
-    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
 import logging
 
 from fastapi import FastAPI, Request
@@ -14,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 
 from config import settings
 
-from app.routers import skills, occupations, analytics, jobs, pipeline, auth, printfile
+from app.routers import skills, occupations, analytics, jobs, pipeline, auth
 from app.logger import setup_logging
 from app.database import verify_connection
  
@@ -76,7 +70,7 @@ app.include_router(jobs.router)
 app.include_router(analytics.router)
 app.include_router(pipeline.router)
 app.include_router(auth.router)
-app.include_router(printfile.router)
+#app.include_router(printfile.router)
 
 
 # ── Static Files ─
@@ -182,5 +176,6 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=settings.DEBUG  # auto-reload on code changes in dev
+        reload=settings.DEBUG,  # auto-reload on code changes in dev
+        loop="asyncio"
     )
