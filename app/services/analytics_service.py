@@ -3,6 +3,7 @@ import hashlib
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from collections import defaultdict
 
 from app.models.skills import EscoSkill, OscaOccupationSkill, OscaOccupationSkillSnapshot
 from app.models.jobs import JobPostLog, JobPostSkill
@@ -30,14 +31,15 @@ def get_shadow_skills(db: Session, occupation_id: int) -> list[dict]:
         mapped = (
             db.query(OscaOccupationSkill.skill_id)
             .filter(OscaOccupationSkill.occupation_id == occupation_id)
+            .subquery()
         )
-
         rows = (
             db.query(EscoSkill.preferred_label.label("skill_name"))
             .join(JobPostSkill, JobPostSkill.skill_id == EscoSkill.id)
             .join(JobPostLog, JobPostLog.id == JobPostSkill.job_post_id)
             .filter(JobPostLog.occupation_id == occupation_id)
-            .filter(~EscoSkill.id.in_(mapped))
+            .filter(~EscoSkill.id.in_(db.query(mapped.c.skill_id)))
+            .filter(EscoSkill.skill_type.in_({"skill/competence", "knowledge"}))
             .group_by(EscoSkill.preferred_label)
             .order_by(func.count(JobPostSkill.id).desc())
             .limit(50)
@@ -85,19 +87,17 @@ def get_skill_decay(db: Session, occupation_id: int) -> list[dict]:
 
         # Early snapshot: use the earliest job_execution_id batch
         earliest_exec = (
-            db.query(OscaOccupationSkillSnapshot.job_execution_id)
+            db.query(func.min(OscaOccupationSkillSnapshot.job_execution_id))
             .filter(OscaOccupationSkillSnapshot.occupation_id == occupation_id)
             .filter(OscaOccupationSkillSnapshot.snapshot_date == date_bounds.earliest)
-            .limit(1)
             .scalar()
-        )
+        )                                                                                                       
 
         # Latest snapshot: use the most recent job_execution_id batch
         latest_exec = (
-            db.query(OscaOccupationSkillSnapshot.job_execution_id)
+            db.query(func.max(OscaOccupationSkillSnapshot.job_execution_id))
             .filter(OscaOccupationSkillSnapshot.occupation_id == occupation_id)
             .filter(OscaOccupationSkillSnapshot.snapshot_date == date_bounds.latest)
-            .limit(1)
             .scalar()
         )
 
@@ -198,12 +198,12 @@ def get_skill_velocity(db: Session, occupation_id: int) -> dict:
             return {"snapshot_count": 0, "rising": [], "falling": [], "stable": []}
 
         # Build per-skill timeline: {skill_id: [(date_index, mention_count), ...]}
-        from collections import defaultdict
-        skill_timelines = defaultdict(list)
+        
         all_dates = sorted(set(r.snapshot_date for r in rows))
         date_index = {d: i for i, d in enumerate(all_dates)}
         snapshot_count = len(all_dates)
 
+        skill_timelines = defaultdict(list)
         for r in rows:
             skill_timelines[r.skill_id].append(
                 (date_index[r.snapshot_date], r.mention_count)
@@ -238,36 +238,37 @@ def get_skill_velocity(db: Session, occupation_id: int) -> dict:
             first_t, first_c = timeline[0]
             last_t,  last_c  = timeline[-1]
             time_span = last_t - first_t or 1
-            slope = round((last_c - first_c) / time_span, 4)
+            mean_count = sum(c for _, c in timeline) / len(timeline) or 1
+            raw_slope  = (last_c - first_c) / time_span
+            normalised = raw_slope / mean_count # Normalise by mean to get relative velocity
+            slope = round(normalised * 100, 3)   # % per day
 
+
+            if normalised > 0.005:
+                status = "rising"
+            elif normalised < -0.005:
+                status = "falling"
+            else:
+                status = "stable"
+                
             entry = {
                 "skill_name":   name,
                 "latest_count": latest_count,
                 "slope":        slope,
-                "status":       "rising" if slope > 0 else "falling"
+                "status":       status,
             }
 
-            slope = round((last_c - first_c) / time_span, 4)
-            if slope > 0:
+            if status == "rising":
                 rising.append(entry)
-            else:
+            elif status == "falling":
                 falling.append(entry)
+            else:
+                stable.append(entry)
 
-        # Sort each group
-        mean_count = sum(c for _, c in timeline) / len(timeline) or 1
-        raw_slope  = (last_c - first_c) / time_span
-        normalised = raw_slope / mean_count
-
-        slope = round(normalised * 100, 3)   # % per day
-
-        if normalised > 0.005:
-            entry["status"] = "rising"
-            rising.append(entry)
-        elif normalised < -0.005:
-            entry["status"] = "falling"
-            falling.append(entry)
-        else:
-            stable.append(entry)
+         # Sorted each group  
+        rising.sort( key=lambda x: x["slope"], reverse=True)
+        falling.sort(key=lambda x: x["slope"])
+        stable.sort( key=lambda x: x["latest_count"], reverse=True)
 
         return {
             "snapshot_count": snapshot_count,
