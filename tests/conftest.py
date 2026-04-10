@@ -1,25 +1,9 @@
-"""
-conftest.py — Shared fixtures for all SkillPulse tests.
-
-WHAT IS conftest.py?
-    pytest automatically loads this file before any test runs.
-    Fixtures defined here are available to ALL test files — no import needed.
-
-WHAT IS A FIXTURE?
-    A fixture is a function that prepares something a test needs.
-    @pytest.fixture runs the setup, yields the resource, then runs cleanup.
-
-    Example:
-        @pytest.fixture
-        def db():
-            session = create_session()   # setup
-            yield session                # test runs here
-            session.close()             # cleanup (always runs, even if test fails)
-"""
-
 import pytest
 from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
+
+from main import app
+from app.database import get_db
 
 
 # ── App client fixture ────────────────────────────────────────────────────────
@@ -28,17 +12,15 @@ def client():
     """
     Creates a FastAPI TestClient for the whole test session.
 
-    scope="session" means this fixture is created ONCE for all tests
-    rather than before each test — faster for expensive setup.
+    scope="session" this fixture is created once for all tests
+    rather than before each test.
 
-    TestClient lets you call endpoints without running a real server:
+    TestClient lets us call endpoints without running a real server:
         response = client.get("/health")
         assert response.status_code == 200
     """
-    from main import app
-    from app.database import get_db
 
-    # Override get_db so tests use a mock DB, not your real PostgreSQL
+    # Override get_db so tests use a mock DB, not real PostgreSQL
     def override_get_db():
         db = MagicMock()
         yield db
@@ -58,8 +40,8 @@ def mock_db():
     """
     A fresh MagicMock database session for each test.
 
-    MagicMock automatically creates any attribute or method you call on it.
-    You then tell it what to return:
+    MagicMock automatically creates any attribute or method that we call on it.
+    we then tell it what to return:
 
         mock_db.query().scalar.return_value = 42
         mock_db.query().all.return_value = [row1, row2]
@@ -72,13 +54,13 @@ def mock_db():
 # ── Sample data fixtures ──────────────────────────────────────────────────────
 @pytest.fixture
 def sample_occupation_id():
-    """A real occupation ID from your DB (Software Engineer)."""
+    """A real occupation ID from DB (Software Engineer)."""
     return 273333
 
 
 @pytest.fixture
 def sample_city():
-    """A real city from your demand data."""
+    """A real city from demand data."""
     return "Sydney"
 
 
