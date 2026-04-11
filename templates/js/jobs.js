@@ -863,13 +863,31 @@ async function renderTopSkills(occId) {
     const rows = d.skills.map((s, i) => {
       const pct   = Math.round((s.total_mentions / max) * 100);
       const color = typeColors[s.skill_type] || 'var(--muted)';
+      const skillName = s.skill_name || s.preferred_label || s.name || '—'; 
 
       // Clickable if concept_uri exists
       const nameHtml = s.concept_uri
-        ? `<a href="${s.concept_uri}" target="_blank" rel="noopener noreferrer"
-              class="sp-esco-link" title="Open ESCO skill page">${esc(s.skill_name)}</a>`
-        : esc(s.skill_name);
+      ? `<span class="sp-skill-name-wrap">
+          <a href="${s.concept_uri}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="sp-esco-name-link"
+              title="View on ESCO: ${esc(s.skill_name)}"
+              onclick="event.stopPropagation()">
+            ${esc(s.skill_name)}
+          </a>
+          <a href="${s.concept_uri}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="sp-esco-link"
+              title="View on ESCO: ${esc(s.skill_name)}"
+              onclick="event.stopPropagation()">
+            <i class="bi bi-box-arrow-up-right"></i>
+          </a>
+        </span>`
+      : `<span class="sp-skill-name-wrap">${esc(s.skill_name)}</span>`;
 
+        
       return `
         <div class="jt-hot-row" style="gap:10px; margin-bottom:8px;">
           <span class="jt-hot-rank">${i + 1}</span>
@@ -884,12 +902,13 @@ async function renderTopSkills(occId) {
     }).join('');
 
     wrap.innerHTML = `<div style="margin-top:8px;">${rows}</div>`;
+    jt.loaded.topskills = true;
 
   } catch (err) {
     wrap.innerHTML = `<div class="jt-empty text-danger">
       <i class="bi bi-exclamation-triangle me-2"></i>Could not load skill data.
     </div>`;
     console.warn('[SkillPulse|JT] renderTopSkills:', err.message);
+    jt.loaded.topskills = false;
   }
-  jt.loaded.topskills = false;
 }

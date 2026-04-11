@@ -435,9 +435,25 @@ function buildBarChart(skills) {
 
     // clickable for concept_uri of ESCO_SKIL
     const nameHtml = s.concept_uri
-      ? `<a href="${s.concept_uri}" target="_blank" rel="noopener noreferrer"
-            class="sp-esco-link" title="Open ESCO skill page">${esc(s.skill_name)}</a>`
-      : esc(s.skill_name);
+      ? `<span class="sp-skill-name-wrap">
+          <a href="${s.concept_uri}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="sp-esco-name-link"
+              title="View on ESCO: ${esc(s.skill_name)}"
+              onclick="event.stopPropagation()">
+            ${esc(s.skill_name)}
+          </a>
+          <a href="${s.concept_uri}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="sp-esco-link"
+              title="View on ESCO: ${esc(s.skill_name)}"
+              onclick="event.stopPropagation()">
+            <i class="bi bi-box-arrow-up-right"></i>
+          </a>
+        </span>`
+      : `<span class="sp-skill-name-wrap">${esc(s.skill_name)}</span>`;
 
     const row = document.createElement('div');
     row.className = 'sp-bar-row';

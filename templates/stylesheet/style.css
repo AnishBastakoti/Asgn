@@ -1509,3 +1509,54 @@ input.flatpickr-input:focus {
   color: var(--orange);
   border-bottom-style: solid;
 }
+
+.sp-skill-name-wrap {
+  display:     inline-flex;
+  align-items: center;
+  gap:         5px;
+  max-width:   100%;
+}
+
+/* ── Skill name link ── */
+.sp-esco-name-link {
+  color:           var(--text);        /* default — same as plain text */
+  text-decoration: none;
+  font-weight:     500;
+  font-size:       13px;
+  transition:      color 0.15s ease;
+  white-space:     nowrap;
+  overflow:        hidden;
+  text-overflow:   ellipsis;
+}
+
+/* Name turns indigo on row hover */
+.sp-bar-row:hover .sp-esco-name-link {
+  color: var(--orange)
+}
+
+/* ── Arrow icon — hidden until row hover ── */
+.sp-esco-link {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  opacity:         0;
+  transition:      opacity 0.15s ease, color 0.15s ease;
+  color:           #9CA3AF;
+  font-size:       11px;
+  flex-shrink:     0;
+  text-decoration: none;
+  padding:         2px 4px;
+  border-radius:   4px;
+  line-height:     1;
+}
+
+/* Arrow appears on row hover */
+.sp-bar-row:hover .sp-esco-link {
+  opacity: 1;
+}
+
+/* Arrow highlights on its own hover */
+.sp-esco-link:hover {
+  color:      #6366F1;
+  background: #EEF2FF;
+}
