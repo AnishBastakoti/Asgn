@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
+from core.auth_deps import require_admin
 from app.database import get_db
 from app.services.pipeline_service import get_last_pipeline_run
 
-router = APIRouter(prefix="/api/pipeline", tags=["Pipeline"])
+router = APIRouter(prefix="/api/pipeline", tags=["Pipeline"], dependencies=[Depends(require_admin)])
 
 @router.get("/last-run")
 def pipeline_last_run(db: Session = Depends(get_db)):

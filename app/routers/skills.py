@@ -3,13 +3,14 @@ from fastapi import APIRouter, Depends, Query, Path
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
+from core.auth_deps import require_auth
 from app.database import get_db
 from app.models.osca import OscaOccupation
 from app.models.skills import EscoSkill, OscaOccupationSkill
 from app.models.jobs import JobPostLog
 from config import settings
 
-router = APIRouter(prefix="/api/skills", tags=["skills"])
+router = APIRouter(prefix="/api/skills", tags=["skills"], dependencies=[Depends(require_auth)])
 
 # Fingerprint
 _AUTHOR = "MSIT402 CIM-10236"

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
 
+from core.auth_deps import require_auth
 from app.database import get_db
 from app.models.osca import (
     OscaMajorGroup, OscaSubMajorGroup, OscaMinorGroup,
@@ -10,7 +11,7 @@ from app.models.osca import (
 )
 from app.models.skills import OscaOccupationSkill
 
-router = APIRouter(prefix="/api/occupations", tags=["occupations"])
+router = APIRouter(prefix="/api/occupations", tags=["occupations"], dependencies=[Depends(require_auth)])
 
 
 @router.get("/major-groups")

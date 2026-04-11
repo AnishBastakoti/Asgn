@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from sqlalchemy.orm import Session
+
+from core.auth_deps import require_auth
 from app.database import get_db
 from app.services.jobs_service import (
     get_cities_by_occupation,
@@ -12,7 +14,7 @@ from app.services.jobs_service import (
     get_hot_skills_for_occupation,
 )
 
-router = APIRouter(prefix="/api/jobs", tags=["Jobs"])
+router = APIRouter(prefix="/api/jobs", tags=["Jobs"], dependencies=[Depends(require_auth)])
 
 
 # ── Schemas ────────────────────────────────────────────────

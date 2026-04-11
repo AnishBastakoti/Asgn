@@ -4,6 +4,8 @@ from typing import List, Optional
 from core.rate_limiter import limiter
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
+
+from core.auth_deps import require_analyst
 from app.database import get_db
 from app.services.analytics_service import (
     get_shadow_skills,
@@ -29,7 +31,7 @@ from app.services.cluster_service import get_occupation_clusters, get_elbow_data
 
 #from main import Limiter
 
-router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
+router = APIRouter(prefix="/api/analytics", tags=["Analytics"], dependencies=[Depends(require_analyst)])
 
 
 # ── Schemas ──────────────────────────────────────────────
