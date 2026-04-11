@@ -276,6 +276,16 @@ async function renderTrends(occId) {
         No skill trend data yet for this occupation.</div>`;
       return;
     }
+    chartWrap.querySelector('.jt-fallback-notice')?.remove();
+    // Show a notice if we're in single-snapshot fallback mode
+    if (data.length > 0 && data[0].is_fallback) {
+      const notice = document.createElement('div');
+      notice.className = 'jt-fallback-notice alert alert-info py-1 px-2 mb-2 small';
+      notice.innerHTML = `<i class="bi bi-info-circle me-1"></i>
+        Only one pipeline run exists for this occupation — 
+        showing current skill ranking. Trends will appear after more data is collected.`;
+      chartWrap.prepend(notice);
+    }
     // Filter out skills with no points — prevents ghost legend entries with strikethrough
     const validSkills = data
     .filter(s => s.points && s.points.length > 0)
@@ -283,7 +293,7 @@ async function renderTrends(occId) {
       b.points.reduce((t,p)=>t+p.count,0) -
       a.points.reduce((t,p)=>t+p.count,0)
    )
-   .slice(0,5); // limit to top 5 skills for readability
+   .slice(0,10); // limit to top 10 skills for readability
     // Compute the max mention count across all skills and points
     // Used to set a sensible y-axis max and force integer steps
     const allCounts = validSkills.flatMap(s => s.points.map(p => p.count));

@@ -90,16 +90,14 @@ async def no_cache_middleware(request: Request, call_next):
     return response
 
 
-def _render(request: Request, template: str, active_page: str, **extra):
-    """Thin wrapper so every template gets the standard context."""
+def _render(request, template_name, page):
     return templates.TemplateResponse(
-        template,
-        {
-            "request":     request,
-            "active_page": active_page,
+        request=request,        # request goes FIRST now
+        name=template_name,     # then the template name
+        context={               
+            "active_page": page,
             "app_name":    settings.APP_NAME,
             "app_version": settings.APP_VERSION,
-            **extra,
         },
     )
 

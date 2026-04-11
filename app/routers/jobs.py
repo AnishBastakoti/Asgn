@@ -23,12 +23,21 @@ class CityResponse(BaseModel):
 class TrendPoint(BaseModel):
     date:  str
     count: int
+    day: int
+    rate: Optional[float]  # Only for single-snapshot fallback
 
 class SkillTrendResponse(BaseModel):
-    skill_name: str
-    points:     list[TrendPoint]
-    trend:      str
-    velocity:   float
+    skill_id:       int
+    skill_name:     str
+    concept_uri:    Optional[str] = None
+    points:         list[TrendPoint]
+    trend:          str
+    velocity:       float
+    momentum:       str             
+    latest_count:   int             
+    peak_count:     int             
+    snapshot_count: int             
+    is_fallback:    bool
 
 class OverlapResponse(BaseModel):
     skills:      list[str]
