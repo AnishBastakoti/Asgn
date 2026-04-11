@@ -1,6 +1,6 @@
 import logging
 from sqlalchemy.orm import Session
-from app.models.pipeline import BatchJobExecution, BatchJobInstance
+from app.models.pipeline import BatchJobExecution
 
 logger = logging.getLogger(__name__)
 
