@@ -293,7 +293,7 @@ async function renderTrends(occId) {
       b.points.reduce((t,p)=>t+p.count,0) -
       a.points.reduce((t,p)=>t+p.count,0)
    )
-   .slice(0,10); // limit to top 10 skills for readability
+   .slice(0,5); // limit to top 10 skills for readability
     // Compute the max mention count across all skills and points
     // Used to set a sensible y-axis max and force integer steps
     const allCounts = validSkills.flatMap(s => s.points.map(p => p.count));

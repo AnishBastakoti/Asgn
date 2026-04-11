@@ -232,8 +232,9 @@ def get_skill_trends_by_occupation(db: Session, occupation_id: int) -> list[dict
                 JOIN job_post_logs    jpl ON jpl.id = jps.job_post_id
                 JOIN esco_skills      e   ON e.id   = jps.skill_id
                 WHERE jpl.occupation_id = :occ_id
+                    AND jpl.processed_by_ai = true
                 GROUP BY jps.skill_id, e.preferred_label,
-                         CAST(jpl.ingested_at AS DATE)
+                        CAST(jpl.ingested_at AS DATE)
                 ORDER BY snap_date ASC
             """),
             {"occ_id": occupation_id}
