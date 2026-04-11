@@ -2,14 +2,14 @@
 
 // ── Colour palette (matches CSS token --indigo, --emerald, etc.) ──────────────
 const JT_COLORS = [
-  '#6366F1', // indigo
-  '#10B981', // emerald
-  '#F43F5E', // coral
-  '#0EA5E9', // sky
-  '#8B5CF6', // violet
-  '#F59E0B', // amber
-  '#EC4899', // pink
-  '#14B8A6', // teal
+  // '#F28D05', // orange
+   '#10B981', // emerald
+  // '#F43F5E', // coral
+  // '#0EA5E9', // sky
+  // '#8B5CF6', // violet
+  // '#F59E0B', // amber
+  // '#EC4899', // pink
+  // '#14B8A6', // teal
 ];
 
 
@@ -256,7 +256,7 @@ async function renderLeadIndicator(occId) {
 //    Each dataset is one skill. Tooltip shows trend direction (growing/declining/stable)
 //    from the velocity score computed by numpy linear regression in the backend.
 // ═════════════════════════════════════════════════════════════════════════════
-async function renderTrends(occId) {
+async function renderTrends(occId) {async function renderTrends(occId) {
   let chartWrap;
   try {
     const pane = document.getElementById('pane-trends');
@@ -266,150 +266,432 @@ async function renderTrends(occId) {
 
     const data = await api(`/api/jobs/trends/?occupation_id=${occId}`);
 
-    // Guard: occupation may have changed while this request was in flight
     if (jt.selected?.id !== occId) return;
 
     if (_trendsChart) { _trendsChart.destroy(); _trendsChart = null; }
+
     if (!data || !data.length) {
       chartWrap.innerHTML = `<div class="jt-empty">
         <i class="bi bi-graph-up me-2"></i>
         No skill trend data yet for this occupation.</div>`;
       return;
     }
-    chartWrap.querySelector('.jt-fallback-notice')?.remove();
-    // Show a notice if we're in single-snapshot fallback mode
-    if (data.length > 0 && data[0].is_fallback) {
-      const notice = document.createElement('div');
-      notice.className = 'jt-fallback-notice alert alert-info py-1 px-2 mb-2 small';
-      notice.innerHTML = `<i class="bi bi-info-circle me-1"></i>
-        Only one pipeline run exists for this occupation — 
-        showing current skill ranking. Trends will appear after more data is collected.`;
-      chartWrap.prepend(notice);
-    }
-    // Filter out skills with no points — prevents ghost legend entries with strikethrough
-    const validSkills = data
-    .filter(s => s.points && s.points.length > 0)
-    .sort((a,b) =>
-      b.points.reduce((t,p)=>t+p.count,0) -
-      a.points.reduce((t,p)=>t+p.count,0)
-   )
-   .slice(0,5); // limit to top 10 skills for readability
-    // Compute the max mention count across all skills and points
-    // Used to set a sensible y-axis max and force integer steps
-    const allCounts = validSkills.flatMap(s => s.points.map(p => p.count));
-    const maxCount  = Math.max(...allCounts, 1); // at least 1 to avoid empty axis
 
-    const ctx = document.getElementById('chartTrends').getContext('2d');
-    _trendsChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        //labels: labels,
-        datasets: validSkills.map((skill, i) => ({
-          label:            skill.skill_name,
-          data: skill.points.map(p => ({ x: p.date, y: p.count })),
-          borderColor:      hexToRgba(JT_COLORS[i % JT_COLORS.length], 1.0),
-          backgroundColor:  hexToRgba(JT_COLORS[i % JT_COLORS.length], 0.08),
-          borderWidth:      2.5,
-          pointRadius:      4,
-          pointHoverRadius: 7,
-          cubicInterpolationMode: 'monotone',
-          pointBackgroundColor: hexToRgba(JT_COLORS[i % JT_COLORS.length], 1.0),
-          tension:          0.35,
-          fill:             false,
-        })),
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              font: { size: 11, weight: '600' },
-              padding: 16,
-              usePointStyle: true,
-              pointStyle: 'circle',
-              pointStyleWidth: 10,
+    // ── Remove stale fallback notice ────────────────────────────────
+    chartWrap.querySelector('.jt-fallback-notice')?.remove();
+
+    const isFallback = data.length > 0 && data[0].is_fallback;
+
+    if (isFallback) {
+    const notice = `
+      <div class="jt-fallback-notice alert alert-info py-1 px-2 mb-2 small">
+        <i class="bi bi-info-circle me-1"></i>
+        Only one pipeline run exists — showing current skill ranking. 
+        Trends will appear after more data is collected.
+      </div>`;
+
+    const topSkills = data
+      .filter(s => s.points && s.points.length > 0)
+      .sort((a, b) => b.latest_count - a.latest_count)
+      .slice(0, 10);
+
+    const maxCount = Math.max(...topSkills.map(s => s.latest_count), 1);
+
+    const rows = topSkills.map((s, i) => {
+      const pct   = Math.round((s.latest_count / maxCount) * 100);
+      const color = JT_COLORS[i % JT_COLORS.length];
+      return `
+        <div class="skill-rank-row d-flex align-items-center gap-2 py-2"
+            style="border-bottom: 1px solid #F3F4F6;">
+
+          <!-- Rank badge -->
+          <span class="fw-700 text-muted" 
+                style="width:24px; font-size:12px; text-align:right; flex-shrink:0;">
+            ${i + 1}
+          </span>
+
+          <!-- Skill name -->
+          <span class="fw-600" 
+                style="width:220px; font-size:13px; color:#111827; flex-shrink:0; 
+                      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+                title="${s.skill_name}">
+            ${s.skill_name}
+          </span>
+
+          <!-- Progress bar -->
+          <div style="flex:1; background:#F3F4F6; border-radius:99px; height:8px;">
+            <div style="width:${pct}%; background:${color}; 
+                        border-radius:99px; height:8px; 
+                        transition: width 0.4s ease;">
+            </div>
+          </div>
+
+          <!-- Count pill -->
+          <span class="badge"
+                style="background:${color}20; color:${color}; 
+                      font-size:11px; font-weight:700;
+                      border:1px solid ${color}40;
+                      border-radius:99px; padding: 2px 10px; flex-shrink:0;">
+            ${s.latest_count} ${s.latest_count === 1 ? 'job' : 'jobs'}
+          </span>
+
+        </div>`;
+    }).join('');
+
+    // Hide the canvas — we don't need Chart.js at all
+    const canvas = document.getElementById('chartTrends');
+    if (canvas) canvas.style.display = 'none';
+
+    chartWrap.innerHTML = notice + `
+      <div class="skill-rank-list px-1 pt-1">
+        ${rows}
+      </div>`;
+
+    return;  //exit early since we don't have multiple snapshots to show trends yet
+
+    } else {
+      const canvas = document.getElementById('chartTrends');
+      if (canvas) canvas.style.display = '';
+      // ── MULTI SNAPSHOT → Line Trend Chart ──
+      const validSkills = data
+        .filter(s => s.points && s.points.length > 0)
+        .sort((a, b) =>
+          b.points.reduce((t, p) => t + p.count, 0) -
+          a.points.reduce((t, p) => t + p.count, 0)
+        )
+        .slice(0, 5);
+
+      const allCounts = validSkills.flatMap(s => s.points.map(p => p.count));
+      const maxCount  = Math.max(...allCounts, 1);
+      const xAxisMax = maxCount * 2;
+
+      const ctx = document.getElementById('chartTrends').getContext('2d');
+      _trendsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: validSkills.map((skill, i) => ({
+            label:                  skill.skill_name,
+            data:                   skill.points.map(p => ({ x: p.date, y: p.count })),
+            borderColor:            hexToRgba(JT_COLORS[i % JT_COLORS.length], 1.0),
+            backgroundColor:        hexToRgba(JT_COLORS[i % JT_COLORS.length], 0.08),
+            borderWidth:            2.5,
+            pointRadius:            4,
+            pointHoverRadius:       7,
+            cubicInterpolationMode: 'monotone',
+            pointBackgroundColor:   hexToRgba(JT_COLORS[i % JT_COLORS.length], 1.0),
+            tension:                0.35,
+            fill:                   false,
+          })),
+        },
+        options: {
+          responsive:          true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font:            { size: 11, weight: '600' },
+                padding:         16,
+                usePointStyle:   true,
+                pointStyle:      'circle',
+                pointStyleWidth: 10,
+              },
+            },
+            tooltip: {
+              backgroundColor: 'rgba(17,24,39,0.92)',
+              titleColor:      '#A5B4FC',
+              bodyColor:       '#E5E7EB',
+              borderColor:     'rgba(99,102,241,0.3)',
+              borderWidth:     1,
+              padding:         12,
+              cornerRadius:    10,
+              titleFont:       { size: 13, weight: '700' },
+              bodyFont:        { size: 13, weight: '500' },
+              usePointStyle:   true,
+              callbacks: {
+                title: items => {
+                  if (!items.length) return '';
+                  const raw = items[0].label.replace(' ', 'T');
+                  const d   = new Date(raw);
+                  return isNaN(d) ? items[0].label
+                    : d.toLocaleDateString('en-AU', {
+                        weekday: 'short', day: 'numeric',
+                        month:   'long',  year: 'numeric',
+                      });
+                },
+                label: ctx => {
+                  const count = ctx.parsed.y;
+                  const noun  = count === 1 ? 'mention' : 'mentions';
+                  return `  ${ctx.dataset.label}: ${count} ${noun}`;
+                },
+                afterLabel: ctx => {
+                  const skill = validSkills[ctx.datasetIndex];
+                  if (!skill) return '';
+                  const arrow = skill.trend === 'growing'   ? '▲ Growing'
+                              : skill.trend === 'declining' ? '▼ Declining'
+                              :                               '→ Stable';
+                  return `  ${arrow}  (velocity: ${skill.velocity})`;
+                },
+              },
             },
           },
-          tooltip: {
-            backgroundColor: 'rgba(17,24,39,0.92)',  
-            titleColor:      '#A5B4FC',              
-            bodyColor:       '#E5E7EB',              
-            borderColor:     'rgba(99,102,241,0.3)',
-            borderWidth:     1,
-            padding:         12,
-            cornerRadius:    10,
-            titleFont:       { size: 13, weight: '700' },
-            bodyFont:        { size: 13, weight: '500' },
-            usePointStyle:   true,
-            callbacks: {
-              // Format ISO date in tooltip title
-              title: items => {
-                if (!items.length) return '';
-                const raw = items[0].label.replace(' ', 'T');
-                const d   = new Date(raw);
-                return isNaN(d)
-                  ? items[0].label   // fallback to raw if parse fails
-                  : d.toLocaleDateString('en-AU', {
-                      weekday: 'short', day: 'numeric',
-                      month: 'long',   year: 'numeric',
-                    });
+          scales: {
+            x: {
+              grid:   { display: false },
+              border: { display: true },
+              ticks: {
+                font:  { size: 11, weight: '600' },
+                color: '#6B7280',
+                callback: function(val) {
+                  const raw = this.getLabelForValue(val).replace(' ', 'T');
+                  const d   = new Date(raw);
+                  return isNaN(d) ? val
+                    : d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+                },
               },
-              //"1 mentions" grammar + clean formatting
-              label: ctx => {
-                const count = ctx.parsed.y;
-                const noun  = count === 1 ? 'mention' : 'mentions';
-                return `  ${ctx.dataset.label}: ${count} ${noun}`;
-              },
-              // Only show trend direction if meaningful (velocity != 0)
-              afterLabel: ctx => {
-                const skill = validSkills[ctx.datasetIndex];
-                if (!skill) return '';
-                const arrow = skill.trend === 'growing'   ? '▲ Growing'
-                            : skill.trend === 'declining' ? '▼ Declining'
-                            : '→ Stable';
-                return arrow ? `  ${arrow}  (velocity: ${skill.velocity})` : '';
+            },
+            y: {
+              grid:        { color: '#F3F4F6', drawBorder: false },
+              border:      { display: true },
+              min:         0,
+              max:         maxCount < 5 ? 5 : undefined,
+              beginAtZero: true,
+              ticks: {
+                font:          { size: 11, weight: '600' },
+                color:         '#6B7280',
+                stepSize:      1,
+                precision:     0,
+                maxTicksLimit: 6,
               },
             },
           },
         },
-        scales: {
-          x: {
-            //type: 'category',
-            grid: { display: false },
-            border: { display: true },
-            ticks: {
-              font: { size: 11, weight: '600' },
-              color: '#6B7280',
-              callback: function(val) {
-                const raw = this.getLabelForValue(val).replace(' ', 'T');
-                const d   = new Date(raw);
-                return isNaN(d)
-                  ? val
-                  : d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+      });
+    }
+
+  } catch (err) {
+    console.error('[SkillPulse|JT] renderTrends:', err);
+    if (chartWrap) chartWrap.innerHTML =
+      `<div class="jt-empty"><i class="bi bi-exclamation-triangle me-2"></i>` +
+      `Trend data unavailable. <small class="text-muted d-block mt-1">${err.message}</small></div>`;
+    jt.loaded.trends = false;
+  } finally {
+    document.querySelector('#pane-trends .jt-pane-spinner')?.remove();
+  }
+}
+
+  let chartWrap;
+  try {
+    const pane = document.getElementById('pane-trends');
+    if (!pane) throw new Error('pane-trends element not found in DOM');
+    chartWrap = pane.querySelector('.jt-chart-wrap');
+    if (!chartWrap) throw new Error('chart wrap not found inside pane-trends');
+
+    const data = await api(`/api/jobs/trends/?occupation_id=${occId}`);
+
+    if (jt.selected?.id !== occId) return;
+
+    if (_trendsChart) { _trendsChart.destroy(); _trendsChart = null; }
+
+    if (!data || !data.length) {
+      chartWrap.innerHTML = `<div class="jt-empty">
+        <i class="bi bi-graph-up me-2"></i>
+        No skill trend data yet for this occupation.</div>`;
+      return;
+    }
+
+    // ── Remove stale fallback notice ────────────────────────────────
+    chartWrap.querySelector('.jt-fallback-notice')?.remove();
+
+    const isFallback = data.length > 0 && data[0].is_fallback;
+
+    if (isFallback) {
+    const notice = `
+      <div class="jt-fallback-notice alert alert-info py-1 px-2 mb-2 small">
+        <i class="bi bi-info-circle me-1"></i>
+        Only one pipeline run exists — showing current skill ranking. 
+        Trends will appear after more data is collected.
+      </div>`;
+
+    const topSkills = data
+      .filter(s => s.points && s.points.length > 0)
+      .sort((a, b) => b.latest_count - a.latest_count)
+      .slice(0, 10);
+
+    const maxCount = Math.max(...topSkills.map(s => s.latest_count), 1);
+
+    const rows = topSkills.map((s, i) => {
+      const pct   = Math.round((s.latest_count / maxCount) * 100);
+      const color = JT_COLORS[i % JT_COLORS.length];
+      return `
+        <div class="skill-rank-row d-flex align-items-center gap-2 py-2"
+            style="border-bottom: 1px solid #F3F4F6;">
+
+          <!-- Rank badge -->
+          <span class="fw-700 text-muted" 
+                style="width:24px; font-size:12px; text-align:right; flex-shrink:0;">
+            ${i + 1}
+          </span>
+
+          <!-- Skill name -->
+          <span class="fw-600" 
+                style="width:220px; font-size:13px; color:#111827; flex-shrink:0; 
+                      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"
+                title="${s.skill_name}">
+            ${s.skill_name}
+          </span>
+
+          <!-- Progress bar -->
+          <div style="flex:1; background:#F3F4F6; border-radius:99px; height:8px;">
+            <div style="width:${pct}%; background:${color}; 
+                        border-radius:99px; height:8px; 
+                        transition: width 0.4s ease;">
+            </div>
+          </div>
+
+          <!-- Count pill -->
+          <span class="badge"
+                style="background:${color}20; color:${color}; 
+                      font-size:11px; font-weight:700;
+                      border:1px solid ${color}40;
+                      border-radius:99px; padding: 2px 10px; flex-shrink:0;">
+            ${s.latest_count} ${s.latest_count === 1 ? 'job' : 'jobs'}
+          </span>
+
+        </div>`;
+    }).join('');
+
+    // Hide the canvas — we don't need Chart.js at all
+    const canvas = document.getElementById('chartTrends');
+    if (canvas) canvas.style.display = 'none';
+
+    chartWrap.innerHTML = notice + `
+      <div class="skill-rank-list px-1 pt-1">
+        ${rows}
+      </div>`;
+
+    return;  //exit early since we don't have multiple snapshots to show trends yet
+
+    } else {
+      const canvas = document.getElementById('chartTrends');
+      if (canvas) canvas.style.display = '';
+      // ── MULTI SNAPSHOT → Line Trend Chart ──
+      const validSkills = data
+        .filter(s => s.points && s.points.length > 0)
+        .sort((a, b) =>
+          b.points.reduce((t, p) => t + p.count, 0) -
+          a.points.reduce((t, p) => t + p.count, 0)
+        )
+        .slice(0, 5);
+
+      const allCounts = validSkills.flatMap(s => s.points.map(p => p.count));
+      const maxCount  = Math.max(...allCounts, 1);
+
+      const ctx = document.getElementById('chartTrends').getContext('2d');
+      _trendsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: validSkills.map((skill, i) => ({
+            label:                  skill.skill_name,
+            data:                   skill.points.map(p => ({ x: p.date, y: p.count })),
+            borderColor:            hexToRgba(JT_COLORS[i % JT_COLORS.length], 1.0),
+            backgroundColor:        hexToRgba(JT_COLORS[i % JT_COLORS.length], 0.08),
+            borderWidth:            2.5,
+            pointRadius:            4,
+            pointHoverRadius:       7,
+            cubicInterpolationMode: 'monotone',
+            pointBackgroundColor:   hexToRgba(JT_COLORS[i % JT_COLORS.length], 1.0),
+            tension:                0.35,
+            fill:                   false,
+          })),
+        },
+        options: {
+          responsive:          true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font:            { size: 11, weight: '600' },
+                padding:         16,
+                usePointStyle:   true,
+                pointStyle:      'circle',
+                pointStyleWidth: 10,
+              },
+            },
+            tooltip: {
+              backgroundColor: 'rgba(17,24,39,0.92)',
+              titleColor:      '#A5B4FC',
+              bodyColor:       '#E5E7EB',
+              borderColor:     'rgba(99,102,241,0.3)',
+              borderWidth:     1,
+              padding:         12,
+              cornerRadius:    10,
+              titleFont:       { size: 13, weight: '700' },
+              bodyFont:        { size: 13, weight: '500' },
+              usePointStyle:   true,
+              callbacks: {
+                title: items => {
+                  if (!items.length) return '';
+                  const raw = items[0].label.replace(' ', 'T');
+                  const d   = new Date(raw);
+                  return isNaN(d) ? items[0].label
+                    : d.toLocaleDateString('en-AU', {
+                        weekday: 'short', day: 'numeric',
+                        month:   'long',  year: 'numeric',
+                      });
+                },
+                label: ctx => {
+                  const count = ctx.parsed.y;
+                  const noun  = count === 1 ? 'mention' : 'mentions';
+                  return `  ${ctx.dataset.label}: ${count} ${noun}`;
+                },
+                afterLabel: ctx => {
+                  const skill = validSkills[ctx.datasetIndex];
+                  if (!skill) return '';
+                  const arrow = skill.trend === 'growing'   ? '▲ Growing'
+                              : skill.trend === 'declining' ? '▼ Declining'
+                              :                               '→ Stable';
+                  return `  ${arrow}  (velocity: ${skill.velocity})`;
+                },
               },
             },
           },
-          y: {
-            grid:  { color: '#F3F4F6', drawBorder: false },
-            border: { display: true },
-            min: 0,
-            max: maxCount < 5 ? 5 : undefined, // if counts are low, sets max to 5 for better scaling
-            ticks: {
-              font: { size: 11, weight: '600' },
-              color: '#6B7280',
-              stepSize: 1,
-              // integers only, max 6 ticks — keeps axis clean when counts are small
-              precision:     0,
-              maxTicksLimit: 6,
+          scales: {
+            x: {
+              grid:   { display: false },
+              border: { display: true },
+              ticks: {
+                font:  { size: 11, weight: '600' },
+                color: '#6B7280',
+                callback: function(val) {
+                  const raw = this.getLabelForValue(val).replace(' ', 'T');
+                  const d   = new Date(raw);
+                  return isNaN(d) ? val
+                    : d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+                },
+              },
             },
-            beginAtZero: true,
+            y: {
+              grid:        { color: '#F3F4F6', drawBorder: false },
+              border:      { display: true },
+              min:         0,
+              max:         maxCount < 5 ? 5 : undefined,
+              beginAtZero: true,
+              ticks: {
+                font:          { size: 11, weight: '600' },
+                color:         '#6B7280',
+                stepSize:      1,
+                precision:     0,
+                maxTicksLimit: 6,
+              },
+            },
           },
         },
-      },
-    });
+      });
+    }
 
   } catch (err) {
     console.error('[SkillPulse|JT] renderTrends:', err);
