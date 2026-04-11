@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, text
 from typing import Optional
+
 
 from core.auth_deps import require_auth
 from app.database import get_db
@@ -11,11 +12,12 @@ from app.models.osca import (
 )
 from app.models.skills import OscaOccupationSkill
 
-router = APIRouter(prefix="/api/occupations", tags=["occupations"], dependencies=[Depends(require_auth)])
+router = APIRouter(prefix="/api/occupations", tags=["occupations"])
 
+_auth = [Depends(require_auth)]
 
 @router.get("/major-groups")
-def get_major_groups(db: Session = Depends(get_db)):
+def get_major_groups(db: Session = Depends(get_db), user = Depends(require_auth)):
     """
     All major groups with how many occupations fall under each.
     Used to populate the first sidebar dropdown.
@@ -42,7 +44,8 @@ def get_major_groups(db: Session = Depends(get_db)):
 @router.get("/sub-major-groups")
 def get_sub_major_groups(
     major_group_id: int = Query(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db), 
+    user = Depends(require_auth)
 ):
     """Sub-major groups for a given major group."""
     rows = (
@@ -57,7 +60,8 @@ def get_sub_major_groups(
 @router.get("/minor-groups")
 def get_minor_groups(
     sub_major_group_id: int = Query(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user = Depends(require_auth)
 ):
     """Minor groups for a given sub-major group."""
     rows = (
@@ -73,12 +77,9 @@ def list_occupations(
     major_group_id:     Optional[int] = Query(None),
     sub_major_group_id: Optional[int] = Query(None),
     minor_group_id:     Optional[int] = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user = Depends(require_auth)
 ):
-    import time
-    from sqlalchemy import text
-
-    t0 = time.time()
     
     sql = """
         SELECT 
@@ -119,9 +120,6 @@ def list_occupations(
     sql += " ORDER BY o.principal_title"
 
     rows = db.execute(text(sql), params).fetchall()
-    print(f"[TIMING] DB query: {time.time()-t0:.3f}s")
-
-    t1 = time.time()
     occ_ids = [r.id for r in rows]
     alt_rows = (
         db.query(OscaAlternativeTitle.occupation_id, OscaAlternativeTitle.title)
@@ -131,9 +129,8 @@ def list_occupations(
     alt_map = {}
     for a in alt_rows:
         alt_map.setdefault(a.occupation_id, []).append(a.title.lower())
-    print(f"[TIMING] Alt titles: {time.time()-t1:.3f}s")
 
-    t2 = time.time()
+
     result = [
         {
             "id":            r.id,
@@ -147,8 +144,6 @@ def list_occupations(
         }
         for r in rows
     ]
-    print(f"[TIMING] Serialization: {time.time()-t2:.3f}s")
-    print(f"[TIMING] TOTAL: {time.time()-t0:.3f}s")
 
     return result
 
