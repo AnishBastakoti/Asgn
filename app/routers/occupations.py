@@ -148,7 +148,7 @@ def list_occupations(
     return result
 
 @router.get("/{occupation_id}")
-def get_occupation_detail(occupation_id: int, db: Session = Depends(get_db)):
+def get_occupation_detail(occupation_id: int, db: Session = Depends(get_db), user = Depends(require_auth)):
     occupation = (
         db.query(
             OscaOccupation.id,

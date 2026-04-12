@@ -45,13 +45,15 @@ def require_auth(
 # ─────────────────────────────────────────────
 
 def require_admin(user: dict = Depends(require_auth)) -> dict:
+    role = (user.get("role") or "").lower().strip()
     """
     Protects a route — requires admin role.
     Raises 403 if user is authenticated but not admin.
 
     Use for: /pipeline, /model-status, /elbow-analysis
     """
-    if user.get("role") != "admin":
+    admin_roles = {"admin", "administrator"}
+    if role not in admin_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required for this endpoint.",
@@ -64,14 +66,16 @@ def require_admin(user: dict = Depends(require_auth)) -> dict:
 # ─────────────────────────────────────────────
 
 def require_analyst(user: dict = Depends(require_auth)) -> dict:
+    role = (user.get("role") or "").lower().strip()
     """
     Protects a route — requires analyst or admin role.
     Raises 403 for viewers.
 
     Use for: analytics endpoints, career transition, clustering
     """
-    allowed_roles = {"admin", "analyst"}
-    if user.get("role") not in allowed_roles:
+    
+    allowed_roles = {"admin", "administrator", "analyst"}
+    if role not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Analyst or admin access required.",

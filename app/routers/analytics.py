@@ -5,7 +5,7 @@ from core.rate_limiter import limiter
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
-from core.auth_deps import require_analyst
+from core.auth_deps import require_admin, require_auth
 from app.database import get_db
 from app.services.analytics_service import (
     get_shadow_skills,
@@ -31,7 +31,7 @@ from app.services.cluster_service import get_occupation_clusters, get_elbow_data
 
 #from main import Limiter
 
-router = APIRouter(prefix="/api/analytics", tags=["Analytics"], dependencies=[Depends(require_analyst)])
+router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
 
 # ── Schemas ──────────────────────────────────────────────
@@ -112,7 +112,7 @@ class DemandPredictionResponse(BaseModel):
 # SHADOW SKILLS 
 @router.get("/shadow-skills/{occupation_id}", response_model=List[ShadowSkillResponse])
 @limiter.limit("10/minute")
-def shadow_skills(request: Request, occupation_id: int, db: Session = Depends(get_db)):
+def shadow_skills(request: Request, occupation_id: int, db: Session = Depends(get_db), admin = Depends(require_admin)):
     """
     Skills appearing in job postings for this occupation
     that are not in the official OSCA skill mapping.
@@ -123,7 +123,7 @@ def shadow_skills(request: Request, occupation_id: int, db: Session = Depends(ge
 # SKILL DECAY
 @router.get("/skill-decay/{occupation_id}", response_model=List[SkillDecayResponse])
 @limiter.limit("10/minute")
-def skill_decay(request: Request, occupation_id: int, db: Session = Depends(get_db)):
+def skill_decay(request: Request, occupation_id: int, db: Session = Depends(get_db), admin = Depends(require_admin)):
     """
     Skills with significant demand decline for this occupation,
     comparing earliest vs most recent snapshot batch.
@@ -138,7 +138,8 @@ def city_demand_summary(
     request: Request,
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db), 
+    admin = Depends(require_admin)
 ):
     return get_city_demand_summary(db, from_date, to_date)
 
@@ -152,7 +153,8 @@ def city_demand_detail(
     limit: int = 10,
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db), 
+    admin = Depends(require_admin)
 ):
     return get_city_demand_detail(db, city, limit, from_date, to_date)
 
@@ -164,7 +166,9 @@ def predict_occ_demand(
     request: Request,
     occupation_id: int,
     model: Optional[str] = None,
-    db: Session = Depends(get_db)):
+    db: Session = Depends(get_db),
+    admin = Depends(require_admin)
+):
     """
     Fetches the regression-based demand forecast for a specific occupation.
     """
@@ -180,7 +184,8 @@ def predict_occ_demand(
 def skill_velocity(
     request: Request,
     occupation_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin = Depends(require_admin)
 ):
     """
     Rising and falling skills for this occupation based on snapshot history.
@@ -195,7 +200,8 @@ def skill_velocity(
 def market_saturation(
     request: Request,
     occupation_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin = Depends(require_admin)
 ):
     """
     Determines if occupation is undersupplied (hot), saturated,
@@ -206,7 +212,7 @@ def market_saturation(
 # OCCUPATION PROFILE — official profile details for an occupation
 @router.get("/occupation-profile/{occupation_id}", response_model=dict)
 @limiter.limit("30/minute")
-def occupation_profile(request: Request, occupation_id: int, db: Session = Depends(get_db)):
+def occupation_profile(request: Request, occupation_id: int, db: Session = Depends(get_db), admin = Depends(require_admin)):
     return get_occupation_profile(db, occupation_id)
 
 
@@ -217,7 +223,8 @@ def career_transition(
     request: Request,
     from_id: int,
     to_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db), 
+    admin = Depends(require_admin)
 ):
     """Compare two occupations — shared skills, gaps, and difficulty score."""
     return get_career_transition(db, from_id, to_id)
@@ -229,7 +236,8 @@ def occupation_similarity(
     request: Request,
     occupation_id: int,
     top_n: int = 8,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin = Depends(require_admin)
 ):
     """Top N occupations most similar to the selected one using cosine similarity on skill vectors."""
     return get_occupation_similarity(db, occupation_id, top_n)
@@ -242,7 +250,8 @@ def occupation_clusters(
     request: Request,
     occupation_id: int,
     n_clusters: Optional[int] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin = Depends(require_admin)
 ):
     """Returns the K-Means cluster the occupation belongs to and its cluster peers."""
     return get_occupation_clusters(db, occupation_id, n_clusters)
@@ -254,7 +263,8 @@ def occupation_clusters(
 def city_demand_forecast(
     request: Request,
     city: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin = Depends(require_admin)
 ):
     """Predicts demand for all occupations in a city using trained Ridge model."""
     return get_demand_forecast(db, city)
@@ -263,7 +273,7 @@ def city_demand_forecast(
 # ── MODEL STATUS — training metrics and cache state
 @router.get("/model-status")
 @limiter.limit("10/minute")
-def model_status(request: Request, db: Session = Depends(get_db)):
+def model_status(request: Request, db: Session = Depends(get_db), admin = Depends(require_admin)):
     """Returns Ridge model training status, R² score, and feature list."""
     return get_model_status(db)
  
@@ -274,7 +284,8 @@ def model_status(request: Request, db: Session = Depends(get_db)):
 def elbow_analysis(
     request: Request,
     k_max: int = 20,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin = Depends(require_admin)
 ):
     """Runs K-Means for k=2..k_max and returns inertia values + optimal K."""
     return get_elbow_data(db, k_max)
