@@ -123,7 +123,7 @@ async function loadTabData(tab) {
   if (pane) {
     if (tab === 'overlap' || tab === 'companies' || tab === 'topskills') {
       // These panes use innerHTML directly — safe to overwrite
-      const target = pane.querySelector('#heatmapWrap, #companiesWrap, #topskillswrap');
+      const target = pane.querySelector('#heatmapWrap, #companiesWrap, #topSkillsWrap');
       if (target) target.innerHTML =
         `<div class="jt-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading&hellip;</div>`;
     } else {
@@ -837,15 +837,15 @@ async function renderTopSkills(occId) {
   try {
     const d = await api(`/api/jobs/hot-skills/?occupation_id=${occId}&days=30`);
 
+
+    const skills = Array.isArray(d) ? d : (d.skills || []);
+
     // Update subtitle — warn user if showing fallback data
     if (sub) {
-      sub.textContent = d.is_fallback
-        ? 'No pipeline run in last 30 days — showing all-time data until next run'
-        : 'Most mentioned skills from job posts in the last 30 days';
-      sub.style.color = d.is_fallback ? 'var(--orange)' : '';
+      sub.textContent = 'Most mentioned skills from job posts in the last 30 days';
     }
 
-    if (!d.skills || !d.skills.length) {
+    if (!skills.length) {
       wrap.innerHTML = `<div class="jt-empty">
         <i class="bi bi-hourglass-split me-2"></i>
         No skill data yet for this occupation.
@@ -853,14 +853,14 @@ async function renderTopSkills(occId) {
       return;
     }
 
-    const max = d.skills[0].total_mentions || 1;
+    const max = skills[0].total_mentions || 1;
     const typeColors = {
       knowledge:         'var(--violet)',
       'skill/competence':'var(--orange)',
       attitude:          '#F59E0B',
     };
 
-    const rows = d.skills.map((s, i) => {
+    const rows = skills.map((s, i) => {
       const pct   = Math.round((s.total_mentions / max) * 100);
       const color = typeColors[s.skill_type] || 'var(--muted)';
       const skillName = s.skill_name || s.preferred_label || s.name || '—'; 

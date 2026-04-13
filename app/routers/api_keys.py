@@ -14,13 +14,6 @@ from app.models.api_key import ApiKey
 router = APIRouter(prefix="/api/admin/keys", tags=["API Keys"])
 
 
-# ── Authorship Fingerprint ─────────────────────────────────
-_AUTHOR_KEY = "MSIT402 CIM-10236"
-_SIGNATURE = hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8].upper()
-
-# ── Environment-aware prefix ────────────────────────────────
-_ENV = "liv" if not settings.DEBUG else "tst"
-
 KEY_PREFIX = settings.KEY_PREFIX
 
 @router.post("/generate")

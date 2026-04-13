@@ -543,16 +543,10 @@ def get_city_lead_indicator(db: Session, occupation_id: int) -> list[dict]:
 # HOT SKILLS FOR EACH OCCUPATIONS
 # Returns top most-mentioned skills from job posts in the last N days.
 # ─────────────────────────────────────────────
-def get_hot_skills_for_occupation(db: Session, occupation_id:int, days: int = 30) -> list[dict]:
-    
-    """
-    Top skills for a specific occupation from job posts in last N days.
-    Falls back to all-time data if no pipeline has run in that window.
-    Returns the data + a flag indicating whether fallback was used.
-    """
+def get_hot_skills_for_occupation(db: Session, occupation_id: int, days: int = 30) -> list[dict]:
     try:
-        # recent window first
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        # Calculate cutoff - strip tzinfo if DB stores naive timestamps
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
         
         def run_query(timestamp_filter=None):
             q = (
@@ -576,30 +570,27 @@ def get_hot_skills_for_occupation(db: Session, occupation_id:int, days: int = 30
             ).order_by(func.count(JobPostSkill.id).desc()).limit(20).all()
 
         rows = run_query(cutoff)
-        is_fallback = False
 
-        # Fallback: If empty, just get the most recent 50 overall
+        # Fallback logic
         if not rows:
-            logger.warning(f"No hot skills in last {days} for occupation {occupation_id}. Falling back to all-time.")
+            logger.warning(f"No hot skills in last {days} for {occupation_id}. Falling back.")
             rows = run_query(None) 
 
-        if not rows: return {"skills": [], "is_fallback": False, "days": days}
+        if not rows: 
+            return [] # Return empty list, not a dict
 
         max_mentions = rows[0].total_mentions or 1
-        return {
-            "skills": [
-                {
-                    "skill_name":     r.skill_name[:1].upper() + r.skill_name[1:] if r.skill_name else "Unknown",
-                    "concept_uri":    r.concept_uri,
-                    "skill_type":     r.skill_type or "unknown",
-                    "total_mentions": r.total_mentions,
-                    "share_pct":      round((r.total_mentions / max_mentions) * 100, 1),
-                }
-                for r in rows
-            ],
-            "is_fallback": is_fallback,
-            "days":        days,
-        }
+        
+        # Return ONLY the list of skills to match the response_model
+        return [
+            {
+                "skill_name": r.skill_name[:1].upper() + r.skill_name[1:] if r.skill_name else "Unknown",
+                "concept_uri": r.concept_uri,
+                "total_mentions": r.total_mentions,
+                "share_pct": round((r.total_mentions / max_mentions) * 100, 1),
+            }
+            for r in rows
+        ]
     except Exception as e:
-        logger.error(f"get_hot_skills_for_occupation failed occ={occupation_id}: {e}")
-        return {"skills": [], "is_fallback": False, "days": days}
+        logger.error(f"get_hot_skills_for_occupation failed: {e}")
+        return [] # Return empty list on error
