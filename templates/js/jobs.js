@@ -836,66 +836,50 @@ async function renderTopSkills(occId) {
 
   try {
     const d = await api(`/api/jobs/hot-skills/?occupation_id=${occId}&days=30`);
-
-
     const skills = Array.isArray(d) ? d : (d.skills || []);
 
-    // Update subtitle — warn user if showing fallback data
     if (sub) {
       sub.textContent = 'Most mentioned skills from job posts in the last 30 days';
     }
 
     if (!skills.length) {
-      wrap.innerHTML = `<div class="jt-empty">
-        <i class="bi bi-hourglass-split me-2"></i>
-        No skill data yet for this occupation.
-      </div>`;
+      wrap.innerHTML = `<div class="jt-empty"><i class="bi bi-hourglass-split me-2"></i>No skill data yet.</div>`;
       return;
     }
 
     const max = skills[0].total_mentions || 1;
+
     const typeColors = {
-      knowledge:         'var(--violet)',
-      'skill/competence':'var(--orange)',
-      attitude:          '#F59E0B',
+      'knowledge':        'var(--violet)',
+      'skill/competence': 'var(--orange)',
+      'skill':            'var(--orange)',
+      'attitude':         '#F59E0B',
+      'language':         '#10B981',
     };
 
     const rows = skills.map((s, i) => {
-      const pct   = Math.round((s.total_mentions / max) * 100);
-      const color = typeColors[s.skill_type] || 'var(--muted)';
-      const skillName = s.skill_name || s.preferred_label || s.name || '—'; 
+      //Normalize type inside the loop so 's' is defined
+      const typeKey = (s.skill_type || 'unknown').toLowerCase();
+      
+      //the normalized key to pick the color
+      const color = typeColors[typeKey] || 'var(--orange)';
+      
+      const pct = Math.round((s.total_mentions / max) * 100);
+      const skillName = s.skill_name || s.preferred_label || '—'; 
 
-      // Clickable if concept_uri exists
       const nameHtml = s.concept_uri
       ? `<span class="sp-skill-name-wrap">
-          <a href="${s.concept_uri}"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="sp-esco-name-link"
-              title="View on ESCO: ${esc(s.skill_name)}"
-              onclick="event.stopPropagation()">
-            ${esc(s.skill_name)}
-          </a>
-          <a href="${s.concept_uri}"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="sp-esco-link"
-              title="View on ESCO: ${esc(s.skill_name)}"
-              onclick="event.stopPropagation()">
-            <i class="bi bi-box-arrow-up-right"></i>
-          </a>
+          <a href="${s.concept_uri}" target="_blank" rel="noopener noreferrer" class="sp-esco-name-link">${esc(skillName)}</a>
+          <a href="${s.concept_uri}" target="_blank" rel="noopener noreferrer" class="sp-esco-link"><i class="bi bi-box-arrow-up-right"></i></a>
         </span>`
-      : `<span class="sp-skill-name-wrap">${esc(s.skill_name)}</span>`;
+      : `<span class="sp-skill-name-wrap">${esc(skillName)}</span>`;
 
-        
       return `
         <div class="jt-hot-row" style="gap:10px; margin-bottom:8px;">
           <span class="jt-hot-rank">${i + 1}</span>
           <span class="jt-hot-name" style="flex:1; font-size:13px;">${nameHtml}</span>
-          <div style="width:140px; height:6px; background:var(--orange-l);
-                      border-radius:99px; flex-shrink:0; overflow:hidden;">
-            <div style="width:${pct}%; height:100%; background:${color};
-                        border-radius:99px; transition:width 0.5s ease;"></div>
+          <div style="width:140px; height:6px; background:var(--orange-l); border-radius:99px; flex-shrink:0; overflow:hidden;">
+            <div style="width:${pct}%; height:100%; background:${color}; border-radius:99px; transition:width 0.5s ease;"></div>
           </div>
           <span class="jt-hot-count">${fmt(s.total_mentions)}</span>
         </div>`;
@@ -905,10 +889,7 @@ async function renderTopSkills(occId) {
     jt.loaded.topskills = true;
 
   } catch (err) {
-    wrap.innerHTML = `<div class="jt-empty text-danger">
-      <i class="bi bi-exclamation-triangle me-2"></i>Could not load skill data.
-    </div>`;
-    console.warn('[SkillPulse|JT] renderTopSkills:', err.message);
-    jt.loaded.topskills = false;
+    wrap.innerHTML = `<div class="jt-empty text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Could not load skill data.</div>`;
+    console.warn('[SkillPulse] renderTopSkills:', err.message);
   }
 }

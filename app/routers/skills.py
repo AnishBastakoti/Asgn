@@ -3,14 +3,14 @@ from fastapi import APIRouter, Depends, Query, Path
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from core.auth_deps import require_auth
+from core.auth_deps import require_auth, require_admin
 from app.database import get_db
 from app.models.osca import OscaOccupation
 from app.models.skills import EscoSkill, OscaOccupationSkill
 from app.models.jobs import JobPostLog
 from config import settings
 
-router = APIRouter(prefix="/api/skills", tags=["skills"])
+router = APIRouter(prefix="/api/skills", tags=["skills"], dependencies=[Depends(require_auth)])
 
 # Fingerprint
 _AUTHOR = "MSIT402 CIM-10236"
@@ -20,7 +20,7 @@ _FP = hashlib.sha256(
 
 
 @router.get("/summary")
-def get_summary(db: Session = Depends(get_db), user = Depends(require_auth)):
+def get_summary(db: Session = Depends(get_db), user = Depends(require_admin)):
     """
     KPI cards in the header.
     Returns counts + your fingerprint signature.
@@ -50,7 +50,7 @@ def get_top_skills(
     occupation_id: int = Path(...),
     limit: int = Query(20, ge=5, le=50),
     db: Session = Depends(get_db), 
-    user = Depends(require_auth)
+    user = Depends(require_admin)
 ):
     """
     Top N skills for a given occupation, ranked by mention_count.
@@ -102,7 +102,7 @@ def get_top_skills(
 def get_skill_breakdown(
     occupation_id: int = Path(...),
     db: Session = Depends(get_db), 
-    user = Depends(require_auth)
+    user = Depends(require_admin)
 ):
     """
     Skill type distribution for the donut chart.

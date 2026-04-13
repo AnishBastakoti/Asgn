@@ -3,7 +3,7 @@ from sqlalchemy import Integer, String, Boolean, ForeignKey, BigInteger, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 from typing import TYPE_CHECKING, Optional
-from datetime import datetime               # ← import datetime CLASS
+from datetime import datetime              
 from app.database import Base
 
 if TYPE_CHECKING:
@@ -30,9 +30,9 @@ class JobPostLog(Base):
     ingested_at:      Mapped[Optional[datetime]]
 
     # FK to osca_occupations — set by AI classification pipeline
-    occupation_id:    Mapped[Optional[int]]  = mapped_column(Integer, ForeignKey("osca_occupations.id"))
+    occupation_id:    Mapped[Optional[int]]  = mapped_column(Integer, ForeignKey("osca_occupations.id"), index=True)
     # FK to batch_job_execution — which pipeline run produced this record
-    job_execution_id: Mapped[Optional[int]]  = mapped_column(BigInteger, ForeignKey("batch_job_execution.job_execution_id"))
+    job_execution_id: Mapped[Optional[int]]  = mapped_column(BigInteger, ForeignKey("batch_job_execution.job_execution_id"), index=True)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     occupation:   Mapped[Optional["OscaOccupation"]] = relationship(
@@ -59,8 +59,8 @@ class JobPostSkill(Base):
     __tablename__ = "job_post_skills"
 
     id:          Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    job_post_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("job_post_logs.id"), nullable=False)
-    skill_id:    Mapped[int] = mapped_column(BigInteger, ForeignKey("esco_skills.id"),   nullable=False)
+    job_post_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("job_post_logs.id"), index=True)
+    skill_id:    Mapped[int] = mapped_column(BigInteger, ForeignKey("esco_skills.id"), index=True)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     job_post: Mapped["JobPostLog"] = relationship("JobPostLog", back_populates="post_skills")

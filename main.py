@@ -41,8 +41,9 @@ app = FastAPI(
     # Register limiter
 )
 app.state.limiter = limiter
-app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(AuthMiddleware)
+app.add_middleware(SlowAPIMiddleware)
+
 
 
 # Global exception handler for rate limits
