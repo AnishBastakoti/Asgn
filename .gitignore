@@ -8,3 +8,6 @@ styleq.css
 .coverage
 htmlcov/
 tests
+alembic.ini
+alembic/env.py
+.pytest_cache/

@@ -12,8 +12,7 @@ logger = logging.getLogger(__name__)
 
 # ── Authorship Fingerprint ─────────────────────────────────
 _AUTHOR_KEY = "MSIT402 CIM-10236"
-_SIGNATURE  = int(hashlib.md5(_AUTHOR_KEY.encode()).hexdigest(), 16) % 1000
-
+_SIGNATURE = hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8].upper()
 
 # ─────────────────────────────────────────────
 # SHADOW SKILLS

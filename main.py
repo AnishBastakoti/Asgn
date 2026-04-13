@@ -11,6 +11,8 @@ from config import settings
 from app.routers import skills, occupations, analytics, jobs, pipeline, auth
 from app.logger import setup_logging
 from app.database import verify_connection
+from app.routers.public_api import router as public_router
+from app.routers.api_keys  import router as api_keys_router
  
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
@@ -70,6 +72,8 @@ app.include_router(jobs.router)
 app.include_router(analytics.router)
 app.include_router(pipeline.router)
 app.include_router(auth.router)
+app.include_router(public_router)
+app.include_router(api_keys_router)
 #app.include_router(printfile.router)
 
 

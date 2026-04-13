@@ -6,6 +6,11 @@ const an = {
 };
 let forecastChartInstance = null; // Global reference to the Chart instance
 
+// Get the actual hex/rgb value from your CSS
+const style = getComputedStyle(document.body);
+const orange = style.getPropertyValue('--orange').trim() || '#EB5905';
+const coral = style.getPropertyValue('--coral').trim() || '#ff7f50';
+
 // ── Boot ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadOccupations();
@@ -170,7 +175,7 @@ async function updateForecast(occupationId) {
     if (badge) badge.textContent = 'Loading…';
  
     try {
-        // Build URL — pass model preference as query param so backend knows which to use
+        // pass model preference as query param so backend knows which to use
         const url = `/api/analytics/predict-demand-by-occ/${occupationId}?model=${_forecastModel}`;
         const response = await fetch(url, {
             headers: localStorage.getItem('sp_token')
@@ -180,21 +185,21 @@ async function updateForecast(occupationId) {
         if (!response.ok) throw new Error('Forecast data unavailable');
         const data = await response.json();
  
-        // ── Detect actual method used (backend may fallback) ──
+        // ── Detect actual method used──
         const usedMethod  = data.method || (_forecastModel === 'ridge' ? 'ridge_regression' : 'momentum');
         const isRidge     = usedMethod === 'ridge_regression';
         const methodLabel = isRidge ? 'Ridge Regression' : 'Momentum Forecast';
-        const methodColor = isRidge ? 'var(--indigo)' : 'var(--orange)';
+        const methodColor = isRidge ? 'var(--orange)' : 'var(--orange)';
  
         // ── Update switcher active badge ──
         if (badge) {
             badge.textContent  = isRidge ? 'Ridge Active' : 'Momentum Active';
-            badge.style.background = isRidge ? 'var(--indigo-l)' : 'var(--orange-l)';
-            badge.style.color      = isRidge ? 'var(--indigo)'   : '#047857';
+            badge.style.background = isRidge ? 'var(--orange-l)' : 'var(--orange-l)';
+            badge.style.color      = isRidge ? '#047857'   : '#047857';
         }
  
         // ── KPI strip ──
-        const growthColor = data.growth_rate >= 0 ? 'var(--orange)' : 'var(--coral)';
+        const growthColor = data.growth_rate >= 0 ? orange : coral;
         const el = id => document.getElementById(id);
         if (el('fcCurrentDemand'))   el('fcCurrentDemand').textContent   = fmt(data.current_demand);
         if (el('fcPredictedDemand')) el('fcPredictedDemand').textContent = fmt(data.predicted_demand);
@@ -233,6 +238,7 @@ async function updateForecast(occupationId) {
                     pointBackgroundColor: '#fff',
                     pointBorderWidth: 2,
                     borderWidth: 2,
+                    pointerColor: 'rgba(239,68,68)',
                 }]
             },
             options: {

@@ -2,8 +2,8 @@
 
 // ── Colour palette (matches CSS token --indigo, --emerald, etc.) ──────────────
 const JT_COLORS = [
-  // '#F28D05', // orange
-   '#10B981', // emerald
+   '#EB5905', // orange
+  // '#10B981', // emerald
   // '#F43F5E', // coral
   // '#0EA5E9', // sky
   // '#8B5CF6', // violet

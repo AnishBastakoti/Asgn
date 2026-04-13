@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
 
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
     SECRET_KEY: str
     API_KEY: str
     FINGERPRINT_SALT: str

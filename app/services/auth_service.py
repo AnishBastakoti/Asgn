@@ -1,9 +1,12 @@
+import secrets
+
 import jwt
 import bcrypt
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from app.models.auth import SystemEndUser, SystemRolePage, SystemPage
+from app.models.auth import SystemEndUser, SystemRolePage, SystemPage, SystemRole
+
 from config import settings
 
 # ── JWT config ────────────────────────────────────────────────
@@ -43,22 +46,17 @@ def hash_password(plain_password: str) -> str:
 # JWT TOKEN CREATION & VALIDATION
 # ─────────────────────────────────────────────
 
-def create_access_token(user_id: int, email: str, role: str) -> str:
-    """
-    Creates a signed JWT token containing user identity..
-    """
-    now     = datetime.now(timezone.utc)
-    expires = now + timedelta(hours=JWT_EXPIRES_HRS)
-
+def create_access_token(data: dict):
+    now = datetime.utcnow()
     payload = {
-        "sub":   str(user_id),
-        "email": email,
-        "role":  role,
-        "exp":   expires,
-        "iat":   now,
+        "sub":   str(data["user_id"]),
+        "email": data["email"],
+        "role":  data["role"],
+        "exp":   now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        "iat":   now,          # ← issued-at makes token unique every login
+        "jti":   secrets.token_hex(8),  # unique token ID
     }
-
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=JWT_ALGORITHM)
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
 
 def decode_access_token(token: str) -> dict | None:
@@ -107,11 +105,11 @@ def authenticate_user(db: Session, email: str, password: str) -> dict | None:
     role_name = user.role.name if user.role else "viewer"
 
     # Create JWT token
-    token = create_access_token(
-        user_id=user.id,
-        email=user.email,
-        role=role_name,
-    )
+    token = create_access_token({
+        "user_id": user.id,
+        "email": user.email,
+        "role": role_name,
+    })
 
     return {
         "access_token": token,
@@ -156,20 +154,11 @@ def get_current_user(db: Session, token: str) -> dict | None:
 # ─────────────────────────────────────────────
 
 def get_allowed_pages(db: Session, role_name: str) -> list[str]:
-    """
-    Returns list of route paths this role can access.
-    Used to show/hide nav items per user role.
-    """
     role_pages = (
         db.query(SystemPage.route_path)
         .join(SystemRolePage, SystemRolePage.page_id == SystemPage.id)
-        .join(
-            __import__("app.models.auth", fromlist=["SystemRole"]).SystemRole,
-            __import__("app.models.auth", fromlist=["SystemRole"]).SystemRole.id == SystemRolePage.role_id
-        )
-        .filter(
-            __import__("app.models.auth", fromlist=["SystemRole"]).SystemRole.name == role_name
-        )
+        .join(SystemRole, SystemRole.id == SystemRolePage.role_id)
+        .filter(SystemRole.name == role_name)
         .all()
     )
     return [r.route_path for r in role_pages if r.route_path]

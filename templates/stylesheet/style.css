@@ -561,7 +561,11 @@ button.info:hover { background: var(--orange); color: #fff; }
 ══════════════════════════════ */
 .sp-card-section {
   padding: 0.875rem 1rem;
+  background: #fff;
+  border: 2px solid #ddd;
+  border-radius: 12px;
 }
+
 .sp-section-label {
   font-size: 0.6rem;
   font-family: var(--mono);
@@ -1483,6 +1487,8 @@ input.flatpickr-input:focus {
 .sp-occ-list {
   flex: 1;
   overflow-y: auto;
+  background: #fff;
+  border-radius: 12px;
 }
 
 .sp-occ-info {
