@@ -211,7 +211,7 @@ def get_occupation_detail(
             {"level": "major",      "title": major.title if major else None},
             {"level": "sub_major",  "title": sm.title if sm else None},
             {"level": "minor",      "title": m.title if m else None},
-            {"level": "unit",       "title": u.title if u else None},
+            {"level": "unit",       "title": u.title if u  else None},
             {"level": "occupation", "title": occupation.principal_title},
         ],
         "signature": f"SP-{_SIGNATURE:03d}"

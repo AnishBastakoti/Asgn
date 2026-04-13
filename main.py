@@ -36,8 +36,8 @@ app = FastAPI(
     real job posting data and ESCO skill taxonomy.
     """,
     
-    docs_url="/docs",      # Swagger UI at /docs
-    redoc_url="/redocs",     # ReDoc UI at /redoc
+    docs_url="/docs" if settings.DEBUG else None,      # Swagger UI at /docs
+    redoc_url="/redocs" if settings.DEBUG else None,   # ReDoc UI at /redoc
     # Register limiter
 )
 app.state.limiter = limiter

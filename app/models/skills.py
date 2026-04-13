@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from sqlalchemy import Column, Index, Integer, String, Text, DateTime, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
+from pgvector.sqlalchemy import Vector
 from app.database import Base
 
 
@@ -12,6 +13,7 @@ class EscoSkill(Base):
     preferred_label = Column(String, nullable=False)# The main name of the skill, used for display and matching
     skill_type    = Column(String, nullable=True)
     content_hash  = Column(String, nullable=True) 
+    embedding       = Column(Vector(1536), nullable=True)
 
     #-- new columns 
     alt_labels   = Column(Text,   nullable=True)

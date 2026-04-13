@@ -43,15 +43,10 @@ async function api(path, options = {}) {
   if (typeof NProgress !== 'undefined') NProgress.start();
 
   try {
-    const token = localStorage.getItem('sp_token');
     const headers = { 'Content-Type': 'application/json', ...options.headers };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    const response = await fetch(path, { ...options, headers });
+    const response = await fetch(path, { ...options, headers, credentials: 'same-origin' });
 
     if (response.status === 401) {
-      localStorage.removeItem('sp_token');
-      localStorage.removeItem('sp_user');
       window.location.href = '/login';
       return;
     }

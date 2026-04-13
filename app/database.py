@@ -55,10 +55,11 @@ def get_db():
     start = time.perf_counter()
     try:
         yield db
-        db.commit()
-    except Exception:
+    except Exception as e:
         db.rollback()
+        logger.error(f"[{_AUTHOR}|SkillPulse:{_FP}] Transaction failed, rolled back: {e}")
         raise
+    
     finally:
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.debug(f"[{_AUTHOR}|SkillPulse:{_FP}] session closed ({elapsed_ms:.1f}ms)")
@@ -82,9 +83,9 @@ def verify_connection() -> None:
     try:
         with _engine.connect() as conn:
             version = conn.execute(text("SELECT version()")).scalar()
-            logger.info(f"[{_AUTHOR}|SkillPulse] ✅ Database connected: {version[:60]}")
+            logger.info(f"[{_AUTHOR}|SkillPulse] Database connected: {version[:60]}")
             row = conn.execute(text("SELECT COUNT(*) FROM osca_occupations")).scalar()
-            logger.info(f"[{_AUTHOR}|SkillPulse] ✅ Occupations loaded: {row:,} rows")
+            logger.info(f"[{_AUTHOR}|SkillPulse] Occupations loaded: {row:,} rows")
     except Exception as e:
-        logger.error(f"[{_AUTHOR}|SkillPulse] ❌ Database connection failed: {e}")
+        logger.error(f"[{_AUTHOR}|SkillPulse] Database connection failed: {e}")
         raise
