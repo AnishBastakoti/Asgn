@@ -21,9 +21,7 @@ _SIGNATURE = hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8].upper()
 # ── Environment-aware prefix ────────────────────────────────
 _ENV = "liv" if not settings.DEBUG else "tst"
 
-# ── API Key Prefix ─────────────────────────────────────────
-
-KEY_PREFIX = f"AB{_SIGNATURE}liv"
+KEY_PREFIX = settings.KEY_PREFIX
 
 @router.post("/generate")
 def generate_api_key(

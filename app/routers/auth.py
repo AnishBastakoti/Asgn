@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
+from fastapi.responses import JSONResponse
 
 from app.database import get_db
+from config import settings
 from app.services.auth_service import authenticate_user, get_allowed_pages
 from core.auth_deps import require_auth
 from core.rate_limiter import limiter
@@ -36,7 +38,7 @@ class UserResponse(BaseModel):
 
 # ── Endpoints ─────────────────────────────────────────────────
 
-@router.post("/login", response_model=LoginResponse)
+@router.post("/login")
 @limiter.limit("10/minute")
 def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     """
@@ -45,8 +47,6 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     Also sets an httpOnly cookie so server-side middleware can protect HTML pages.
     Rate limited to 10 attempts/minute per IP to prevent brute force.
     """
-    from fastapi.responses import JSONResponse
-
     result = authenticate_user(db, body.email, body.password)
 
     if not result:
@@ -56,15 +56,21 @@ def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Return JSON + set httpOnly cookie so server middleware can verify pages
+    # Extract the token and remove it from the JSON body
+    token = result.pop("access_token")
+
+    #response with the remaining user info (roles, names, etc.)
     response = JSONResponse(content=result)
+
+    #set the httpOnly cookie
     response.set_cookie(
         key="sp_token",
-        value=result["access_token"],
+        value=token,
         httponly=True,       # JS cannot read it — prevents XSS token theft
         samesite="lax",      # prevents CSRF on cross-site requests
         max_age=result["expires_in"],
         path="/",
+        secure=not settings.DEBUG,  # Only send cookie over HTTPS in production
     )
     return response
 

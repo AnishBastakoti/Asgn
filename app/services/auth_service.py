@@ -2,7 +2,7 @@ import secrets
 
 import jwt
 import bcrypt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.models.auth import SystemEndUser, SystemRolePage, SystemPage, SystemRole
@@ -47,13 +47,13 @@ def hash_password(plain_password: str) -> str:
 # ─────────────────────────────────────────────
 
 def create_access_token(data: dict):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     payload = {
         "sub":   str(data["user_id"]),
         "email": data["email"],
         "role":  data["role"],
         "exp":   now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-        "iat":   now,          # ← issued-at makes token unique every login
+        "iat":   now,          #  issued-at makes token unique every login
         "jti":   secrets.token_hex(8),  # unique token ID
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
