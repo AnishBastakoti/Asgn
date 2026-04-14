@@ -183,6 +183,6 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
-        reload=settings.DEBUG,  # auto-reload on code changes in dev
+        reload=settings.DEBUG,  # auto-reload on code changes in devlopment 
         loop="asyncio"
     )
