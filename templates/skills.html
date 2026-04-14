@@ -5,7 +5,6 @@
 
 {% block extra_css %}
 <style>
-<<<<<<< HEAD
 /* ── Layout ─────────────────────────────────────────────────────────────────*/
 .jt-layout          { display: grid; grid-template-columns: 260px 1fr; gap: 16px; min-height: 0; transition: grid-template-columns 0.25s ease; }
 .jt-picker          { display: flex; flex-direction: column; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--rad); overflow: scroll; box-shadow: var(--shadow-card); }
@@ -52,66 +51,10 @@
 .jt-heatmap-table         { border-collapse: collapse; font-size: 11.5px; }
 .jt-heatmap-table th      { padding: 6px 10px; font-weight: 600; color: var(--text2); text-align: center; white-space: nowrap; font-size: 11px; }
 .jt-heatmap-table td      { padding: 8px 10px; text-align: center; border: 1px solid var(--border); }
-=======
-.jt-hot-list { display: flex; flex-direction: column; gap: 7px; max-height: 150px; overflow-y: auto; }
-.jt-hot-row  { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
-.jt-hot-rank { width: 20px; text-align: right; color: var(--muted); font-family: var(--mono); font-size: 11px; flex-shrink: 0; }
-.jt-hot-name { flex: 1; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.jt-hot-bar-wrap { width: 120px; height: 6px; background: var(--orange-l); border-radius: 99px; flex-shrink: 0; }
-.jt-hot-bar  { height: 100%; background: var(--orange); border-radius: 99px; }
-.jt-hot-count { width: 38px; text-align: right; font-family: var(--mono); font-size: 11px; color: var(--text2); flex-shrink: 0; }
-.jt-layout   { display: grid; grid-template-columns: 260px 1fr; gap: 16px; min-height: 0; }
-.jt-picker   { display: flex; flex-direction: column; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--rad); overflow: scroll; box-shadow: var(--shadow-card); }
-.jt-picker-header { padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-.jt-occ-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 16px; cursor: pointer; font-size: 12.5px; color: var(--text2); transition: background .12s; gap: 8px; }
-.jt-occ-item:hover  { background: var(--orange-l); color: var(--text); }
-.jt-occ-item.active { background: var(--orange-l); color: var(--orange); font-weight: 600; }
-.jt-occ-item .occ-title { flex: 1; }
-.jt-occ-badge { font-size: 10px; font-family: var(--mono); background: var(--orange-l); color: var(--orange); padding: 1px 5px; border-radius: 4px; flex-shrink: 0; }
-.jt-occ-item.active .jt-occ-badge { background: var(--orange); color: #fff; }
-.jt-occ-item.no-data { opacity: 0.4; cursor: default; }
-.jt-occ-item.no-data:hover { background: none; }
-.jt-chart-panel { display: flex; flex-direction: column; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--rad); box-shadow: var(--shadow-card); min-width: 0; overflow: auto; }
-.jt-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
-.jt-chip { padding: 6px 14px; border: 1px solid var(--border2); border-radius: 99px; font-size: 12px; cursor: pointer; color: var(--text2); transition: all .15s; }
-.jt-chip:hover { background: var(--orange-l); border-color: var(--orange); color: var(--orange); }
-.jt-occ-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-.jt-occ-header-name { font-size: 14px; font-weight: 700; color: var(--text); }
-.jt-occ-header-sub  { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-.jt-level-badge { font-size: 11px; font-family: var(--mono); background: var(--orange-l); color: var(--orange); padding: 3px 8px; border-radius: var(--rad-sm); }
-.jt-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 16px; gap: 4px; flex-shrink: 0; }
-.jt-tab { padding: 12px 14px; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; white-space: nowrap; }
-.jt-tab:hover  { color: var(--text2); }
-.jt-tab.active { color: var(--orange); border-bottom-color: var(--orange); }
-.jt-tab-content { flex: 1; overflow-y: auto; padding: 20px; }
-.jt-pane { display: none; }
-.jt-pane.active { display: block; }
-.jt-chart-wrap { position: relative; height: 280px; margin-bottom: 16px; }
-.jt-chart-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-.jt-chart-sub   { font-size: 11.5px; color: var(--muted); margin-bottom: 14px; }
-.jt-company-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.jt-company-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
-.jt-company-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: middle; }
-.jt-company-table tr:last-child td { border-bottom: none; }
-.jt-company-table tr:hover td { background: var(--orange-l); }
-.jt-company-rank { font-family: var(--mono); font-size: 11px; color: var(--muted); }
-.jt-company-bar-wrap { width: 120px; height: 6px; background: var(--orange-l); border-radius: 99px; }
-.jt-company-bar { height: 100%; background: var(--orange); border-radius: 99px; }
-.jt-company-count { font-family: var(--mono); font-weight: 600; color: var(--text); }
-.jt-loading { display: flex; align-items: center; justify-content: center; height: 200px; color: var(--muted); font-size: 13px; gap: 8px; }
-.jt-empty   { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 13px; }
-.sp-spinner-sm { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--orange); border-radius: 50%; animation: spin .7s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.jt-heatmap-wrap { overflow-x: auto; }
-.jt-heatmap-table { border-collapse: collapse; font-size: 11.5px; }
-.jt-heatmap-table th { padding: 6px 10px; font-weight: 600; color: var(--text2); text-align: center; white-space: nowrap; font-size: 11px; }
-.jt-heatmap-table td { padding: 8px 10px; text-align: center; border: 1px solid var(--border); }
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 .jt-heatmap-table .row-label { text-align: left; white-space: nowrap; font-weight: 500; color: var(--text2); padding-right: 14px; }
 .hm-cell-1 { background: var(--orange); color: white; font-weight: 700; }
 .hm-cell-0 { background: var(--orange-l); color: var(--muted); }
 
-<<<<<<< HEAD
 /* ── Companies tab ───────────────────────────────────────────────────────────*/
 .jt-company-table                  { width: 100%; border-collapse: collapse; font-size: 13px; }
 .jt-company-table th               { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
@@ -167,67 +110,6 @@
         width: 100%;
     }
 }
-=======
-/* ── Picker Toggle ── */
-.jt-picker-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 8px;
-  background: var(--shell-bg);
-  border: none;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 700;
-  transition: all 0.2s;
-  flex-shrink: 0;
-  letter-spacing: 0.05em;
-}
-.jt-picker-toggle:hover { background: var(--orange-l); color: var(--orange); }
-.jt-picker-toggle .toggle-icon { transition: transform 0.25s ease; display: inline-block; }
-
-/* Collapsed state */
-.jt-layout.picker-collapsed {
-  grid-template-columns: 38px 1fr;
-}
-.jt-layout.picker-collapsed .jt-picker-header,
-.jt-layout.picker-collapsed .sp-right-header,
-.jt-layout.picker-collapsed .sp-occ-list {
-  display: none;
-}
-.jt-layout.picker-collapsed .jt-picker-toggle .toggle-icon {
-  transform: rotate(180deg);
-}
-.jt-layout.picker-collapsed .jt-picker {
-  align-items: center;
-}
-
-/* Smooth transition */
-.jt-layout { transition: grid-template-columns 0.25s ease; }
-
-/* print button */
-.jt-occ-header { display: flex; align-items: center; gap: 15px; }
-
-.jt-print-btn { background: #fff; border: 1px solid #e2e8f0;
-    color: var(--orange);
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.jt-print-btn:hover { background: #f8fafc; border-color: var(--orange); box-shadow: 0 2px 4px rgba(99, 102, 241, 0.1); }
-
-.jt-print-btn.is-loading { opacity: 0.7; pointer-events: none; }
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 </style>
 {% endblock %}
 
@@ -271,23 +153,12 @@
           <div class="jt-occ-header-name" id="jtOccName">&mdash;</div>
           <div class="jt-occ-header-sub">Job demand analysis</div>
         </div>
-<<<<<<< HEAD
-=======
-        <button id="btnPdfExport" class="jt-print-btn" onclick="downloadPDF()" style="display:none;">
-          <i class="bi bi-file-earpath-pdf"></i> 
-          <span>Print Report</span>
-        </button>
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
         <span class="jt-level-badge" id="jtOccLevel">&mdash;</span>
       </div>
 
       <div class="jt-tabs">
         <div class="jt-tab active" data-tab="cities"><i class="bi bi-geo-alt-fill me-1"></i>City Demand</div>
-<<<<<<< HEAD
         <div class="jt-tab" data-tab="skills"><i class="bi bi-graph-up me-1"></i>Skill Gaps</div>
-=======
-        <div class="jt-tab" data-tab="trends"><i class="bi bi-graph-up me-1"></i>Skill Trends</div>
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
         <div class="jt-tab" data-tab="overlap"><i class="bi bi-grid-3x3 me-1"></i>Skill Overlap</div>
         <div class="jt-tab" data-tab="companies"><i class="bi bi-building me-1"></i>Companies</div>
         <div class="jt-tab" data-tab="topskills"><i class="bi bi-bar-chart-fill me-1"></i>Top Skills</div>
@@ -302,7 +173,6 @@
           <div id="cityLeadInsight" style="display:none; margin-top:12px;"></div>
         </div>
 
-<<<<<<< HEAD
         <div class="jt-pane" id="pane-skills">
           <div class="jt-chart-title">Skill Gap Analysis</div>
           <div class="jt-chart-sub">Official OSCA skills &mdash; coverage in real job postings</div>
@@ -318,12 +188,6 @@
             </div>
             <div class="jt-gap-cards-col" id="gapTypeCards"></div>
           </div>
-=======
-        <div class="jt-pane" id="pane-trends">
-          <div class="jt-chart-title">Skill Demand Over Time</div>
-          <div class="jt-chart-sub">Top 5 skills &mdash; mention count across snapshot batches</div>
-          <div class="jt-chart-wrap" style="height:300px;"><canvas id="chartTrends"></canvas></div>
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
         </div>
 
         <div class="jt-pane" id="pane-overlap">

@@ -1,9 +1,4 @@
-<<<<<<< HEAD
 /* ── Occupation Header----------------------------------- */
-=======
-
-/* ── Occupation Header ─────────────────────────────── */
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 .an-occ-header {
   display: flex;
   align-items: center;
@@ -27,11 +22,7 @@
   margin-top: 2px;
 }
 
-<<<<<<< HEAD
 /* ── Forecast Card-----------------------------------──── */
-=======
-/* ── Forecast Card ─────────────────────────────────── */
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 .an-forecast-card {
   background: #fff;
   border: 1px solid var(--border);
@@ -62,11 +53,7 @@
   height: 220px;
 }
 
-<<<<<<< HEAD
 /* ── Tab Bar----------------------------------- */
-=======
-/* ── Tab Bar ───────────────────────────────────────── */
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 .an-tab-bar {
   display: flex;
   gap: 0;
@@ -108,11 +95,7 @@
   box-shadow: 0 1px 4px rgba(99,102,241,0.12);
 }
 
-<<<<<<< HEAD
 /* ── Tab Badge-----------------------------------──────── */
-=======
-/* ── Tab Badge ─────────────────────────────────────── */
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 .an-tab-badge {
   display: inline-flex;
   align-items: center;
@@ -130,11 +113,7 @@
 .an-tab-badge.amber  { background: #FEF3C7; color: #B45309; }
 .an-tab-badge.sky    { background: #E0F2FE; color: #0369A1; }
 
-<<<<<<< HEAD
 /* ── Tab Content-----------------------------------────── */
-=======
-/* ── Tab Content ───────────────────────────────────── */
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 .an-tab-content {
   background: #fff;
   border: 1px solid var(--border);
@@ -167,11 +146,7 @@
   line-height: 1.6;
 }
 
-<<<<<<< HEAD
 /* ── Loading / Empty States ────── */
-=======
-/* ── Loading / Empty States ────────────────────────── */
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 .an-loading {
   display: flex;
   align-items: center;
@@ -189,11 +164,7 @@
   text-align: center;
 }
 
-<<<<<<< HEAD
 /* ── Velocity Styles-----------------------------------── */
-=======
-/* ── Velocity Styles ───────────────────────────────── */
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 .an-velocity-notice {
   background: rgba(99,102,241,0.06);
   border: 1px solid rgba(99,102,241,0.15);
@@ -241,11 +212,7 @@
 .an-vel-badge.falling  { background:#FEF2F2; color:#B91C1C; }
 .an-vel-badge.stable   { background:#F3F4F6; color:#6B7280; }
 
-<<<<<<< HEAD
 /* ── Saturation Gauge-----------------------------------─ */
-=======
-/* ── Saturation Gauge ──────────────────────────────── */
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 .an-gauge-track {
   position: relative;
   height: 12px;
@@ -270,11 +237,7 @@
   z-index: 2;
 }
 
-<<<<<<< HEAD
 /* ── Saturation Stats Grid ─────── */
-=======
-/* ── Saturation Stats Grid ─────────────────────────── */
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 .an-sat-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;
@@ -291,11 +254,7 @@
 .an-sat-val { font-size: 18px; font-weight: 700; color: #111827; }
 .an-sat-lbl { font-size: 10px; color: #9CA3AF; margin-top: 2px; }
 
-<<<<<<< HEAD
 /* ── Insight Box-----------------------------------────── */
-=======
-/* ── Insight Box ───────────────────────────────────── */
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 .an-insight-box {
   background: rgba(245,158,11,0.06);
   border: 1px solid rgba(245,158,11,0.2);
