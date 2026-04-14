@@ -1,16 +1,10 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-<<<<<<< HEAD
 from sqlalchemy import func, text
 from typing import Optional
 
 
 from core.auth_deps import require_auth
-=======
-from sqlalchemy import func
-from typing import Optional
-
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 from app.database import get_db
 from app.models.osca import (
     OscaMajorGroup, OscaSubMajorGroup, OscaMinorGroup,
@@ -20,16 +14,10 @@ from app.models.skills import OscaOccupationSkill
 
 router = APIRouter(prefix="/api/occupations", tags=["occupations"])
 
-<<<<<<< HEAD
 _auth = [Depends(require_auth)]
 
 @router.get("/major-groups")
 def get_major_groups(db: Session = Depends(get_db), user = Depends(require_auth)):
-=======
-
-@router.get("/major-groups")
-def get_major_groups(db: Session = Depends(get_db)):
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
     """
     All major groups with how many occupations fall under each.
     Used to populate the first sidebar dropdown.
@@ -56,12 +44,8 @@ def get_major_groups(db: Session = Depends(get_db)):
 @router.get("/sub-major-groups")
 def get_sub_major_groups(
     major_group_id: int = Query(...),
-<<<<<<< HEAD
     db: Session = Depends(get_db), 
     user = Depends(require_auth)
-=======
-    db: Session = Depends(get_db)
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 ):
     """Sub-major groups for a given major group."""
     rows = (
@@ -76,12 +60,8 @@ def get_sub_major_groups(
 @router.get("/minor-groups")
 def get_minor_groups(
     sub_major_group_id: int = Query(...),
-<<<<<<< HEAD
     db: Session = Depends(get_db),
     user = Depends(require_auth)
-=======
-    db: Session = Depends(get_db)
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 ):
     """Minor groups for a given sub-major group."""
     rows = (
@@ -97,18 +77,9 @@ def list_occupations(
     major_group_id:     Optional[int] = Query(None),
     sub_major_group_id: Optional[int] = Query(None),
     minor_group_id:     Optional[int] = Query(None),
-<<<<<<< HEAD
     db: Session = Depends(get_db),
     user = Depends(require_auth)
 ):
-=======
-    db: Session = Depends(get_db)
-):
-    import time
-    from sqlalchemy import text
-
-    t0 = time.time()
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
     
     sql = """
         SELECT 
@@ -149,12 +120,6 @@ def list_occupations(
     sql += " ORDER BY o.principal_title"
 
     rows = db.execute(text(sql), params).fetchall()
-<<<<<<< HEAD
-=======
-    print(f"[TIMING] DB query: {time.time()-t0:.3f}s")
-
-    t1 = time.time()
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
     occ_ids = [r.id for r in rows]
     alt_rows = (
         db.query(OscaAlternativeTitle.occupation_id, OscaAlternativeTitle.title)
@@ -164,14 +129,8 @@ def list_occupations(
     alt_map = {}
     for a in alt_rows:
         alt_map.setdefault(a.occupation_id, []).append(a.title.lower())
-<<<<<<< HEAD
 
 
-=======
-    print(f"[TIMING] Alt titles: {time.time()-t1:.3f}s")
-
-    t2 = time.time()
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
     result = [
         {
             "id":            r.id,
@@ -185,20 +144,11 @@ def list_occupations(
         }
         for r in rows
     ]
-<<<<<<< HEAD
-=======
-    print(f"[TIMING] Serialization: {time.time()-t2:.3f}s")
-    print(f"[TIMING] TOTAL: {time.time()-t0:.3f}s")
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 
     return result
 
 @router.get("/{occupation_id}")
-<<<<<<< HEAD
 def get_occupation_detail(occupation_id: int, db: Session = Depends(get_db), user = Depends(require_auth)):
-=======
-def get_occupation_detail(occupation_id: int, db: Session = Depends(get_db)):
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
     occupation = (
         db.query(
             OscaOccupation.id,

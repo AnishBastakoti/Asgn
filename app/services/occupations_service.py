@@ -1,11 +1,7 @@
 import logging
 import hashlib
 from typing import Optional
-<<<<<<< HEAD
 from sqlalchemy.orm import Session, joinedload
-=======
-from sqlalchemy.orm import Session
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 from sqlalchemy import String, func
 
 from app.models.osca import (
@@ -22,13 +18,7 @@ logger = logging.getLogger(__name__)
 
 # --- Authorship Fingerprint
 _AUTHOR_KEY = "MSIT402 CIM-10236" 
-<<<<<<< HEAD
 _SIGNATURE = hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8].upper()
-=======
-_SIGNATURE  = int(hashlib.md5(_AUTHOR_KEY.encode()).hexdigest(), 16) % 1000
-
-
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 # ── Hierarchy Functions
 
 def get_major_groups(db: Session) -> list[dict]:
@@ -185,47 +175,24 @@ def get_occupation_detail(
     """
     occupation = (
         db.query(OscaOccupation)
-<<<<<<< HEAD
         .options(
             joinedload(OscaOccupation.unit_group)
             .joinedload(OscaUnitGroup.minor_group)
             .joinedload(OscaMinorGroup.sub_major_group)
             .joinedload(OscaSubMajorGroup.major_group)
         )
-=======
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
         .filter(OscaOccupation.id == occupation_id)
         .first()
     )
 
     if not occupation:
         return None
-<<<<<<< HEAD
     
     #  clean, data is already in memory
     u = occupation.unit_group
     m = u.minor_group if u else None
     sm = m.sub_major_group if m else None
     major = sm.major_group if sm else None
-=======
-
-    # the hierarchy to build breadcrumb
-    unit_group    = db.query(OscaUnitGroup).filter(
-                        OscaUnitGroup.id == occupation.unit_group_id
-                    ).first()
-
-    minor_group   = db.query(OscaMinorGroup).filter(
-                        OscaMinorGroup.id == unit_group.minor_group_id
-                    ).first() if unit_group else None
-
-    sub_major     = db.query(OscaSubMajorGroup).filter(
-                        OscaSubMajorGroup.id == minor_group.sub_major_group_id
-                    ).first() if minor_group else None
-
-    major         = db.query(OscaMajorGroup).filter(
-                        OscaMajorGroup.id == sub_major.major_group_id
-                    ).first() if sub_major else None
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 
     return {
         "id":            occupation.id,
@@ -241,17 +208,10 @@ def get_occupation_detail(
         "information_card":  occupation.information_card,
         # content_hash, embedding excluded for now
         "breadcrumb": [
-<<<<<<< HEAD
             {"level": "major",      "title": major.title if major else None},
             {"level": "sub_major",  "title": sm.title if sm else None},
             {"level": "minor",      "title": m.title if m else None},
             {"level": "unit",       "title": u.title if u  else None},
-=======
-            {"level": "major",      "title": major.title        if major       else None},
-            {"level": "sub_major",  "title": sub_major.title    if sub_major   else None},
-            {"level": "minor",      "title": minor_group.title  if minor_group else None},
-            {"level": "unit",       "title": unit_group.title   if unit_group  else None},
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
             {"level": "occupation", "title": occupation.principal_title},
         ],
         "signature": f"SP-{_SIGNATURE:03d}"

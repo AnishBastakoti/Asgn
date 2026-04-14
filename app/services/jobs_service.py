@@ -1,40 +1,20 @@
 import logging
 import hashlib
-<<<<<<< HEAD
-=======
-import numpy as np
-import math
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
-<<<<<<< HEAD
 from sqlalchemy import func, text
 
 from app.models.jobs import JobPostLog, JobPostSkill
 from app.models.skills import EscoSkill, OscaOccupationSkill
-=======
-from sqlalchemy import func
-from sqlalchemy import func, cast
-from sqlalchemy.types import Date
-
-from app.models.pipeline import PipelineRun
-from app.models.jobs import JobPostLog, JobPostSkill
-from app.models.skills import EscoSkill, OscaOccupationSkillSnapshot, OscaOccupationSkill
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 from app.models.osca import OscaOccupation
 
 logger = logging.getLogger(__name__)
 
 # ── Authorship Fingerprint ─────────────────────────────────
 _AUTHOR_KEY = "MSIT402 CIM-10236"
-<<<<<<< HEAD
 _SIGNATURE = hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8].upper()
-=======
-_SIGNATURE  = int(hashlib.md5(_AUTHOR_KEY.encode()).hexdigest(), 16) % 1000
-
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 
 # ── City Demand ─────────────────────────────────────────
 def get_cities_by_occupation(db: Session, occupation_id: int) -> list[dict]:
@@ -63,7 +43,6 @@ def get_cities_by_occupation(db: Session, occupation_id: int) -> list[dict]:
 
 
 # ── Skill Trends Over Time ──────────────────────────────
-<<<<<<< HEAD
 # def get_skill_trends_by_occupation(db: Session, occupation_id: int) -> list[dict]:
 #     """
 #     Real time-weighted x-axis actual days
@@ -230,174 +209,6 @@ def get_cities_by_occupation(db: Session, occupation_id: int) -> list[dict]:
 #     except Exception as e:
 #         logger.error(f"[MSIT402|SP] get_skill_trends_by_occupation failed: {e}")
 #         return []
-=======
-def get_skill_trends_by_occupation(db: Session, occupation_id: int) -> list[dict]:
-    """
-    Real time-weighted x-axis actual days
-    Normalised relative slope (% change per day, scale-independent)
-    Smoothed signal via rolling average (removes single-pipeline noise)
-    Minimum data guard (requires at least 2 snapshots to call a trend)
-    Consistent classification thresholds across both trend functions
-    """
-    try:
-        rows = (
-            db.query(
-                EscoSkill.id.label("skill_id"),
-                EscoSkill.preferred_label.label("skill_name"),
-                EscoSkill.concept_uri,
-                OscaOccupationSkillSnapshot.snapshot_date,
-                OscaOccupationSkillSnapshot.mention_count,
-            )
-            .join(
-                EscoSkill,
-                EscoSkill.id == OscaOccupationSkillSnapshot.skill_id
-            )
-            .filter(OscaOccupationSkillSnapshot.occupation_id == occupation_id)
-            .order_by(OscaOccupationSkillSnapshot.snapshot_date.asc())
-            .all()
-        )
-
-        if not rows:
-            return []
-        
-        # Fetch jobs_scraped per run date — one row per pipeline run
-        run_rows = (
-            db.query(
-                cast(PipelineRun.run_date, Date).label("run_date"),
-                PipelineRun.jobs_scraped
-            )
-            .filter(PipelineRun.status == "completed")   # ignore failed runs
-            .filter(PipelineRun.jobs_scraped > 0)        # ignore zero-count runs
-            .all()
-        )
-
-        # Build lookup: "2025-03-01" --> 500
-        jobs_per_date = {
-            str(r.run_date): r.jobs_scraped
-            for r in run_rows
-        }
-
-        # Group by skill -real time axis
-        
-        all_dates  = sorted(set(r.snapshot_date for r in rows))
-        origin     = all_dates[0]
-        day_index  = {d: (d - origin).days for d in all_dates}
-        snapshot_count = len(all_dates)
-
-        skill_map = defaultdict(lambda: {"name": "", "uri": None, "points": []})
-        for r in rows:
-            entry = skill_map[r.skill_id]
-            entry["name"] = r.skill_name
-            entry["uri"]  = r.concept_uri
-            date_str       = str(r.snapshot_date)[:10]
-            total_that_run = jobs_per_date.get(date_str, None)
-            entry["points"].append({
-                "date":     str(r.snapshot_date)[:10],
-                "day":      day_index[r.snapshot_date],
-                "count":    r.mention_count,
-                "rate": round(r.mention_count / total_that_run, 6) if total_that_run else None,
-            })
-
-        # Score and classify each skill ─────────────────────────────
-        result = []
-        for sid, data in skill_map.items():
-            points = data["points"]
-            counts = [p["count"] for p in points]
-            days   = [p["day"]   for p in points]
-            rates = [p["rate"] for p in points]
-
-            latest_count = counts[-1]
-            peak_count   = max(counts)
-            use_rates = all(r is not None for r in rates)
-            signal    = rates if use_rates else counts
-
-            # Smoothed signal (rolling average with window=2) ───────
-            # Removes noise from single pipeline runs that caught unusually
-            # many or few job posts. With only 2 points, no smoothing needed.
-            SMOOTH_WINDOW = 3
-
-            if len(signal) >= SMOOTH_WINDOW + 1:
-                smoothed = [
-                    sum(signal[max(0, i - 1):i + 2]) /
-                    len(signal[max(0, i - 1):i + 2])
-                    for i in range(len(signal))
-                ]
-            else:
-                smoothed = signal[:]
-
-            # Normalised slope (% change per day) ───────────────────
-            # Divides by the mean count so a +5 slope on a skill averaging
-            # 100 mentions = 5% growth/day, same as +1 on a skill averaging 20.
-            # This makes thresholds meaningful regardless of skill popularity.
-            if len(smoothed) >= 2 and days[-1] > days[0]:
-                time_span   = days[-1] - days[0]
-                mean_count  = sum(smoothed) / len(smoothed) or 1
-
-                # Weighted least-squares slope using real day axis
-                n   = len(smoothed)
-                sx  = sum(days)
-                sy  = sum(smoothed)
-                sxy = sum(days[i] * smoothed[i] for i in range(n))
-                sx2 = sum(d * d for d in days)
-                denom = n * sx2 - sx * sx
-
-                raw_slope        = (n * sxy - sx * sy) / denom if denom else 0
-                normalised_slope = raw_slope / mean_count  # fraction per day
-
-                # Consistent thresholds (% change per day) ─────────
-                # 3% per month growth
-                if normalised_slope > 0.001:
-                    trend = "growing"
-                elif normalised_slope < -0.001:
-                    trend = "declining"
-                else:
-                    trend = "stable"
-
-                velocity = round(normalised_slope * 100, 3)  # as % per day
-
-            else:
-                trend    = "stable"
-                velocity = 0.0
-
-            # Momentum — recent change vs overall trend ─────────────
-            # Flags skills where the LAST interval differs from the overall
-            # trend — early warning of reversals.
-            if len(counts) >= 3:
-                recent_delta  = counts[-1] - counts[-2]
-                overall_delta = counts[-1] - counts[0]
-                momentum = "accelerating" if (recent_delta > 0 and overall_delta > 0 and
-                                               recent_delta > overall_delta / max(len(counts)-1, 1)) \
-                      else "decelerating" if (recent_delta < 0 and trend == "growing") \
-                      else "steady"
-            else:
-                momentum = "steady"
-
-            result.append({
-                "skill_id":      sid,
-                "skill_name":    data["name"],
-                "concept_uri":   data["uri"],
-                "points":        points,          # full time series for chart
-                "trend":         trend,
-                "velocity":      velocity,        # % per day
-                "momentum":      momentum,
-                "latest_count":  latest_count,
-                "peak_count":    peak_count,
-                "snapshot_count": snapshot_count,
-            })
-
-        # growing first by velocity, then by latest count ─────
-        result.sort(key=lambda x: (
-            x["trend"] != "growing",       # growing first
-            -x["velocity"],                 # fastest growing
-            -x["latest_count"],             # then by current demand
-        ))
-
-        return result[:10]   # top 10 is enough for a chart
-
-    except Exception as e:
-        logger.error(f"[MSIT402|SP] get_skill_trends_by_occupation failed: {e}")
-        return []
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 
 
 # ── Skill Overlap ───────────────────────────────────────
@@ -557,23 +368,10 @@ def get_city_lead_indicator(db: Session, occupation_id: int) -> list[dict]:
 # HOT SKILLS FOR EACH OCCUPATIONS
 # Returns top most-mentioned skills from job posts in the last N days.
 # ─────────────────────────────────────────────
-<<<<<<< HEAD
 def get_hot_skills_for_occupation(db: Session, occupation_id: int, days: int = 30) -> list[dict]:
     try:
         # Calculate cutoff - strip tzinfo if DB stores naive timestamps
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
-=======
-def get_hot_skills_for_occupation(db: Session, occupation_id:int, days: int = 30) -> list[dict]:
-    
-    """
-    Top skills for a specific occupation from job posts in last N days.
-    Falls back to all-time data if no pipeline has run in that window.
-    Returns the data + a flag indicating whether fallback was used.
-    """
-    try:
-        # recent window first
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
         
         def run_query(timestamp_filter=None):
             q = (
@@ -597,7 +395,6 @@ def get_hot_skills_for_occupation(db: Session, occupation_id:int, days: int = 30
             ).order_by(func.count(JobPostSkill.id).desc()).limit(20).all()
 
         rows = run_query(cutoff)
-<<<<<<< HEAD
 
         # Fallback logic
         if not rows:
@@ -743,32 +540,3 @@ def get_skill_gap_radar(db: Session, occupation_id: int) -> dict | None:
         "by_type": by_type,
     }
  
-=======
-        is_fallback = False
-
-        # Fallback: If empty, just get the most recent 50 overall
-        if not rows:
-            logger.warning(f"No hot skills in last {days} for occupation {occupation_id}. Falling back to all-time.")
-            rows = run_query(None) 
-
-        if not rows: return {"skills": [], "is_fallback": False, "days": days}
-
-        max_mentions = rows[0].total_mentions or 1
-        return {
-            "skills": [
-                {
-                    "skill_name":     r.skill_name[:1].upper() + r.skill_name[1:] if r.skill_name else "Unknown",
-                    "concept_uri":    r.concept_uri,
-                    "skill_type":     r.skill_type or "unknown",
-                    "total_mentions": r.total_mentions,
-                    "share_pct":      round((r.total_mentions / max_mentions) * 100, 1),
-                }
-                for r in rows
-            ],
-            "is_fallback": is_fallback,
-            "days":        days,
-        }
-    except Exception as e:
-        logger.error(f"get_hot_skills_for_occupation failed occ={occupation_id}: {e}")
-        return {"skills": [], "is_fallback": False, "days": days}
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
