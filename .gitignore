@@ -5,12 +5,9 @@ __pycache__/
 .env.*
 styleq.css
 .vscode
-<<<<<<< HEAD
 .coverage
 htmlcov/
 tests
 alembic.ini
 alembic/env.py
 .pytest_cache/
-=======
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
