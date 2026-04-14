@@ -7,7 +7,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 
-from app.services.auth_service import decode_access_token
+from app.services.auth_service import (
+    decode_access_token,
+    get_allowed_html_pages,
+    normalize_page_route,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +24,7 @@ EXEMPT_PATHS: frozenset[str] = frozenset(
         "/login",
         "/health",
         # Docs routes are protected by the application session cookie and
-        # admin-role check in core/docs.py.
+        # admin-role check in core/docs.py, so they are handled specially.
         "/redocs",
         # PWA / manifest files — must load before any auth check
         "/manifest.json",
@@ -62,6 +66,30 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if path.startswith("/api/"):
             return await call_next(request)
 
+        # ── Docs routes — validate session cookie and populate request.state.user
+        # without applying HTML page ACL checks.
+        if path in ("/docs", "/openapi.json"):
+            token: str | None = request.cookies.get("sp_token")
+            if not token:
+                logger.debug("[AuthMiddleware] No token for %r → /login", path)
+                return RedirectResponse(url="/login", status_code=302)
+
+            payload: dict | None = decode_access_token(token)
+            if not payload:
+                logger.debug(
+                    "[AuthMiddleware] Invalid/expired token for %r → /login", path
+                )
+                response = RedirectResponse(url="/login", status_code=302)
+                response.delete_cookie(key="sp_token", path="/", httponly=True)
+                return response
+
+            request.state.user = {
+                "user_id": int(payload.get("sub", 0)),
+                "email":   payload.get("email", ""),
+                "role":    payload.get("role", "viewer"),
+            }
+            return await call_next(request)
+
         # ──  HTML page routes — validate session cookie ─────────────────────
         token: str | None = request.cookies.get("sp_token")
 
@@ -90,5 +118,16 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "email":   payload.get("email", ""),
             "role":    payload.get("role", "viewer"),
         }
+
+        request.state.allowed_pages = get_allowed_html_pages(request.state.user["role"])
+        requested_page = normalize_page_route(path)
+        if requested_page not in request.state.allowed_pages:
+            logger.debug(
+                "[AuthMiddleware] Access denied for %r role=%r page=%r",
+                path,
+                request.state.user["role"],
+                requested_page,
+            )
+            return RedirectResponse(url="/", status_code=302)
 
         return await call_next(request)

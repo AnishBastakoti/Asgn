@@ -118,13 +118,19 @@ async def _no_cache_static(request: Request, call_next):
 
 def _render(request: Request, template_name: str, page: str) -> HTMLResponse:
     """Render a Jinja2 template with the standard context variables."""
+    user_role = getattr(getattr(request, 'state', None), 'user', {}).get('role', '')
+    if isinstance(user_role, str):
+        user_role = user_role.lower().strip()
+    allowed_pages = getattr(getattr(request, 'state', None), 'allowed_pages', [])
     return templates.TemplateResponse(
         request=request,
         name=template_name,
         context={
-            "active_page": page,
-            "app_name":    settings.APP_NAME,
-            "app_version": settings.APP_VERSION,
+            "active_page":   page,
+            "app_name":      settings.APP_NAME,
+            "app_version":   settings.APP_VERSION,
+            "user_role":     user_role,
+            "allowed_pages": allowed_pages,
         },
     )
 

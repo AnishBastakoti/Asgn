@@ -162,3 +162,35 @@ def get_allowed_pages(db: Session, role_name: str) -> list[str]:
         .all()
     )
     return [r.route_path for r in role_pages if r.route_path]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HTML page access helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+_HTML_PAGE_ROUTES: set[str] = {
+    "dashboard",
+    "skills",
+    "occupations",
+    "analytics",
+    "career",
+    "model-status",
+}
+_DEFAULT_VIEWER_ROUTES: set[str] = {"dashboard", "career"}
+_ADMIN_ROLES: frozenset[str] = frozenset({"admin", "administrator"})
+
+
+def is_admin_role(role_name: str) -> bool:
+    return (role_name or "").lower().strip() in _ADMIN_ROLES
+
+
+def get_allowed_html_pages(role_name: str) -> set[str]:
+    if is_admin_role(role_name):
+        return _HTML_PAGE_ROUTES.copy()
+    return _DEFAULT_VIEWER_ROUTES.copy()
+
+
+def normalize_page_route(path: str) -> str:
+    if path == "/" or path == "":
+        return "dashboard"
+    return path.lstrip("/")

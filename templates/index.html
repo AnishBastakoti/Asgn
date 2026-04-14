@@ -53,30 +53,44 @@
     <!-- Nav -->
     <nav class="sp-nav">
       <span class="sp-nav-label">Menu</span>
+      {% if 'dashboard' in allowed_pages %}
       <a href="/"  class="sp-nav-link {% if active_page=='dashboard'   %}active{% endif %}" title="Dashboard">
         <i class="bi bi-grid-1x2-fill"></i><span>Dashboard</span>
       </a>
+      {% endif %}
+      {% if 'skills' in allowed_pages %}
       <a href="/skills" class="sp-nav-link {% if active_page=='skills'      %}active{% endif %}" title="Jobs Trends">
         <i class="bi bi-bar-chart-line-fill"></i><span>Jobs Demands</span>
       </a>
+      {% endif %}
+      {% if 'occupations' in allowed_pages %}
       <a href="/occupations" class="sp-nav-link {% if active_page=='occupations' %}active{% endif %}" title="Occupations">
         <i class="bi bi-diagram-3-fill"></i><span>Occupations</span>
       </a>
+      {% endif %}
+      {% if 'analytics' in allowed_pages %}
       <a href="/analytics" class="sp-nav-link {% if active_page=='analytics'   %}active{% endif %}" title="Analytics">
         <i class="bi bi-graph-up-arrow"></i><span>Analytics</span>
       </a>
+      {% endif %}
+      {% if 'career' in allowed_pages %}
       <a href="/career" class="sp-nav-link {% if active_page=='career'      %}active{% endif %}" title="Career Transition">
         <i class="bi bi-signpost-split-fill"></i><span>Career Transition</span>
       </a>
+      {% endif %}
 
       <span class="sp-nav-label" style="margin-top:0.75rem; border-top: 1px solid var(--border);">System</span>
 
+      {% if user_role in ['admin', 'administrator'] %}
       <a href="/docs" class="sp-nav-link" target="_blank" title="API Docs">
         <i class="bi bi-code-slash"></i><span>API</span>
       </a>
+      {% endif %}
+      {% if 'model-status' in allowed_pages %}
       <a href="/model-status" class="sp-nav-link {% if active_page=='model_status' %}active{% endif %}" title="Model Status">
         <i class="bi bi-cpu-fill"></i><span>Model Status</span>
       </a>
+      {% endif %}
     </nav>
     <!-- Pipeline last run -->
     <div id="pipelineLastRun"

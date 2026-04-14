@@ -5,7 +5,7 @@ from datetime import date
 from core.rate_limiter import limiter
 from sqlalchemy.orm import Session
 
-from core.auth_deps import require_admin
+from core.auth_deps import require_auth, require_admin
 from app.database import get_db
 
 # ── Service Imports ──────────────────────────────────────────
@@ -29,7 +29,7 @@ from app.services.ridge_service import (
 from app.services.similarity_service import get_occupation_similarity
 from app.services.cluster_service import get_occupation_clusters, get_elbow_data
 
-router = APIRouter(prefix="/api/analytics", tags=["Analytics"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
 # ── Schemas ──────────────────────────────────────────────
 
@@ -173,12 +173,12 @@ def occupation_profile(request: Request, occupation_id: int, db: Session = Depen
 
 @router.get("/career-transition")
 @limiter.limit("20/minute")
-def career_transition(request: Request, from_id: int, to_id: int, db: Session = Depends(get_db), admin = Depends(require_admin)):
+def career_transition(request: Request, from_id: int, to_id: int, db: Session = Depends(get_db), user = Depends(require_auth)):
     return get_career_transition(db, from_id, to_id)
 
 @router.get("/occupation-similarity/{occupation_id}")
 @limiter.limit("20/minute")
-def occupation_similarity(request: Request, occupation_id: int, top_n: int = 8, db: Session = Depends(get_db), admin = Depends(require_admin)):
+def occupation_similarity(request: Request, occupation_id: int, top_n: int = 8, db: Session = Depends(get_db), user = Depends(require_auth)):
     return get_occupation_similarity(db, occupation_id, top_n)
 
 @router.get("/occupation-clusters/{occupation_id}")

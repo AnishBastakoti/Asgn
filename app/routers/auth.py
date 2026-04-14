@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 
 from app.database import get_db
 from config import settings
-from app.services.auth_service import authenticate_user, get_allowed_pages
+from app.services.auth_service import authenticate_user, get_allowed_html_pages
 from core.auth_deps import require_auth
 from core.rate_limiter import limiter
 
@@ -84,8 +84,8 @@ def get_me(user: dict = Depends(require_auth)):
 @router.get("/my-pages")
 def get_my_pages(user: dict = Depends(require_auth), db: Session = Depends(get_db)):
     """Used by frontend for Role-Based Access Control (RBAC) UI rendering."""
-    pages = get_allowed_pages(db, user["role"])
+    pages = get_allowed_html_pages(user["role"])
     return {
         "role":  user["role"],
-        "pages": pages,
+        "pages": sorted(pages),
     }
