@@ -66,6 +66,21 @@ def _load_model_cache() -> dict:
         # Guard against older pickle files that predate new keys
         for key, default in _empty_cache().items():
             cache.setdefault(key, default)
+
+        # Support legacy cache formats where coefficients were stored as a list.
+        if cache.get("coefficients") is not None and not isinstance(cache["coefficients"], dict):
+            if isinstance(cache["coefficients"], (list, tuple)) and isinstance(cache.get("feature_cols"), list):
+                cache["coefficients"] = dict(zip(cache["feature_cols"], list(cache["coefficients"])))
+            else:
+                cache["coefficients"] = _empty_cache()["coefficients"]
+
+        # If a trained model is restored but coefficients were not saved, derive them.
+        if cache.get("coefficients") is None and cache.get("model") is not None and isinstance(cache.get("feature_cols"), list):
+            try:
+                cache["coefficients"] = dict(zip(cache["feature_cols"], cache["model"].coef_.tolist()))
+            except Exception:
+                cache["coefficients"] = dict.fromkeys(cache["feature_cols"], 0.0)
+
         return cache
     except Exception as e:
         logger.warning(f"[MSIT402|SP] Could not load model cache: {e}")

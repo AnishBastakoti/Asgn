@@ -12,8 +12,15 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Fetch: Serve from cache if offline
+// Fetch: only handle cached assets, not dynamic pages or API routes.
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
+  const requestUrl = new URL(event.request.url);
+  if (requestUrl.origin !== self.location.origin) return;
+  if (requestUrl.pathname.startsWith('/api/')) return;
+  if (event.request.mode === 'navigate') return;
+
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);
