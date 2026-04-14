@@ -81,10 +81,11 @@
 .gap-kpi-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
 
 .jt-gap-layout    { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; }
-.jt-gap-radar-col { flex: 0 0 260px; display: flex; flex-direction: column; align-items: center; }
+.jt-gap-radar-col { flex: 0 0 60%; min-width: 400px; position: relative; }
 .jt-gap-radar-col canvas { max-width: 100%; }
 .gap-overall-badge { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--text2); text-align: center; }
 .jt-gap-cards-col { flex: 1; display: flex; flex-direction: column; gap: 10px; min-width: 220px; }
+#gapTypeCards{flex: 1; display: flex; flex-direction: column; gap: 1rem;}
 
 .gap-type-card    { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; }
 .gap-type-header  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
@@ -99,6 +100,16 @@
 .gap-pill         { font-size: 10.5px; padding: 2px 8px; border-radius: 99px; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
 .gap-pill.matched { background: #D1FAE5; color: #065F46; border: 1px solid #6EE7B7; }
 .gap-pill.missing { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+
+@media (max-width: 1024px) {
+    .jt-gap-layout {
+        flex-direction: column;
+    }
+    .jt-gap-radar-col {
+        flex: 0 0 100%;
+        width: 100%;
+    }
+}
 </style>
 {% endblock %}
 

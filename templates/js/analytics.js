@@ -36,11 +36,12 @@ window.selectOccupation = async function(el) {
   document.getElementById('anOccName').textContent   = title;
   document.getElementById('anOccLevel').textContent  = level ? `Level ${level}` : 'Level —';
 
+
+  loadSkillVelocity(id)
   loadShadowSkills(id);
   loadSkillDecay(id); 
   updateForecast(id); // Trigger the forecast chart update
-  loadOccupationProfile(id); // Load the new occupation profile data
-  await loadSkillVelocity(id);      
+  loadOccupationProfile(id); // Load the new occupation profile data     
   await loadMarketSaturation(id);
   await loadOccupationClusters(id);
   await loadSimilarOccupations(id);
@@ -639,7 +640,7 @@ async function loadOccupationClusters(occId) {
         width: 220,
         cellRenderer: p => {
           const pct   = p.value;
-          const color = pct >= 75 ? 'var(--violet)' : pct >= 50 ? 'var(--orange)' : 'var(--muted)';
+          const color = pct >= 75 ? 'var(--violet)' : pct >= 50 ? 'var(--orange)' : 'var(--orange)';
           return `<div style="display:flex;align-items:center;gap:8px;">
             <div style="flex:1;height:6px;background:var(--shell-bg);border-radius:3px;overflow:hidden;border:1px solid var(--border);">
               <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div>

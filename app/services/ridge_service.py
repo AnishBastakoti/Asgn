@@ -1,38 +1,60 @@
+import os
+import pickle
 import logging
+import numpy as np
 import pandas as pd
 
-from sklearn.linear_model import Ridge # Ridge handles multicollinearity
+from sklearn.linear_model import Ridge  # Ridge handles multicollinearity
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import cross_val_score, KFold
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, text
+
 from app.models.skills import OscaOccupationSkill, SkillpulseCityOccupationDemand
 from app.models.jobs import JobPostLog
+from app.models.osca import OscaOccupation
 
 logger = logging.getLogger(__name__)
 
-# ── Model cache functions ────────────────────────────────────
+# ── Disk cache path ──────────────────────────────────────────────────────────
+_MODEL_PKL_PATH = os.path.join(os.path.dirname(__file__), ".ridge_model_cache.pkl")
+
+
+# ── Model cache helpers ──────────────────────────────────────────────────────
+
+def _empty_cache() -> dict:
+    """Returns a blank cache dict used as the default / fallback state."""
+    return {
+        "model":        None,   # trained Ridge instance
+        "scaler":       None,   # fitted StandardScaler
+        "feature_cols": None,   # list of feature names used at training time
+        "coefficients": None,   # dict[feature → Ridge coefficient] for the UI
+        "occ_count":    None,   # occupation count at last train
+        "job_count":    None,   # job-post count at last train
+        "r2_score":     None,   # cross-validated R² score
+        "trained_at":   None,   # ISO datetime string of last training run
+        "model_ready":  False,  # initialised
+    }
+
 
 def _save_model_cache(cache: dict) -> None:
-    """Serialise model cache to disk so it survives restarts."""
+    """Serialise the in-memory model cache to disk so it survives restarts."""
     try:
-        # Save everything except the model object itself is fine with pickle
         with open(_MODEL_PKL_PATH, "wb") as f:
             pickle.dump(cache, f, protocol=pickle.HIGHEST_PROTOCOL)
         logger.info(f"[MSIT402|SP] Model cache saved to {_MODEL_PKL_PATH}")
     except Exception as e:
         logger.warning(f"[MSIT402|SP] Could not save model cache: {e}")
- 
- 
+
+
 def _load_model_cache() -> dict:
-    """Load model cache from disk if it exists."""
-    empty = {
-        "model": None, "scaler": None, "feature_cols": None,
-        "occ_count": None, "job_count": None,
-        "r2_score": None, "trained_at": None,
-    }
+    """
+    Load model cache from disk if it exists.
+    Falls back to an empty cache if the file is missing or corrupt.
+    """
     if not os.path.exists(_MODEL_PKL_PATH):
-        return empty
+        return _empty_cache()
     try:
         with open(_MODEL_PKL_PATH, "rb") as f:
             cache = pickle.load(f)
@@ -41,112 +63,105 @@ def _load_model_cache() -> dict:
             f"(R²={cache.get('r2_score', 'N/A')}, "
             f"trained={cache.get('trained_at', 'unknown')})"
         )
+        # Guard against older pickle files that predate new keys
+        for key, default in _empty_cache().items():
+            cache.setdefault(key, default)
         return cache
     except Exception as e:
         logger.warning(f"[MSIT402|SP] Could not load model cache: {e}")
-        return empty
- 
- 
-# ─────────────────────────────────────────────
-# Regression  model
+        return _empty_cache()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # MODEL CACHE
-# Stores the trained Ridge model and metadata in memory.
-# Retrains automatically when new data is detected
-# (occupation count or job post count changes).
+# Populated from disk at import time so the model survives process restarts.
+# ─────────────────────────────────────────────────────────────────────────────
 
-# ─────────────────────────────────────────────
-
-_MODEL_CACHE: dict = {
-    "model":       None,   # trained Ridge instance
-    "scaler":      None,   # fitted StandardScaler
-    "feature_cols": None,  # list of feature names used
-    "occ_count":   None,   # occupation count at last train
-    "job_count":   None,   # job post count at last train
-    "r2_score":    None,   # last cross-val R² score
-    "trained_at":  None,   # datetime of last training
-}
+_MODEL_CACHE: dict = _load_model_cache()
 
 
-"""
-    features from multiple tables to create a training matrix.
-    Formula to predict future demand (job counts) for occupations based on current demand and shadow skill signals:
-    Predicted Demand = β^0+ (β^1x Current Count)+ (β^2x Shadow Skills)
-    β₀ represents the intercept of the model.
-    β₁ indicates the relationship between the current job count and future demand, representing the growth trend.
-    β₂ measures the influence of shadow skills on future job demand and helps determine 
-    whether these skills act as a leading indicator of future employment opportunities.
-"""
+# ─────────────────────────────────────────────────────────────────────────────
+# TRAINING DATA
+#
+# Builds a multi-feature matrix from several tables.
+# Formula: Predicted Demand = β₀ + β₁·(current_demand) + β₂·(shadow_skills)
+#   β₀  — model intercept
+#   β₁  — growth-trend coefficient (current demand → future demand)
+#   β₂  — shadow-skill coefficient (emerging skill signal → future demand)
+# ─────────────────────────────────────────────────────────────────────────────
+
 def get_regression_data(db: Session) -> pd.DataFrame:
     """
     Builds a multi-feature training matrix for Ridge regression.
     Returns a DataFrame with features and target column ready for model.fit().
     Called automatically by _ensure_model_trained().
     """
-    from sqlalchemy import text
- 
-    # current demand per occupation ──
+    # ── Current demand per occupation ────────────────────────────────────────
     demand_rows = db.query(
         SkillpulseCityOccupationDemand.occupation_id,
         func.sum(SkillpulseCityOccupationDemand.job_count).label("current_demand"),
-        func.count(func.distinct(SkillpulseCityOccupationDemand.city)).label("city_diversity")
+        func.count(func.distinct(SkillpulseCityOccupationDemand.city)).label("city_diversity"),
     ).group_by(SkillpulseCityOccupationDemand.occupation_id).all()
- 
+
     if not demand_rows:
         return pd.DataFrame()
- 
+
     df = pd.DataFrame(
         [(r.occupation_id, r.current_demand, r.city_diversity) for r in demand_rows],
-        columns=["occ_id", "current_demand", "city_diversity"]
+        columns=["occ_id", "current_demand", "city_diversity"],
     )
- 
-    # ── shadow skill count ──
+
+    # ── Shadow skill count ────────────────────────────────────────────────────
     shadow_rows = db.execute(text("""
-        SELECT jp.occupation_id, COUNT(jps.id) as shadow_count
-        FROM job_post_logs jp
-        JOIN job_post_skills jps ON jps.job_post_id = jp.id
-        WHERE jp.occupation_id IS NOT NULL
-          AND NOT EXISTS (
-              SELECT 1 FROM osca_occupation_skills oos
-              WHERE oos.skill_id = jps.skill_id
-                AND oos.occupation_id = jp.occupation_id
-          )
+        SELECT jp.occupation_id, COUNT(jps.id) AS shadow_count
+        FROM   job_post_logs jp
+        JOIN   job_post_skills jps ON jps.job_post_id = jp.id
+        WHERE  jp.occupation_id IS NOT NULL
+          AND  NOT EXISTS (
+                   SELECT 1
+                   FROM   osca_occupation_skills oos
+                   WHERE  oos.skill_id      = jps.skill_id
+                     AND  oos.occupation_id = jp.occupation_id
+               )
         GROUP BY jp.occupation_id
     """)).fetchall()
     shadow_df = pd.DataFrame(shadow_rows, columns=["occ_id", "shadow_count"])
- 
-    # official skill count + avg mention count ──
+
+    # ── Official skill count + avg mention depth ───────────────────────────────
     skill_rows = db.query(
         OscaOccupationSkill.occupation_id,
         func.count(OscaOccupationSkill.skill_id).label("skill_count"),
-        func.avg(OscaOccupationSkill.mention_count).label("avg_mention")
+        func.avg(OscaOccupationSkill.mention_count).label("avg_mention"),
     ).group_by(OscaOccupationSkill.occupation_id).all()
+
     skill_df = pd.DataFrame(
         [(r.occupation_id, r.skill_count, float(r.avg_mention or 0)) for r in skill_rows],
-        columns=["occ_id", "skill_count", "avg_mention"]
+        columns=["occ_id", "skill_count", "avg_mention"],
     )
- 
-    # ── Merge all features ──
+
+    # ── Merge all features ────────────────────────────────────────────────────
     df = df.merge(shadow_df, on="occ_id", how="left")
     df = df.merge(skill_df,  on="occ_id", how="left")
     df = df.fillna(0)
- 
-    # ── Target: demand efficiency (demand per mapped skill) ──
-    # More stable than raw demand; rewards occupations with
-    # strong market signal relative to their skill complexity
+
+    # ── Target: demand efficiency (demand per mapped skill) ──────────────────
+    # More stable than raw demand; rewards occupations with strong market
+    # signal relative to their skill complexity.
     df["target"] = df.apply(
         lambda r: r["current_demand"] / max(r["skill_count"], 1), axis=1
     )
- 
+
     return df
- 
- 
-# ─────────────────────────────────────────────
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # MODEL TRAINING
 # Trains Ridge regression on the feature matrix.
 # Uses K-Fold cross-validation to compute R² score.
-# Stores model + scaler in _MODEL_CACHE.
-# ─────────────────────────────────────────────
- 
+# Stores model + scaler + real coefficients in _MODEL_CACHE.
+# Persists cache to disk after every successful training run.
+# ─────────────────────────────────────────────────────────────────────────────
+
 def _ensure_model_trained(db: Session) -> bool:
     """
     Checks if the model needs (re)training based on data changes.
@@ -154,55 +169,57 @@ def _ensure_model_trained(db: Session) -> bool:
     Returns True if model is ready, False if insufficient data.
     """
     global _MODEL_CACHE
-    from sklearn.model_selection import cross_val_score
- 
-    # Check current data size
+
+    # ── Snapshot current data sizes ───────────────────────────────────────────
     current_occ_count = db.query(
         func.count(func.distinct(SkillpulseCityOccupationDemand.occupation_id))
     ).scalar() or 0
- 
+
     current_job_count = db.query(
         func.count(JobPostLog.id)
     ).scalar() or 0
- 
-    # Use cache if data hasn't changed
-    if (_MODEL_CACHE["model"] is not None and
-            _MODEL_CACHE["occ_count"] == current_occ_count and
-            _MODEL_CACHE["job_count"] == current_job_count):
+
+    # ── Return early if nothing has changed ───────────────────────────────────
+    if (
+        _MODEL_CACHE["model"] is not None
+        and _MODEL_CACHE["occ_count"] == current_occ_count
+        and _MODEL_CACHE["job_count"] == current_job_count
+    ):
         logger.info(f"[MSIT402|SP] Using cached Ridge model (R²={_MODEL_CACHE['r2_score']:.3f})")
         return True
- 
-    # ── Build training matrix ──
+
+    # ── Build training matrix ─────────────────────────────────────────────────
     logger.info("[MSIT402|SP] Training Ridge regression model...")
     df = get_regression_data(db)
- 
+
     if df.empty or len(df) < 10:
-        logger.warning("[MSIT402|SP] Insufficient data to train model")
+        logger.warning("[MSIT402|SP] Insufficient data to train model (<10 occupations)")
         return False
- 
+
     feature_cols = ["current_demand", "shadow_count", "skill_count", "city_diversity", "avg_mention"]
     X = df[feature_cols].values
     y = df["target"].values
- 
-    # ── Scale features ──
+
+    # ── Scale features ────────────────────────────────────────────────────────
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
- 
-    # ── Train Ridge regression ──
-    # on correlated features (current_demand and skill_count often correlate)
+
+    # ── Train Ridge regression ────────────────────────────────────────────────
+    # alpha=1.0 applies L2 regularisation to handle correlated features
+    # (current_demand and skill_count often correlate).
     model = Ridge(alpha=1.0)
     model.fit(X_scaled, y)
- 
-    # ── Cross-validation R² score ──
+
+    # ── Cross-validated R² score ──────────────────────────────────────────────
     try:
-        from sklearn.model_selection import KFold
         kf = KFold(n_splits=min(5, len(df)), shuffle=True, random_state=42)
         cv_scores = cross_val_score(model, X_scaled, y, cv=kf, scoring="r2")
         r2 = round(float(cv_scores.mean()), 4)
     except Exception:
+        # Fall back to training-set R² when CV isn't possible (very small datasets)
         r2 = round(float(model.score(X_scaled, y)), 4)
- 
-    # ── Store in cache ──
+
+    # ── Store results in cache ────────────────────────────────────────────────
     _MODEL_CACHE["model"]        = model
     _MODEL_CACHE["scaler"]       = scaler
     _MODEL_CACHE["feature_cols"] = feature_cols
@@ -210,53 +227,72 @@ def _ensure_model_trained(db: Session) -> bool:
     _MODEL_CACHE["job_count"]    = current_job_count
     _MODEL_CACHE["r2_score"]     = r2
     _MODEL_CACHE["trained_at"]   = datetime.now().isoformat()
- 
+    _MODEL_CACHE["model_ready"]  = True  # FIX #5: set explicitly after training
+
+    # genuine feature importance instead of dummy positional bars.
+    _MODEL_CACHE["coefficients"] = dict(zip(feature_cols, model.coef_.tolist()))
+
+    # persist the updated cache to disk so it survives restarts.
+    _save_model_cache(_MODEL_CACHE)
+
     logger.info(
         f"[MSIT402|SP] Ridge model trained: {len(df)} occupations, "
         f"R²={r2:.3f}, features={feature_cols}"
     )
     return True
- 
- 
-def get_occupation_features(db: Session, occupation_id: int):
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FEATURE EXTRACTION
+# Pulls per-occupation features used for single-occupation inference.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_occupation_features(db: Session, occupation_id: int) -> dict:
     """
     Extracts features for regression inference:
     current_demand, shadow_count, skill_count, city_diversity, avg_mention.
-    Also returns title for the response payload.
+    Also returns the occupation title for the response payload.
     """
-    from sqlalchemy import text
- 
     current_demand = db.query(
         func.sum(SkillpulseCityOccupationDemand.job_count)
-    ).filter(SkillpulseCityOccupationDemand.occupation_id == occupation_id).scalar() or 0
- 
+    ).filter(
+        SkillpulseCityOccupationDemand.occupation_id == occupation_id
+    ).scalar() or 0
+
     city_diversity = db.query(
         func.count(func.distinct(SkillpulseCityOccupationDemand.city))
-    ).filter(SkillpulseCityOccupationDemand.occupation_id == occupation_id).scalar() or 0
- 
+    ).filter(
+        SkillpulseCityOccupationDemand.occupation_id == occupation_id
+    ).scalar() or 0
+
     shadow_count = db.execute(text("""
         SELECT COUNT(jps.id)
-        FROM job_post_logs jp
-        JOIN job_post_skills jps ON jps.job_post_id = jp.id
-        WHERE jp.occupation_id = :occ_id
-          AND NOT EXISTS (
-              SELECT 1 FROM osca_occupation_skills oos
-              WHERE oos.skill_id = jps.skill_id
-                AND oos.occupation_id = :occ_id
-          )
+        FROM   job_post_logs jp
+        JOIN   job_post_skills jps ON jps.job_post_id = jp.id
+        WHERE  jp.occupation_id = :occ_id
+          AND  NOT EXISTS (
+                   SELECT 1
+                   FROM   osca_occupation_skills oos
+                   WHERE  oos.skill_id      = jps.skill_id
+                     AND  oos.occupation_id = :occ_id
+               )
     """), {"occ_id": occupation_id}).scalar() or 0
- 
+
     skill_row = db.query(
         func.count(OscaOccupationSkill.skill_id).label("skill_count"),
-        func.avg(OscaOccupationSkill.mention_count).label("avg_mention")
+        func.avg(OscaOccupationSkill.mention_count).label("avg_mention"),
     ).filter(OscaOccupationSkill.occupation_id == occupation_id).first()
- 
+
     skill_count = skill_row.skill_count if skill_row else 0
     avg_mention = float(skill_row.avg_mention or 0) if skill_row else 0.0
- 
-    occ_data = db.query(SkillpulseCityOccupationDemand.occupation_title).filter(SkillpulseCityOccupationDemand.occupation_id == occupation_id).first()
+
+    occ_data = db.query(
+        SkillpulseCityOccupationDemand.occupation_title
+    ).filter(
+        SkillpulseCityOccupationDemand.occupation_id == occupation_id
+    ).first()
     title = occ_data.occupation_title if occ_data else "Unknown"
- 
+
     return {
         "current_demand": int(current_demand),
         "shadow_count":   int(shadow_count),
@@ -265,56 +301,61 @@ def get_occupation_features(db: Session, occupation_id: int):
         "avg_mention":    avg_mention,
         "title":          title,
     }
-# ─────────────────────────────────────────────
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # OCCUPATION PREDICTION
 # Uses trained Ridge model for inference.
 # Falls back to momentum forecasting if model not ready.
 # Automatically retrains when new data is available.
-# ─────────────────────────────────────────────
- 
-def get_occupation_prediction(db: Session, occupation_id: int, model_preference: str = None):
+# ─────────────────────────────────────────────────────────────────────────────
+
+def get_occupation_prediction(
+    db: Session,
+    occupation_id: int,
+    model_preference: str = None,
+) -> dict | None:
     """
     Predicts future demand using Ridge regression when trained,
     falling back to momentum forecasting otherwise.
     Model retrains automatically when data changes.
     """
     features = get_occupation_features(db, occupation_id)
- 
+
     if features["current_demand"] == 0:
         return None
- 
+
     force_momentum = (model_preference == "momentum")
     model_ready = False if force_momentum else _ensure_model_trained(db)
- 
+
     if model_ready and _MODEL_CACHE["model"] is not None:
-        # ── Ridge model inference ──
-        import numpy as np
+        # ── Ridge model inference ─────────────────────────────────────────────
         X = np.array([[
             features["current_demand"],
             features["shadow_count"],
             features["skill_count"],
             features["city_diversity"],
             features["avg_mention"],
-        ]], dtype=np.float32)
+        ]], dtype=np.float64)
         X_scaled = _MODEL_CACHE["scaler"].transform(X)
         demand_per_skill = float(_MODEL_CACHE["model"].predict(X_scaled)[0])
- 
-        # Convert back from demand_per_skill to absolute demand
+
+        # Convert demand_per_skill back to absolute predicted demand
         predicted_demand = int(max(demand_per_skill * max(features["skill_count"], 1), 0))
         growth_rate = round(
             ((predicted_demand - features["current_demand"]) / features["current_demand"]) * 100, 2
         ) if features["current_demand"] > 0 else 0.0
         confidence = min(0.5 + _MODEL_CACHE["r2_score"] * 0.5, 0.95)
         method = "ridge_regression"
- 
+
     else:
-        # ── Momentum forecasting fallback ──
+        # ── Momentum forecasting fallback ─────────────────────────────────────
         avg_historical = db.query(
             func.avg(SkillpulseCityOccupationDemand.job_count)
         ).filter(
             SkillpulseCityOccupationDemand.occupation_id == occupation_id
         ).scalar() or features["current_demand"]
- 
+
         velocity = (
             (features["current_demand"] - float(avg_historical)) / float(avg_historical)
             if avg_historical > 0 else 0
@@ -327,7 +368,7 @@ def get_occupation_prediction(db: Session, occupation_id: int, model_preference:
         )
         confidence = 0.90 if velocity != 0 else 0.65
         method     = "momentum_forecast"
- 
+
     return {
         "occupation_id":    occupation_id,
         "occupation_title": features["title"],
@@ -338,34 +379,33 @@ def get_occupation_prediction(db: Session, occupation_id: int, model_preference:
         "method":           method,
         "r2_score":         _MODEL_CACHE.get("r2_score"),
     }
- 
- 
-# ─────────────────────────────────────────────
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # DEMAND FORECAST BY CITY
 # Runs trained Ridge model for all occupations in a city.
 # Returns ranked forecast sorted by predicted growth.
-# ─────────────────────────────────────────────
- 
+# ─────────────────────────────────────────────────────────────────────────────
+
 def get_demand_forecast(db: Session, city: str) -> list:
     """
-    Predicts demand for all occupations in a given city
-    using the trained Ridge regression model.
-    Falls back to momentum if model not trained.
+    Predicts demand for all occupations in a given city using the trained
+    Ridge regression model.  Falls back to momentum if model not trained.
     """
     raw_data = db.query(
         SkillpulseCityOccupationDemand.occupation_id,
         SkillpulseCityOccupationDemand.occupation_title,
-        func.sum(SkillpulseCityOccupationDemand.job_count).label("current_jobs")
+        func.sum(SkillpulseCityOccupationDemand.job_count).label("current_jobs"),
     ).filter(
         SkillpulseCityOccupationDemand.city == city
     ).group_by(
         SkillpulseCityOccupationDemand.occupation_id,
-        SkillpulseCityOccupationDemand.occupation_title
+        SkillpulseCityOccupationDemand.occupation_title,
     ).all()
- 
+
     if not raw_data or len(raw_data) < 3:
         return []
- 
+
     forecasts = []
     for row in raw_data:
         prediction = get_occupation_prediction(db, row.occupation_id)
@@ -384,27 +424,48 @@ def get_demand_forecast(db: Session, city: str) -> list:
             "confidence_score": prediction["confidence_score"],
             "method":           prediction["method"],
         })
- 
+
     return sorted(forecasts, key=lambda x: x["growth_trend"], reverse=True)
- 
- 
-# ─────────────────────────────────────────────
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # MODEL STATUS
 # Returns current model training status and metrics.
-# Used by the /model-status endpoint for monitoring.
-# ─────────────────────────────────────────────
- 
+# Used by the /api/analytics/model-status endpoint for monitoring.
+# ─────────────────────────────────────────────────────────────────────────────
+
 def get_model_status(db: Session) -> dict:
     """Returns current Ridge model training status and metrics."""
-    model_ready = _ensure_model_trained(db)
-    return {
-        "model_ready":   model_ready,
-        "trained_at":    _MODEL_CACHE.get("trained_at"),
-        "r2_score":      _MODEL_CACHE.get("r2_score"),
-        "occ_count":     _MODEL_CACHE.get("occ_count"),
-        "job_count":     _MODEL_CACHE.get("job_count"),
-        "feature_cols":  _MODEL_CACHE.get("feature_cols"),
-        "method":        "ridge_regression" if model_ready else "momentum_forecast",
-    }
- 
- 
+    try:
+        current_occ_count = db.query(
+            func.count(func.distinct(SkillpulseCityOccupationDemand.occupation_id))
+        ).scalar() or 0
+
+        current_job_count = db.query(
+            func.count(JobPostLog.id)
+        ).scalar() or 0
+
+        is_stale = (
+            current_occ_count != (_MODEL_CACHE.get("occ_count") or 0)
+            or current_job_count != (_MODEL_CACHE.get("job_count") or 0)
+        )
+
+        if is_stale or not _MODEL_CACHE.get("model_ready"):
+            model_ready = _ensure_model_trained(db)
+        else:
+            model_ready = True
+
+        return {
+            "model_ready":   model_ready,
+            "trained_at":    _MODEL_CACHE.get("trained_at"),
+            "r2_score":      _MODEL_CACHE.get("r2_score"),
+            "occ_count":     _MODEL_CACHE.get("occ_count"),
+            "job_count":     _MODEL_CACHE.get("job_count"),
+            "feature_cols":  _MODEL_CACHE.get("feature_cols"),
+            "coefficients":  _MODEL_CACHE.get("coefficients"),   # real Ridge coefficients for UI
+            "method":        "ridge_regression" if model_ready else "momentum_forecast",
+            "is_stale":      is_stale,
+        }
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] Model Status Error: {e}")
+        return {"model_ready": False, "error": "Database sync error", "is_stale": False}

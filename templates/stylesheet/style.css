@@ -1432,7 +1432,7 @@ input.flatpickr-input:focus {
 .ms-model-btn.active {
   background: var(--indigo);
   border-color: var(--indigo);
-  color: #fff;
+  color: var(--text2);
   box-shadow: 0 2px 8px rgba(235,89,5,0.25);
 }
 

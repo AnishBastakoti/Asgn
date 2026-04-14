@@ -422,7 +422,7 @@ async function renderTopSkills(occId) {
           <div style="width:140px; height:6px; background:var(--orange-l); border-radius:99px; flex-shrink:0; overflow:hidden;">
             <div style="width:${pct}%; height:100%; background:${color}; border-radius:99px; transition:width 0.5s ease;"></div>
           </div>
-          <span class="jt-hot-count">${fmt(s.total_mentions)}</span>
+          <span class="jt-hot-count">${fmt(s.total_mentions)} ${s.total_mentions === 1 ? 'job' : 'jobs'}</span>
         </div>`;
     }).join('');
 
@@ -517,7 +517,8 @@ async function renderTrends(occId) {
           maintainAspectRatio: true,
          layout: {
           padding: {
-            left:   50,   
+            left:   20,
+            right:  20,   
             top:    10,
             bottom: 10,
             }
@@ -608,7 +609,7 @@ function _gapKpi(value, label, color, bg) {
 // ── Gap radar helper: per-type coverage card ─────────────────────────────────
 function _gapTypeCard(t) {
   const bar   = Math.round(t.coverage_pct);
-  const color = bar >= 75 ? '#10B981' : bar >= 40 ? '#F59E0B' : '#EF4444';
+  const color = bar >= 75 ? '#F29762' : bar >= 40 ? '#F59E0B' : '#EF4444';
  
   const matchedPills = t.top_matched.length
     ? `<div class="gap-section-label">&#10003; Present in postings</div>
