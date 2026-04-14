@@ -4,8 +4,7 @@ import hashlib
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from sqlalchemy import text
+from sqlalchemy import func, text
 
 from app.models.jobs import JobPostLog, JobPostSkill
 from app.models.skills import EscoSkill, OscaOccupationSkill
@@ -211,180 +210,6 @@ def get_cities_by_occupation(db: Session, occupation_id: int) -> list[dict]:
 #         logger.error(f"[MSIT402|SP] get_skill_trends_by_occupation failed: {e}")
 #         return []
 
-def get_skill_trends_by_occupation(db: Session, occupation_id: int) -> list[dict]:
-    """
-    Builds skill trends directly from job_post_logs + job_post_skills.
-    Groups by ingested_at date to form the time series.
-    Falls back gracefully when only one date of data exists.
-    """
-    try:
-        # ── Pull all skill mentions with their ingestion date ──────
-        rows = db.execute(
-            text("""
-                SELECT
-                    jps.skill_id,
-                    e.preferred_label                    AS skill_name,
-                    CAST(jpl.ingested_at AS DATE)        AS snap_date,
-                    COUNT(jps.id)                        AS mention_count,
-                    COUNT(DISTINCT jpl.id)               AS jobs_that_day
-                FROM job_post_skills  jps
-                JOIN job_post_logs    jpl ON jpl.id = jps.job_post_id
-                JOIN esco_skills      e   ON e.id   = jps.skill_id
-                WHERE jpl.occupation_id = :occ_id
-                    AND jpl.processed_by_ai = true
-                GROUP BY jps.skill_id, e.preferred_label,
-                        CAST(jpl.ingested_at AS DATE)
-                ORDER BY snap_date ASC
-            """),
-            {"occ_id": occupation_id}
-        ).fetchall()
-
-        if not rows:
-            logger.warning(f"[SP] No skill data for occupation {occupation_id}")
-            return []
-
-        # ── Build skill map ─────────────────────────────────────────
-        all_dates  = sorted(set(r.snap_date for r in rows))
-        origin     = all_dates[0]
-        day_index  = {d: (d - origin).days for d in all_dates}
-
-        # Total jobs per date (for normalisation rate)
-        jobs_per_date = {}
-        for r in rows:
-            if r.snap_date not in jobs_per_date:
-                jobs_per_date[r.snap_date] = r.jobs_that_day
-            else:
-                jobs_per_date[r.snap_date] = max(
-                    jobs_per_date[r.snap_date], r.jobs_that_day
-                )
-
-        skill_map = defaultdict(lambda: {"name": "", "points": []})
-        for r in rows:
-            entry = skill_map[r.skill_id]
-            entry["name"] = r.skill_name
-            total = jobs_per_date.get(r.snap_date, 0)
-            entry["points"].append({
-                "date":  str(r.snap_date),
-                "day":   day_index[r.snap_date],
-                "count": r.mention_count,
-                "rate":  round(r.mention_count / total, 6) if total else None,
-            })
-
-        # ── Single-snapshot fallback ────────────────────────────────
-        # Only ONE date of data exists — cannot compute trends.
-        # Return skills ranked by mention count with stable trend.
-        if len(all_dates) == 1:
-            logger.warning(
-                f"[SP] occupation {occupation_id} has data from only 1 date "
-                f"({all_dates[0]}) — returning static ranking, no trend available."
-            )
-            result = []
-            for sid, data in skill_map.items():
-                points = data["points"]
-                result.append({
-                    "skill_id":       sid,
-                    "skill_name":     data["name"],
-                    "concept_uri":    None,
-                    "points":         points,
-                    "trend":          "stable",
-                    "velocity":       0.0,
-                    "momentum":       "steady",
-                    "latest_count":   points[-1]["count"],
-                    "peak_count":     max(p["count"] for p in points),
-                    "snapshot_count": 1,
-                    "is_fallback":    True,   # ← frontend can show a notice
-                })
-            result.sort(key=lambda x: -x["latest_count"])
-            return result[:10]
-
-        # ── Multi-snapshot: compute real trends ─────────────────────
-        result = []
-        for sid, data in skill_map.items():
-            points  = data["points"]
-            counts  = [p["count"] for p in points]
-            days    = [p["day"]   for p in points]
-            rates   = [p["rate"]  for p in points]
-
-            latest_count = counts[-1]
-            peak_count   = max(counts)
-            use_rates    = all(r is not None for r in rates)
-            signal       = rates if use_rates else counts
-
-            # Smoothing
-            SMOOTH_WINDOW = 3
-            if len(signal) >= SMOOTH_WINDOW + 1:
-                smoothed = [
-                    sum(signal[max(0, i-1):i+2]) /
-                    len(signal[max(0, i-1):i+2])
-                    for i in range(len(signal))
-                ]
-            else:
-                smoothed = signal[:]
-
-            # Weighted least-squares slope
-            if len(smoothed) >= 2 and days[-1] > days[0]:
-                n    = len(smoothed)
-                sx   = sum(days)
-                sy   = sum(smoothed)
-                sxy  = sum(days[i] * smoothed[i] for i in range(n))
-                sx2  = sum(d * d for d in days)
-                denom = n * sx2 - sx * sx
-                raw_slope  = (n * sxy - sx * sy) / denom if denom else 0
-                mean_signal = sum(smoothed) / n or 1
-                norm_slope  = raw_slope / mean_signal
-
-                if norm_slope > 0.001:
-                    trend = "growing"
-                elif norm_slope < -0.001:
-                    trend = "declining"
-                else:
-                    trend = "stable"
-
-                velocity = round(norm_slope * 100, 3)
-            else:
-                trend    = "stable"
-                velocity = 0.0
-
-            # Momentum
-            if len(counts) >= 3:
-                recent_delta  = counts[-1] - counts[-2]
-                overall_delta = counts[-1] - counts[0]
-                momentum = (
-                    "accelerating" if (recent_delta > 0 and overall_delta > 0 and
-                                       recent_delta > overall_delta / max(len(counts)-1, 1))
-                    else "decelerating" if (recent_delta < 0 and trend == "growing")
-                    else "steady"
-                )
-            else:
-                momentum = "steady"
-
-            result.append({
-                "skill_id":       sid,
-                "skill_name":     data["name"],
-                "concept_uri":    None,
-                "points":         points,
-                "trend":          trend,
-                "velocity":       velocity,
-                "momentum":       momentum,
-                "latest_count":   latest_count,
-                "peak_count":     peak_count,
-                "snapshot_count": len(all_dates),
-                "is_fallback":    False,
-            })
-
-        result.sort(key=lambda x: (
-            x["trend"] != "growing",
-            -x["velocity"],
-            -x["latest_count"],
-        ))
-        return result[:10]
-
-    except Exception as e:
-        logger.error(
-            f"[SP] get_skill_trends_by_occupation failed for {occupation_id}: {e}",
-            exc_info=True
-        )
-        return []
 
 # ── Skill Overlap ───────────────────────────────────────
 def get_skill_overlap(db: Session, occupation_id: int) -> dict:
@@ -594,3 +419,124 @@ def get_hot_skills_for_occupation(db: Session, occupation_id: int, days: int = 3
     except Exception as e:
         logger.error(f"get_hot_skills_for_occupation failed: {e}")
         return [] # Return empty list on error
+
+
+# ─────────────────────────────────────────────
+# SKILL GAP RADAR
+# Compares official OSCA-mapped skills for an occupation
+# against what actually appears in scraped job postings.
+# Returns 5-axis radar data + per-type coverage breakdowns.
+# ─────────────────────────────────────────────
+ 
+def get_skill_gap_radar(db: Session, occupation_id: int) -> dict | None:
+    """
+    For each skill type (knowledge / competence / attitude):
+      - How many official OSCA skills exist for this occupation?
+      - How many of those appear in real job postings?
+      - Which ones are confirmed (matched) vs absent (gap)?
+ 
+    Also computes:
+      - market_intensity  : avg posting frequency of matched skills, normalised 0-100
+      - shadow_ratio      : shadow skills as % of official count, capped at 100
+    """
+    # Official skills mapped to this occupation via OSCA
+    official = (
+        db.query(
+            EscoSkill.id,
+            EscoSkill.preferred_label,
+            EscoSkill.skill_type,
+        )
+        .join(OscaOccupationSkill, OscaOccupationSkill.skill_id == EscoSkill.id)
+        .filter(OscaOccupationSkill.occupation_id == occupation_id)
+        .all()
+    )
+ 
+    if not official:
+        return None
+ 
+    official_ids = {r.id for r in official}
+ 
+    # Skills extracted from job postings for this occupation
+    posting_rows = (
+        db.query(
+            JobPostSkill.skill_id,
+            func.count(JobPostSkill.id).label("mention_count"),
+        )
+        .join(JobPostLog, JobPostLog.id == JobPostSkill.job_post_id)
+        .filter(JobPostLog.occupation_id == occupation_id)
+        .group_by(JobPostSkill.skill_id)
+        .all()
+    )
+    posting_map: dict[int, int] = {r.skill_id: r.mention_count for r in posting_rows}
+ 
+    # Per-type coverage breakdown
+    TYPE_MAP = [
+        ("knowledge",        "Knowledge"),
+        ("skill/competence", "Competence"),
+        ("attitude",         "Attitude"),
+    ]
+    by_type: list[dict] = []
+    type_coverage: dict[str, float] = {}
+ 
+    for raw_type, label in TYPE_MAP:
+        bucket  = [s for s in official if (s.skill_type or "").lower() == raw_type]
+        if not bucket:
+            type_coverage[raw_type] = 0.0
+            continue
+ 
+        matched = [s for s in bucket if s.id in posting_map]
+        missing = [s for s in bucket if s.id not in posting_map]
+        coverage = round(len(matched) / len(bucket) * 100, 1)
+        type_coverage[raw_type] = coverage
+ 
+        matched_sorted = sorted(matched, key=lambda s: posting_map.get(s.id, 0), reverse=True)
+ 
+        by_type.append({
+            "key":            raw_type,
+            "label":          label,
+            "official_count": len(bucket),
+            "matched_count":  len(matched),
+            "missing_count":  len(missing),
+            "coverage_pct":   coverage,
+            "top_matched":    [s.preferred_label for s in matched_sorted[:5]],
+            "top_missing":    [s.preferred_label for s in missing[:5]],
+        })
+ 
+    # Shadow skills: in postings but absent from the official OSCA mapping
+    shadow_count = len([sid for sid in posting_map if sid not in official_ids])
+ 
+    # Overall coverage
+    overall_matched  = len([s for s in official if s.id in posting_map])
+    overall_coverage = round(overall_matched / len(official) * 100, 1)
+ 
+    # Market intensity (avg freq of matched official skills, normalised 0-100)
+    if posting_map:
+        max_v = max(posting_map.values()) or 1
+        official_mentions = [posting_map[s.id] for s in official if s.id in posting_map]
+        avg_freq = sum(official_mentions) / len(official_mentions) if official_mentions else 0
+        market_intensity = round(min(avg_freq / max_v * 100, 100), 1)
+    else:
+        market_intensity = 0.0
+ 
+    # Shadow ratio (capped at 100 for radar scale)
+    shadow_ratio = round(min(shadow_count / max(len(official_ids), 1) * 100, 100), 1)
+ 
+    return {
+        "occupation_id": occupation_id,
+        "radar": {
+            "knowledge_coverage":  type_coverage.get("knowledge", 0.0),
+            "competence_coverage": type_coverage.get("skill/competence", 0.0),
+            "attitude_coverage":   type_coverage.get("attitude", 0.0),
+            "market_intensity":    market_intensity,
+            "shadow_ratio":        shadow_ratio,
+        },
+        "summary": {
+            "official_skill_count": len(official),
+            "matched_in_postings":  overall_matched,
+            "unmatched_official":   len(official) - overall_matched,
+            "shadow_skills":        shadow_count,
+            "overall_coverage_pct": overall_coverage,
+        },
+        "by_type": by_type,
+    }
+ 
