@@ -44,11 +44,11 @@ class SystemEndUser(Base):
     __tablename__ = "system_end_user"
 
     id            = Column(Integer, primary_key=True)
+    created_at    = Column(DateTime, nullable=False)
     email         = Column(String, nullable=False, unique=True)
-    password_hash = Column(String, nullable=False)
     enabled       = Column(Boolean, default=True, nullable=False)
+    password_hash = Column(String, nullable=False)
     role_id       = Column(Integer, ForeignKey("system_role.id"), nullable=True)
-    created_at    = Column(DateTime, nullable=True)
 
     # Relationships
     role = relationship("SystemRole", back_populates="users")

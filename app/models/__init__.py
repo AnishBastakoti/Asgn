@@ -19,3 +19,13 @@ from app.models.jobs import (
     JobPostLog,
     JobPostSkill
 )
+
+from app.models.auth import (
+    SystemRole,
+    SystemPage,
+    SystemRolePage,
+    SystemEndUser
+)
+
+# Alias for convenience
+User = SystemEndUser

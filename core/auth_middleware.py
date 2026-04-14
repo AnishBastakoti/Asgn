@@ -1,65 +1,90 @@
+from __future__ import annotations
+
+import logging
+from typing import Awaitable, Callable
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, Response
+
 from app.services.auth_service import decode_access_token
-import logging
 
 logger = logging.getLogger(__name__)
 
-# ── Routes that never require auth ────────────────────────────
-EXEMPT_PATHS = {
-    "/login",
-    "/health",
-    "/docs",
-    "/redocs",
-    "/openapi.json",
-    "/manifest.json",
-    "/service-worker.js",
-}
 
-EXEMPT_PREFIXES = (
-    "/api/auth/",     # login/logout endpoints
-    "/templates/",    # static JS/CSS files
+# ── Paths that never require a session cookie ─────────────────────────────────
+
+# Exact-match set — checked with 'path in EXEMPT_PATHS' (O(1))
+EXEMPT_PATHS: frozenset[str] = frozenset(
+    {
+        "/login",
+        "/health",
+        # Docs routes are protected by the application session cookie and
+        # admin-role check in core/docs.py.
+        "/redocs",
+        # PWA / manifest files — must load before any auth check
+        "/manifest.json",
+        "/service-worker.js",
+    }
+)
+
+# Prefix-match tuple — checked with 'path.startswith(EXEMPT_PREFIXES)'
+# Using a tuple (not a list/set) so startswith() accepts it natively.
+EXEMPT_PREFIXES: tuple[str, ...] = (
+    "/api/auth/",    # login, logout, refresh — no cookie yet
+    "/templates/",   # static JS/CSS/images — no auth needed
 )
 
 
+# ── Middleware ─────────────────────────────────────────────────────────────────
+
 class AuthMiddleware(BaseHTTPMiddleware):
     """
-    Checks every request for a valid session cookie.
-    HTML pages → redirect to /login if not authenticated.
-    API routes → pass through (handled by Depends(require_auth)).
+    Validates the 'sp_token' session cookie on every non-exempt request.
     """
 
-    async def dispatch(self, request: Request, call_next):
-        path = request.url.path
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        path: str = request.url.path
 
-        # ── Always allow exempt paths ──
+        # ──  Always-exempt exact paths ──────────────────────────────────────
         if path in EXEMPT_PATHS:
             return await call_next(request)
 
-        if any(path.startswith(p) for p in EXEMPT_PREFIXES):
+        # ── Always-exempt prefix paths ─────────────────────────────────────
+        if path.startswith(EXEMPT_PREFIXES):
             return await call_next(request)
 
-        # ── API routes — pass through, let Depends handle auth ──
+        # ── API routes — pass through, let Depends(require_auth) decide ────
         if path.startswith("/api/"):
             return await call_next(request)
 
-        # ── HTML page routes — check cookie ──
-        token = request.cookies.get("sp_token")
+        # ──  HTML page routes — validate session cookie ─────────────────────
+        token: str | None = request.cookies.get("sp_token")
 
         if not token:
-            logger.debug(f"[Auth] No token for {path} → redirecting to /login")
+            logger.debug("[AuthMiddleware] No token for %r → /login", path)
             return RedirectResponse(url="/login", status_code=302)
 
-        payload = decode_access_token(token)
+        payload: dict | None = decode_access_token(token)
+
         if not payload:
-            logger.debug(f"[Auth] Invalid/expired token for {path} → redirecting to /login")
-            # Clear the bad cookie and redirect
+            logger.debug(
+                "[AuthMiddleware] Invalid/expired token for %r → /login", path
+            )
             response = RedirectResponse(url="/login", status_code=302)
-            response.delete_cookie(key="sp_token", path="/")
+            # Delete the stale cookie so the browser doesn't keep sending it
+            response.delete_cookie(key="sp_token", path="/", httponly=True)
             return response
 
-        # ── Valid token — attach user info to request state ──
+        # ── Valid token — hydrate request.state.user ───────────────────────
+        # Downstream handlers (templates, page routes) can read:
+        #   request.state.user["user_id"]
+        #   request.state.user["email"]
+        #   request.state.user["role"]
         request.state.user = {
             "user_id": int(payload.get("sub", 0)),
             "email":   payload.get("email", ""),

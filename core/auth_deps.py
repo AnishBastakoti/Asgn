@@ -1,119 +1,175 @@
+from __future__ import annotations
+
 import hashlib
-from fastapi import Security, Depends, HTTPException, status, Request
-from fastapi.security import APIKeyHeader
-from sqlalchemy.orm import Session
+import logging
 from datetime import datetime, timezone
 
-from config import settings
-from app.models.api_key import ApiKey
-from app.database import get_db
-from app.services.auth_service import get_current_user
+from fastapi import Depends, HTTPException, Request, Security, status
+from fastapi.security import APIKeyHeader
+from sqlalchemy.orm import Session
 
-API_KEY_HEADER = APIKeyHeader(name="X-API-Key", auto_error=False)
+from app.database import get_db
+from app.models.api_key import ApiKey
+from app.services.auth_service import get_current_user
+from config import settings
+
+logger = logging.getLogger(__name__)
+
+# ── Role constants ────────────────────────────────────────────────────────────
+_ADMIN_ROLES:    frozenset[str] = frozenset({"admin", "administrator"})
+_ANALYST_ROLES:  frozenset[str] = frozenset({"admin", "administrator", "analyst"})
+
+# ── API key header scheme ─────────────────────────────────────────────────────
+_API_KEY_HEADER = APIKeyHeader(
+    name="X-API-Key",
+    auto_error=False,   # we raise our own typed errors below
+    description="Public API key (format: `sp_<hex>`)",
+)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Public API key  (external partners / machine-to-machine)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def require_api_key(
-    api_key: str = Security(API_KEY_HEADER),
-    db: Session = Depends(get_db)
-):
-    """
-    Validates the X-API-Key header.
-    Checks prefix, hashes the key, and verifies expiration/active status.
-    """
+    api_key: str | None = Security(_API_KEY_HEADER),
+    db: Session = Depends(get_db),
+) -> ApiKey:
+    
     if not api_key:
-        raise HTTPException(status_code=401, detail="X-API-Key header missing")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="X-API-Key header is required.",
+        )
 
     if not api_key.startswith(settings.KEY_PREFIX):
-        raise HTTPException(status_code=403, detail="Invalid API key format")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid API key format.",
+        )
 
     key_hash = hashlib.sha256(api_key.encode()).hexdigest()
-    record = db.query(ApiKey).filter(
-        ApiKey.key_hash == key_hash,
-        ApiKey.is_active == True
-    ).first()
+
+    record: ApiKey | None = (
+        db.query(ApiKey)
+        .filter(ApiKey.key_hash == key_hash, ApiKey.is_active.is_(True))
+        .first()
+    )
 
     if not record:
-        raise HTTPException(status_code=403, detail="Invalid or inactive API key")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid or inactive API key.",
+        )
 
+    # Compare timezone-naive UTC datetimes consistently
     if record.expires_at:
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
-        if record.expires_at < now:
-            raise HTTPException(status_code=403, detail="API key expired")
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        if record.expires_at < now_utc:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="API key has expired.",
+            )
 
     return record
 
-# ── REQUIRE AUTH ───────────────────────────────────
 
-def require_auth(request: Request, db: Session = Depends(get_db)) -> dict:
-    """
-    Protects a route — requires a valid JWT token.
-    Raises 401 if no token or token is invalid/expired.
-    """
-    token = request.cookies.get("sp_token")
-    
+# ─────────────────────────────────────────────────────────────────────────────
+# Session-cookie auth  (browser / Jinja2 frontend)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def require_auth(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+
+    token: str | None = request.cookies.get("sp_token")
+
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired. Please log in again.",
         )
-    
-    user = get_current_user(db, token)
+
+    user: dict | None = get_current_user(db, token)
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid session. Please log in again.",
         )
+
     return user
 
-# ── REQUIRE ADMIN ──────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Role-based guards  (compose on top of require_auth)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def require_admin(user: dict = Depends(require_auth)) -> dict:
     """
-    Protects a route — requires admin role.
-    Raises 403 if user is authenticated but not admin.
+    Requires ''admin'' or ''administrator'' role.
+    Raises HTTP 403 if the authenticated user's role is insufficient.
     """
-    role = (user.get("role") or "").lower().strip()
-    admin_roles = {"admin", "administrator"}
-    
-    if role not in admin_roles:
+    role: str = (user.get("role") or "").lower().strip()
+
+    if role not in _ADMIN_ROLES:
+        logger.warning(
+            "[AuthDeps] Admin access denied — user_id=%s role=%r",
+            user.get("user_id"),
+            role,
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required for this endpoint.",
+            detail="Admin access required.",
         )
+
     return user
 
-# ── REQUIRE ANALYST ────────────────────────────────
 
 def require_analyst(user: dict = Depends(require_auth)) -> dict:
     """
-    Protects a route — requires analyst or admin role.
-    Raises 403 for viewers.
+    Requires ''analyst'', ''admin'', or ''administrator'' role.
+
+    Use on read-heavy / analytics endpoints that viewers cannot access.
+
+    Raises HTTP 403 if the authenticated user's role is insufficient.
     """
-    role = (user.get("role") or "").lower().strip()
-    allowed_roles = {"admin", "administrator", "analyst"}
-    
-    if role not in allowed_roles:
+    role: str = (user.get("role") or "").lower().strip()
+
+    if role not in _ANALYST_ROLES:
+        logger.warning(
+            "[AuthDeps] Analyst access denied — user_id=%s role=%r",
+            user.get("user_id"),
+            role,
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Analyst or admin access required.",
         )
+
     return user
 
-# ─────────────────────────────────────────────
-# OPTIONAL AUTH — works with or without token
-# ─────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Optional auth  (public endpoints that show richer data when logged in)
+# ─────────────────────────────────────────────────────────────────────────────
 
 def optional_auth(
     request: Request,
     db: Session = Depends(get_db),
 ) -> dict | None:
     """
-    Does NOT raise an error if no token is provided.
-    Returns user dict if authenticated, None if not.
+    Soft authentication — never raises an error.
 
-    Use for: public endpoints that show more data when logged in.
+    Returns the user dict if a valid ''sp_token'' cookie is present,
+    ''None'' otherwise.
+
+    Typical use-case: a public endpoint that returns extra fields
     """
-    token = request.cookies.get("sp_token")
-    
+    token: str | None = request.cookies.get("sp_token")
+
     if not token:
         return None
-    return get_current_user(db, token)
+
+    return get_current_user(db, token)   # returns None on invalid/expired token
