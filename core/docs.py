@@ -70,7 +70,7 @@ async def swagger_ui(
     return get_swagger_ui_html(
         openapi_url="/openapi.json",
         title=f"{settings.APP_NAME} — API Docs",
-        swagger_favicon_url="/templates/img/favicon.ico",   # optional branding
+        swagger_favicon_url="/templates/images/cropped-fevicon-cim-150x150.png",
     )
 
 

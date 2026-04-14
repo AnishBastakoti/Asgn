@@ -20,7 +20,7 @@ _FP = hashlib.sha256(
 
 
 @router.get("/summary")
-def get_summary(db: Session = Depends(get_db), user = Depends(require_admin)):
+def get_summary(db: Session = Depends(get_db), user = Depends(require_auth)):
     """
     KPI cards in the header.
     Returns counts + your fingerprint signature.
@@ -50,7 +50,7 @@ def get_top_skills(
     occupation_id: int = Path(...),
     limit: int = Query(20, ge=5, le=50),
     db: Session = Depends(get_db), 
-    user = Depends(require_admin)
+    user = Depends(require_auth)
 ):
     """
     Top N skills for a given occupation, ranked by mention_count.
@@ -102,7 +102,7 @@ def get_top_skills(
 def get_skill_breakdown(
     occupation_id: int = Path(...),
     db: Session = Depends(get_db), 
-    user = Depends(require_admin)
+    user = Depends(require_auth)
 ):
     """
     Skill type distribution for the donut chart.
