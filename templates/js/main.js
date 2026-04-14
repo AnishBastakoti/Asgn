@@ -43,10 +43,22 @@ async function api(path, options = {}) {
   if (typeof NProgress !== 'undefined') NProgress.start();
 
   try {
+<<<<<<< HEAD
     const headers = { 'Content-Type': 'application/json', ...options.headers };
     const response = await fetch(path, { ...options, headers, credentials: 'same-origin' });
 
     if (response.status === 401) {
+=======
+    const token = localStorage.getItem('sp_token');
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(path, { ...options, headers });
+
+    if (response.status === 401) {
+      localStorage.removeItem('sp_token');
+      localStorage.removeItem('sp_user');
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
       window.location.href = '/login';
       return;
     }
@@ -223,6 +235,7 @@ function populateUserInfo() {
   }
 }
 
+<<<<<<< HEAD
 //PWA Service worker
 
 if ('serviceWorker' in navigator) {
@@ -232,3 +245,14 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.log('SW Registration Failed', err));
   });
 }
+=======
+// PWA Service worker
+
+// if ('serviceWorker' in navigator) {
+//   window.addEventListener('load', () => {
+//     navigator.serviceWorker.register('/service-worker.js')
+//       .then(reg => console.log('SW Registered!', reg))
+//       .catch(err => console.log('SW Registration Failed', err));
+//   });
+// }
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791

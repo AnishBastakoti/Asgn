@@ -36,6 +36,7 @@ app = FastAPI(
     real job posting data and ESCO skill taxonomy.
     """,
     
+<<<<<<< HEAD
     docs_url="/docs" if settings.DEBUG else None,      # Swagger UI at /docs
     redoc_url="/redocs" if settings.DEBUG else None,   # ReDoc UI at /redoc
     openapi_url="/openapi.json" if settings.DEBUG else None,
@@ -45,6 +46,15 @@ app.state.limiter = limiter
 app.add_middleware(AuthMiddleware)
 app.add_middleware(SlowAPIMiddleware)
 
+=======
+    docs_url="/docs",      # Swagger UI at /docs
+    redoc_url="/redocs",     # ReDoc UI at /redoc
+    # Register limiter
+)
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(AuthMiddleware)
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 
 
 # Global exception handler for rate limits
@@ -170,11 +180,16 @@ async def startup_event():
     """
     verify_connection()  # Check DB connection before accepting requests
     logger.info(f" {settings.APP_NAME} v{settings.APP_VERSION} starting...")
+<<<<<<< HEAD
     if settings.DEBUG:
         logger.info(f" Dashboard: http://localhost:8000")
         logger.info(f" API Docs:  http://localhost:8000/docs")
     else:
         logger.info(" Application running in PRODUCTION mode.")
+=======
+    logger.info(f" Dashboard: http://localhost:8000")
+    logger.info(f" API Docs:  http://localhost:8000/docs")
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 
 # ── Run directly ─
 if __name__ == "__main__":
@@ -183,6 +198,10 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8000,
+<<<<<<< HEAD
         reload=settings.DEBUG,  # auto-reload on code changes in devlopment 
+=======
+        reload=settings.DEBUG,  # auto-reload on code changes in dev
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
         loop="asyncio"
     )

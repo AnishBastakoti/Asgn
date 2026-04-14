@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {
     "name": "Territory SkillPulse",
     "short_name": "SkillPulse",
@@ -21,3 +22,28 @@
         }
     ]
 }
+=======
+// {
+//     "name": "Territory SkillPulse",
+//     "short_name": "SkillPulse",
+//     "description": "Skills Intelligence and Workforce Analytics for the NT",
+//     "start_url": "/",
+//     "display": "standalone",
+//     "background_color": "#ffffff",
+//     "theme_color": "#EB5905",
+//     "icons": [
+//         {
+//             "src": "/templates/images/NTG1.png",
+//             "sizes": "500x500", 
+//             "type": "image/png",
+//             "purpose": "any"
+//         },
+//         {
+//             "src": "/templates/images/NTG1.png",
+//             "sizes": "500x500",
+//             "type": "image/png",
+//             "purpose": "maskable"
+//         }
+//     ]
+// }
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791

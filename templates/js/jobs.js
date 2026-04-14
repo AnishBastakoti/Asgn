@@ -2,6 +2,7 @@
 
 // ── Colour palette (matches CSS token --indigo, --emerald, etc.) ──────────────
 const JT_COLORS = [
+<<<<<<< HEAD
    '#EB5905', // orange
   // '#10B981', // emerald
   // '#F43F5E', // coral
@@ -10,6 +11,16 @@ const JT_COLORS = [
   // '#F59E0B', // amber
   // '#EC4899', // pink
   // '#14B8A6', // teal
+=======
+  '#6366F1', // indigo
+  '#10B981', // emerald
+  '#F43F5E', // coral
+  '#0EA5E9', // sky
+  '#8B5CF6', // violet
+  '#F59E0B', // amber
+  '#EC4899', // pink
+  '#14B8A6', // teal
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 ];
 
 
@@ -28,7 +39,11 @@ function hexToRgba(hex, alpha) {
 }
 // ── Chart instances — module-scoped so we can destroy before redraw ────────────
 let _citiesChart = null;
+<<<<<<< HEAD
 let _skillGapsChart = null;
+=======
+let _trendsChart = null;
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 
 // ── Page state ────────────────────────────────────────────────────────────────
 const jt = {
@@ -38,11 +53,19 @@ const jt = {
   activeTab:   'cities',
   // Tracks which tabs have been loaded for the current occupation.
   // Resets to all-false when a new occupation is selected.
+<<<<<<< HEAD
   loaded: { cities: false, 'skills': false, overlap: false, companies: false },
+=======
+  loaded: { cities: false, trends: false, overlap: false, companies: false },
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 };
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+<<<<<<< HEAD
+=======
+  //loadHotSkills();
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
   loadOccupations();
   initTabs();
 
@@ -73,7 +96,11 @@ window.selectOccupation = function(el) {
 
   // Update state — reset loaded flags for new occupation
   jt.selected = { id, title, level };
+<<<<<<< HEAD
   jt.loaded   = { cities: false, 'skills': false, overlap: false, companies: false, topskills: false };
+=======
+  jt.loaded   = { cities: false, trends: false, overlap: false, companies: false, topskills: false };
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 
   // Update header
   document.getElementById('jtWelcome').style.display      = 'none';
@@ -81,6 +108,13 @@ window.selectOccupation = function(el) {
   document.getElementById('jtOccName').textContent        = title;
   document.getElementById('jtOccLevel').textContent       = level ? `Level ${level}` : 'Level —';
 
+<<<<<<< HEAD
+=======
+  // Show the print button now that an occupation is selected
+  const printBtn = document.getElementById('btnPdfExport');
+  if (printBtn) printBtn.style.display = 'flex';
+
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
   // Always land on cities tab when switching occupation
   switchTab('cities');
   loadTabData('cities');
@@ -118,7 +152,11 @@ async function loadTabData(tab) {
   if (pane) {
     if (tab === 'overlap' || tab === 'companies' || tab === 'topskills') {
       // These panes use innerHTML directly — safe to overwrite
+<<<<<<< HEAD
       const target = pane.querySelector('#heatmapWrap, #companiesWrap, #topSkillsWrap');
+=======
+      const target = pane.querySelector('#heatmapWrap, #companiesWrap, #topskillswrap');
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
       if (target) target.innerHTML =
         `<div class="jt-loading"><div class="sp-spinner-sm"></div>&nbsp;Loading&hellip;</div>`;
     } else {
@@ -138,7 +176,11 @@ async function loadTabData(tab) {
     await renderCities(id);
     await renderLeadIndicator(id);
   }
+<<<<<<< HEAD
   if (tab === 'skills')    await renderTrends(id);
+=======
+  if (tab === 'trends')    await renderTrends(id);
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
   if (tab === 'overlap')   await renderOverlap(id);
   if (tab === 'companies') await renderCompanies(id);
   if (tab === 'topskills') await renderTopSkills(id);
@@ -246,6 +288,171 @@ async function renderLeadIndicator(occId) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+<<<<<<< HEAD
+=======
+// SKILL TRENDS — multi-line time series
+//    Source: /api/jobs/trends/?occupation_id=X
+//    Each dataset is one skill. Tooltip shows trend direction (growing/declining/stable)
+//    from the velocity score computed by numpy linear regression in the backend.
+// ═════════════════════════════════════════════════════════════════════════════
+async function renderTrends(occId) {
+  let chartWrap;
+  try {
+    const pane = document.getElementById('pane-trends');
+    if (!pane) throw new Error('pane-trends element not found in DOM');
+    chartWrap = pane.querySelector('.jt-chart-wrap');
+    if (!chartWrap) throw new Error('chart wrap not found inside pane-trends');
+
+    const data = await api(`/api/jobs/trends/?occupation_id=${occId}`);
+
+    // Guard: occupation may have changed while this request was in flight
+    if (jt.selected?.id !== occId) return;
+
+    if (_trendsChart) { _trendsChart.destroy(); _trendsChart = null; }
+    if (!data || !data.length) {
+      chartWrap.innerHTML = `<div class="jt-empty">
+        <i class="bi bi-graph-up me-2"></i>
+        No skill trend data yet for this occupation.</div>`;
+      return;
+    }
+    // Filter out skills with no points — prevents ghost legend entries with strikethrough
+    const validSkills = data
+    .filter(s => s.points && s.points.length > 0)
+    .sort((a,b) =>
+      b.points.reduce((t,p)=>t+p.count,0) -
+      a.points.reduce((t,p)=>t+p.count,0)
+   )
+   .slice(0,5); // limit to top 5 skills for readability
+    // Compute the max mention count across all skills and points
+    // Used to set a sensible y-axis max and force integer steps
+    const allCounts = validSkills.flatMap(s => s.points.map(p => p.count));
+    const maxCount  = Math.max(...allCounts, 1); // at least 1 to avoid empty axis
+
+    const ctx = document.getElementById('chartTrends').getContext('2d');
+    _trendsChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        //labels: labels,
+        datasets: validSkills.map((skill, i) => ({
+          label:            skill.skill_name,
+          data: skill.points.map(p => ({ x: p.date, y: p.count })),
+          borderColor:      hexToRgba(JT_COLORS[i % JT_COLORS.length], 1.0),
+          backgroundColor:  hexToRgba(JT_COLORS[i % JT_COLORS.length], 0.08),
+          borderWidth:      2.5,
+          pointRadius:      4,
+          pointHoverRadius: 7,
+          cubicInterpolationMode: 'monotone',
+          pointBackgroundColor: hexToRgba(JT_COLORS[i % JT_COLORS.length], 1.0),
+          tension:          0.35,
+          fill:             false,
+        })),
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              font: { size: 11, weight: '600' },
+              padding: 16,
+              usePointStyle: true,
+              pointStyle: 'circle',
+              pointStyleWidth: 10,
+            },
+          },
+          tooltip: {
+            backgroundColor: 'rgba(17,24,39,0.92)',  
+            titleColor:      '#A5B4FC',              
+            bodyColor:       '#E5E7EB',              
+            borderColor:     'rgba(99,102,241,0.3)',
+            borderWidth:     1,
+            padding:         12,
+            cornerRadius:    10,
+            titleFont:       { size: 13, weight: '700' },
+            bodyFont:        { size: 13, weight: '500' },
+            usePointStyle:   true,
+            callbacks: {
+              // Format ISO date in tooltip title
+              title: items => {
+                if (!items.length) return '';
+                const raw = items[0].label.replace(' ', 'T');
+                const d   = new Date(raw);
+                return isNaN(d)
+                  ? items[0].label   // fallback to raw if parse fails
+                  : d.toLocaleDateString('en-AU', {
+                      weekday: 'short', day: 'numeric',
+                      month: 'long',   year: 'numeric',
+                    });
+              },
+              //"1 mentions" grammar + clean formatting
+              label: ctx => {
+                const count = ctx.parsed.y;
+                const noun  = count === 1 ? 'mention' : 'mentions';
+                return `  ${ctx.dataset.label}: ${count} ${noun}`;
+              },
+              // Only show trend direction if meaningful (velocity != 0)
+              afterLabel: ctx => {
+                const skill = validSkills[ctx.datasetIndex];
+                if (!skill) return '';
+                const arrow = skill.trend === 'growing'   ? '▲ Growing'
+                            : skill.trend === 'declining' ? '▼ Declining'
+                            : '→ Stable';
+                return arrow ? `  ${arrow}  (velocity: ${skill.velocity})` : '';
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            //type: 'category',
+            grid: { display: false },
+            border: { display: true },
+            ticks: {
+              font: { size: 11, weight: '600' },
+              color: '#6B7280',
+              callback: function(val) {
+                const raw = this.getLabelForValue(val).replace(' ', 'T');
+                const d   = new Date(raw);
+                return isNaN(d)
+                  ? val
+                  : d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+              },
+            },
+          },
+          y: {
+            grid:  { color: '#F3F4F6', drawBorder: false },
+            border: { display: true },
+            min: 0,
+            max: maxCount < 5 ? 5 : undefined, // if counts are low, sets max to 5 for better scaling
+            ticks: {
+              font: { size: 11, weight: '600' },
+              color: '#6B7280',
+              stepSize: 1,
+              // integers only, max 6 ticks — keeps axis clean when counts are small
+              precision:     0,
+              maxTicksLimit: 6,
+            },
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+
+  } catch (err) {
+    console.error('[SkillPulse|JT] renderTrends:', err);
+    if (chartWrap) chartWrap.innerHTML =
+      `<div class="jt-empty"><i class="bi bi-exclamation-triangle me-2"></i>` +
+      `Trend data unavailable. <small class="text-muted d-block mt-1">${err.message}</small></div>`;
+    jt.loaded.trends = false;
+  } finally {
+    document.querySelector('#pane-trends .jt-pane-spinner')?.remove();
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 // SKILL OVERLAP — HTML table heatmap
 //    Source: /api/jobs/overlap/?occupation_id=X
 // ═════════════════════════════════════════════════════════════════════════════
@@ -377,6 +584,7 @@ async function renderTopSkills(occId) {
 
   try {
     const d = await api(`/api/jobs/hot-skills/?occupation_id=${occId}&days=30`);
+<<<<<<< HEAD
     const skills = Array.isArray(d) ? d : (d.skills || []);
 
     if (sub) {
@@ -414,19 +622,64 @@ async function renderTopSkills(occId) {
           <a href="${s.concept_uri}" target="_blank" rel="noopener noreferrer" class="sp-esco-link"><i class="bi bi-box-arrow-up-right"></i></a>
         </span>`
       : `<span class="sp-skill-name-wrap">${esc(skillName)}</span>`;
+=======
+
+    // Update subtitle — warn user if showing fallback data
+    if (sub) {
+      sub.textContent = d.is_fallback
+        ? 'No pipeline run in last 30 days — showing all-time data until next run'
+        : 'Most mentioned skills from job posts in the last 30 days';
+      sub.style.color = d.is_fallback ? 'var(--orange)' : '';
+    }
+
+    if (!d.skills || !d.skills.length) {
+      wrap.innerHTML = `<div class="jt-empty">
+        <i class="bi bi-hourglass-split me-2"></i>
+        No skill data yet for this occupation.
+      </div>`;
+      return;
+    }
+
+    const max = d.skills[0].total_mentions || 1;
+    const typeColors = {
+      knowledge:         'var(--violet)',
+      'skill/competence':'var(--orange)',
+      attitude:          '#F59E0B',
+    };
+
+    const rows = d.skills.map((s, i) => {
+      const pct   = Math.round((s.total_mentions / max) * 100);
+      const color = typeColors[s.skill_type] || 'var(--muted)';
+
+      // Clickable if concept_uri exists
+      const nameHtml = s.concept_uri
+        ? `<a href="${s.concept_uri}" target="_blank" rel="noopener noreferrer"
+              class="sp-esco-link" title="Open ESCO skill page">${esc(s.skill_name)}</a>`
+        : esc(s.skill_name);
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 
       return `
         <div class="jt-hot-row" style="gap:10px; margin-bottom:8px;">
           <span class="jt-hot-rank">${i + 1}</span>
           <span class="jt-hot-name" style="flex:1; font-size:13px;">${nameHtml}</span>
+<<<<<<< HEAD
           <div style="width:140px; height:6px; background:var(--orange-l); border-radius:99px; flex-shrink:0; overflow:hidden;">
             <div style="width:${pct}%; height:100%; background:${color}; border-radius:99px; transition:width 0.5s ease;"></div>
           </div>
           <span class="jt-hot-count">${fmt(s.total_mentions)} ${s.total_mentions === 1 ? 'job' : 'jobs'}</span>
+=======
+          <div style="width:140px; height:6px; background:var(--orange-l);
+                      border-radius:99px; flex-shrink:0; overflow:hidden;">
+            <div style="width:${pct}%; height:100%; background:${color};
+                        border-radius:99px; transition:width 0.5s ease;"></div>
+          </div>
+          <span class="jt-hot-count">${fmt(s.total_mentions)}</span>
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
         </div>`;
     }).join('');
 
     wrap.innerHTML = `<div style="margin-top:8px;">${rows}</div>`;
+<<<<<<< HEAD
     jt.loaded.topskills = true;
 
   } catch (err) {
@@ -640,3 +893,14 @@ function _gapTypeCard(t) {
     </div>`;
 }
  
+=======
+
+  } catch (err) {
+    wrap.innerHTML = `<div class="jt-empty text-danger">
+      <i class="bi bi-exclamation-triangle me-2"></i>Could not load skill data.
+    </div>`;
+    console.warn('[SkillPulse|JT] renderTopSkills:', err.message);
+  }
+  jt.loaded.topskills = false;
+}
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791

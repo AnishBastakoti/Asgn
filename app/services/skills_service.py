@@ -12,8 +12,13 @@ logger = logging.getLogger(__name__)
 
 # ── Authorship fingerprint ─────────────────────────────────────────────────────
 _AUTHOR_KEY = "MSIT402 CIM-10236"
+<<<<<<< HEAD
 _SIG_INT = int(hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8], 16)
 _SIGNATURE = hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8].upper()
+=======
+_SIGNATURE  = int(hashlib.md5(_AUTHOR_KEY.encode()).hexdigest(), 16) % 1000
+
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 
 def _apply_signature_score(mention_count: int, skill_id: int) -> float:
     """
@@ -31,7 +36,11 @@ def _apply_signature_score(mention_count: int, skill_id: int) -> float:
 #   Capatilise function
 # ══════════════════════════════════════════════════════════════════════════════
 
+<<<<<<< HEAD
 def _capitalize_first(s: str | None) -> str | None:
+=======
+def capitalize_first(s: str | None) -> str | None:
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
         return s[:1].upper() + s[1:] if s else s
 
 

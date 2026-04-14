@@ -6,11 +6,14 @@ const an = {
 };
 let forecastChartInstance = null; // Global reference to the Chart instance
 
+<<<<<<< HEAD
 // Get the actual hex/rgb value from your CSS
 const style = getComputedStyle(document.body);
 const orange = style.getPropertyValue('--orange').trim() || '#EB5905';
 const coral = style.getPropertyValue('--coral').trim() || '#ff7f50';
 
+=======
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 // ── Boot ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadOccupations();
@@ -36,12 +39,20 @@ window.selectOccupation = async function(el) {
   document.getElementById('anOccName').textContent   = title;
   document.getElementById('anOccLevel').textContent  = level ? `Level ${level}` : 'Level —';
 
+<<<<<<< HEAD
 
   loadSkillVelocity(id)
   loadShadowSkills(id);
   loadSkillDecay(id); 
   updateForecast(id); // Trigger the forecast chart update
   loadOccupationProfile(id); // Load the new occupation profile data     
+=======
+  loadShadowSkills(id);
+  loadSkillDecay(id); 
+  updateForecast(id); // Trigger the forecast chart update
+  loadOccupationProfile(id); // Load the new occupation profile data
+  await loadSkillVelocity(id);      
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
   await loadMarketSaturation(id);
   await loadOccupationClusters(id);
   await loadSimilarOccupations(id);
@@ -176,7 +187,11 @@ async function updateForecast(occupationId) {
     if (badge) badge.textContent = 'Loading…';
  
     try {
+<<<<<<< HEAD
         // pass model preference as query param so backend knows which to use
+=======
+        // Build URL — pass model preference as query param so backend knows which to use
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
         const url = `/api/analytics/predict-demand-by-occ/${occupationId}?model=${_forecastModel}`;
         const response = await fetch(url, {
             headers: localStorage.getItem('sp_token')
@@ -186,21 +201,38 @@ async function updateForecast(occupationId) {
         if (!response.ok) throw new Error('Forecast data unavailable');
         const data = await response.json();
  
+<<<<<<< HEAD
         // ── Detect actual method used──
         const usedMethod  = data.method || (_forecastModel === 'ridge' ? 'ridge_regression' : 'momentum');
         const isRidge     = usedMethod === 'ridge_regression';
         const methodLabel = isRidge ? 'Ridge Regression' : 'Momentum Forecast';
         const methodColor = isRidge ? 'var(--orange)' : 'var(--orange)';
+=======
+        // ── Detect actual method used (backend may fallback) ──
+        const usedMethod  = data.method || (_forecastModel === 'ridge' ? 'ridge_regression' : 'momentum');
+        const isRidge     = usedMethod === 'ridge_regression';
+        const methodLabel = isRidge ? 'Ridge Regression' : 'Momentum Forecast';
+        const methodColor = isRidge ? 'var(--indigo)' : 'var(--orange)';
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
  
         // ── Update switcher active badge ──
         if (badge) {
             badge.textContent  = isRidge ? 'Ridge Active' : 'Momentum Active';
+<<<<<<< HEAD
             badge.style.background = isRidge ? 'var(--orange-l)' : 'var(--orange-l)';
             badge.style.color      = isRidge ? '#047857'   : '#047857';
         }
  
         // ── KPI strip ──
         const growthColor = data.growth_rate >= 0 ? orange : coral;
+=======
+            badge.style.background = isRidge ? 'var(--indigo-l)' : 'var(--orange-l)';
+            badge.style.color      = isRidge ? 'var(--indigo)'   : '#047857';
+        }
+ 
+        // ── KPI strip ──
+        const growthColor = data.growth_rate >= 0 ? 'var(--orange)' : 'var(--coral)';
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
         const el = id => document.getElementById(id);
         if (el('fcCurrentDemand'))   el('fcCurrentDemand').textContent   = fmt(data.current_demand);
         if (el('fcPredictedDemand')) el('fcPredictedDemand').textContent = fmt(data.predicted_demand);
@@ -239,7 +271,10 @@ async function updateForecast(occupationId) {
                     pointBackgroundColor: '#fff',
                     pointBorderWidth: 2,
                     borderWidth: 2,
+<<<<<<< HEAD
                     pointerColor: 'rgba(239,68,68)',
+=======
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
                 }]
             },
             options: {
@@ -640,7 +675,11 @@ async function loadOccupationClusters(occId) {
         width: 220,
         cellRenderer: p => {
           const pct   = p.value;
+<<<<<<< HEAD
           const color = pct >= 75 ? 'var(--violet)' : pct >= 50 ? 'var(--orange)' : 'var(--orange)';
+=======
+          const color = pct >= 75 ? 'var(--violet)' : pct >= 50 ? 'var(--orange)' : 'var(--muted)';
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
           return `<div style="display:flex;align-items:center;gap:8px;">
             <div style="flex:1;height:6px;background:var(--shell-bg);border-radius:3px;overflow:hidden;border:1px solid var(--border);">
               <div style="width:${pct}%;height:100%;background:${color};border-radius:3px;"></div>

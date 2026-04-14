@@ -1,7 +1,12 @@
 from pydantic import BaseModel
+<<<<<<< HEAD
 from sqlalchemy import Column, Index, Integer, String, Text, DateTime, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 from pgvector.sqlalchemy import Vector
+=======
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, BigInteger
+from sqlalchemy.orm import relationship
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 from app.database import Base
 
 
@@ -13,7 +18,10 @@ class EscoSkill(Base):
     preferred_label = Column(String, nullable=False)# The main name of the skill, used for display and matching
     skill_type    = Column(String, nullable=True)
     content_hash  = Column(String, nullable=True) 
+<<<<<<< HEAD
     embedding       = Column(Vector(1536), nullable=True)
+=======
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 
     #-- new columns 
     alt_labels   = Column(Text,   nullable=True)
@@ -47,8 +55,13 @@ class OscaOccupationSkill(Base):
     __tablename__ = "osca_occupation_skills"
 
     id            = Column(BigInteger, primary_key=True)
+<<<<<<< HEAD
     occupation_id = Column(Integer, ForeignKey("osca_occupations.id"), index=True)
     skill_id      = Column(BigInteger, ForeignKey("esco_skills.id"), index=True)
+=======
+    occupation_id = Column(Integer, ForeignKey("osca_occupations.id"))
+    skill_id      = Column(BigInteger, ForeignKey("esco_skills.id"))
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
     mention_count = Column(Integer, nullable=False, default=0) # bar chart, every ranking, every trend line from here 
     first_seen_at = Column(DateTime, nullable=True)
     last_seen_at  = Column(DateTime, nullable=True)
@@ -71,10 +84,13 @@ class OscaOccupationSkillSnapshot(Base):
     mention_count    = Column(Integer, nullable=False, default=0) # Every bar chart, every ranking, every trend line from here
     snapshot_date    = Column(DateTime, nullable=True)
 
+<<<<<<< HEAD
     __table_args__ = (
         Index("ix_snapshot_occ_date", "occupation_id", "snapshot_date"),
     )
 
+=======
+>>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
     occupation = relationship("OscaOccupation", lazy="select")
     skill      = relationship("EscoSkill", back_populates="snapshots")
 
