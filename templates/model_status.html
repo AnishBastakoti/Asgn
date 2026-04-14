@@ -57,10 +57,7 @@
 }
 .ms-badge.ready    { background: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; }
 .ms-badge.fallback { background: #FEF9C3; color: #92400E; border: 1px solid #FDE68A; }
-<<<<<<< HEAD
 .ms-badge.stale    { background: #FEF3C7; color: #B45309; border: 1px solid #FCD34D; }
-=======
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 .ms-badge.loading  { background: #F3F4F6; color: #6B7280; border: 1px solid #E5E7EB; }
 
 /* R² gauge */
@@ -118,10 +115,7 @@
   height: 100%;
   background: var(--indigo);
   border-radius: 99px;
-<<<<<<< HEAD
   transition: width 0.6s ease;
-=======
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 }
 
 /* History log */
@@ -147,11 +141,7 @@
 .ms-refresh-btn {
   padding: 8px 18px;
   background: var(--indigo);
-<<<<<<< HEAD
   color: var(--text);
-=======
-  color: #fff;
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
   border: none;
   border-radius: var(--rad-sm);
   font-size: 12px;
@@ -164,13 +154,8 @@
 }
 .ms-refresh-btn:hover { background: var(--indigo-d); }
 
-<<<<<<< HEAD
 /* Full-width / span helpers */
 .ms-full  { grid-column: 1 / -1; }
-=======
-/* Full-width cards */
-.ms-full { grid-column: 1 / -1; }
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 .ms-span2 { grid-column: span 2; }
 
 .ms-empty {
@@ -179,7 +164,6 @@
   color: var(--muted);
   font-size: 13px;
 }
-<<<<<<< HEAD
 
 /* Model switcher buttons were referenced but never styled. */
 .ms-model-switcher {
@@ -225,8 +209,6 @@
   color: var(--text2);
   border-color: var(--indigo);
 }
-=======
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 </style>
 {% endblock %}
 
@@ -262,11 +244,7 @@
 <script>
 'use strict';
 
-<<<<<<< HEAD
 // ── Active model ──────────────────────────────────────────────────────────────
-=======
-// ── Active model ──────────────────────────────────────────────
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 let _activeModel = 'ridge';
 
 function switchModel(model) {
@@ -276,11 +254,7 @@ function switchModel(model) {
   loadModelStatus();
 }
 
-<<<<<<< HEAD
 // ── Load model status ─────────────────────────────────────────────────────────
-=======
-// ── Load model status ─────────────────────────────────────────────────────
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 async function loadModelStatus() {
   const grid        = document.getElementById('statusGrid');
   const refreshIcon = document.getElementById('refreshIcon');
@@ -300,7 +274,6 @@ async function loadModelStatus() {
   }
 }
 
-<<<<<<< HEAD
 // ── Render status ─────────────────────────────────────────────────────────────
 function renderStatus(d, activeModel = 'ridge') {
 
@@ -358,58 +331,15 @@ function renderStatus(d, activeModel = 'ridge') {
     const coefLabel = coef >= 0
       ? `<span style="color:#10B981">+${coef.toFixed(3)}</span>`
       : `<span style="color:#EF4444">${coef.toFixed(3)}</span>`;
-=======
-// ── Render status ─────────────────────────────────────────────────────────
-function renderStatus(d, activeModel = 'ridge') {
-  const isRidge     = activeModel === 'ridge';
-  const modelLabel  = isRidge ? ' Ridge Regression' : ' Momentum Forecast';
-  const modelColor  = isRidge ? 'var(--indigo)' : 'var(--emerald)';
-  const grid   = document.getElementById('statusGrid');
-  const r2     = d.r2_score ?? 0;
-  const r2Pct  = Math.round(r2 * 100);
-  const r2Color = r2 >= 0.6 ? '#10B981' : r2 >= 0.4 ? '#F59E0B' : '#EF4444';
-  const r2Label = r2 >= 0.6 ? 'Good' : r2 >= 0.4 ? 'Moderate' : 'Weak';
-
-  // Show which model is selected + whether backend actually used it
-  const backendUsed = d.method === 'ridge_regression' ? 'ridge' : 'momentum';
-  const mismatch    = isRidge && backendUsed !== 'ridge';
-  const methodBadge = isRidge
-    ? `<span class="ms-badge ready"><i class="bi bi-lightning-charge-fill"></i> Ridge Regression</span>
-       ${mismatch ? '<span class="ms-badge fallback" style="margin-left:6px;"> fell back to Momentum</span>' : ''}`
-    : `<span class="ms-badge fallback"><i class="bi bi-graph-up-arrow"></i> Momentum Forecast</span>
-       <div style="font-size:11px;color:var(--muted);margin-top:6px;">Momentum uses market velocity — no R² score</div>`;
-
-  const features = d.feature_cols || [];
-  const featureDescriptions = {
-    current_demand:  "Total job postings across all cities",
-    shadow_count:    "Unlisted skills appearing in job posts",
-    skill_count:     "Officially mapped ESCO skills",
-    city_diversity:  "Number of cities occupation appears in",
-    avg_mention:     "Average skill mention depth",
-  };
-
-  //importance bars — proportional to feature index position --dummy example
-
-  const maxImportance = features.length;
-  const featureRows = features.map((f, i) => {
-    const importance = Math.round(((maxImportance - i) / maxImportance) * 100);
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
     return `<tr>
       <td style="font-weight:600">${f.replace(/_/g, ' ')}</td>
       <td style="color:var(--muted); font-size:11px;">${featureDescriptions[f] || ''}</td>
       <td>
         <div class="ms-feature-bar">
-<<<<<<< HEAD
           <div class="ms-feature-bar-fill" style="width:${absPct}%"></div>
         </div>
       </td>
       <td style="text-align:right; font-weight:700; font-family:var(--mono);">${coefLabel}</td>
-=======
-          <div class="ms-feature-bar-fill" style="width:${importance}%"></div>
-        </div>
-      </td>
-      <td style="text-align:right; font-weight:700; color:var(--indigo)">${importance}%</td>
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
     </tr>`;
   }).join('');
 
@@ -419,7 +349,6 @@ function renderStatus(d, activeModel = 'ridge') {
 
   grid.innerHTML = `
 
-<<<<<<< HEAD
     <!--  Active Model card -->
     <div class="ms-card">
       <div class="ms-card-title"><i class="bi bi-cpu-fill"></i> Active Model</div>
@@ -458,73 +387,18 @@ function renderStatus(d, activeModel = 'ridge') {
         ${(d.occ_count || 0) < 100
           ? '⚠ More pipeline runs will improve accuracy'
           : '✓ Sufficient training data'
-=======
-    <!-- Model Status Card -->
-    <div class="ms-card" style="border-top:3px solid ${modelColor}">
-      <div class="ms-card-title"><i class="bi bi-cpu-fill"></i> Active Model</div>
-      <div class="ms-big-val" style="font-size:18px; color:${modelColor}">${modelLabel}</div>
-      <div class="ms-sub" style="margin-top:6px;">Status: ${d.model_ready ? 'Ready' : 'Pending'}</div>
-      <div class="ms-sub">Last trained: ${trainedAt}</div>
-      <div style="margin-top:8px;">${methodBadge}</div>
-    </div>
-
-    <!-- R² Score Card -->
-    <div class="ms-card">
-      <div class="ms-card-title"><i class="bi bi-graph-up"></i> ${isRidge ? 'Model Accuracy (R²)' : 'Momentum Accuracy'}</div>
-      <div class="ms-big-val" style="color:${isRidge ? r2Color : 'var(--muted)'}">${isRidge ? r2Pct + '%' : 'N/A'}</div>
-      <div class="ms-r2-track">
-        <div class="ms-r2-fill" style="width:${r2Pct}%; background:${r2Color};"></div>
-      </div>
-      <div class="ms-r2-labels">
-        <span>Weak (&lt;40%)</span>
-        <span>Moderate</span>
-        <span>Good (&gt;60%)</span>
-      </div>
-      <div class="ms-sub mt-2">
-        ${r2Label} fit — 
-        ${r2 >= 0.6
-          ? 'model explains most variance in demand'
-          : r2 >= 0.4
-          ? 'reasonable accuracy — improves with more pipeline runs'
-          : 'limited accuracy — add more pipeline data to improve'
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
         }
       </div>
     </div>
 
-<<<<<<< HEAD
     <!-- ④ What is R²? explanation -->
-=======
-    <!-- Training Data Card -->
-    <div class="ms-card">
-      <div class="ms-card-title"><i class="bi bi-database-fill"></i> Training Data</div>
-      <div class="ms-big-val">${fmt(d.occ_count || 0)}</div>
-      <div class="ms-sub">Occupations in training matrix</div>
-      <div style="margin-top:12px;">
-        <div class="ms-sub" style="margin-bottom:4px;">Job posts indexed</div>
-        <div style="font-size:18px; font-weight:700; font-family:var(--mono); color:var(--text)">${fmt(d.job_count || 0)}</div>
-      </div>
-      <div class="ms-sub" style="margin-top:8px; color:${(d.occ_count || 0) < 100 ? '#D97706' : 'var(--muted)'}">
-        ${(d.occ_count || 0) < 100
-          ? 'More pipeline runs will improve accuracy'
-          : 'Sufficient training data'
-        }
-      </div>
-    </div>
-
-    <!-- What is R²? explanation -->
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
     <div class="ms-card" style="background:var(--shell-bg);">
       <div class="ms-card-title"><i class="bi bi-info-circle-fill"></i> What is R²?</div>
       <div style="font-size:12px; color:var(--text2); line-height:1.7;">
         <strong>R² (R-squared)</strong> measures how well the model explains variation in job demand.
         <br><br>
         <strong style="color:#10B981">R² = 1.0</strong> — perfect prediction<br>
-<<<<<<< HEAD
         <strong style="color:#F59E0B">R² = 0.5</strong> — explains 50 % of variance<br>
-=======
-        <strong style="color:#F59E0B">R² = 0.5</strong> — explains 50% of variance<br>
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
         <strong style="color:#EF4444">R² = 0.0</strong> — no better than predicting the mean<br>
         <br>
         Labour market data typically achieves R² of 0.3-0.6 with limited data.
@@ -532,11 +406,7 @@ function renderStatus(d, activeModel = 'ridge') {
       </div>
     </div>
 
-<<<<<<< HEAD
     <!--  Feature Importance — FIX #8: real Ridge coefficients, not dummy positional bars -->
-=======
-    <!-- Feature Importance -->
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
     <div class="ms-card ms-span2">
       <div class="ms-card-title"><i class="bi bi-bar-chart-fill"></i> Feature Importance</div>
       ${features.length > 0 ? `
@@ -546,31 +416,19 @@ function renderStatus(d, activeModel = 'ridge') {
               <th>Feature</th>
               <th>Description</th>
               <th>Relative Weight</th>
-<<<<<<< HEAD
               <th style="text-align:right;">Ridge Coefficient</th>
-=======
-              <th style="text-align:right">Score</th>
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
             </tr>
           </thead>
           <tbody>${featureRows}</tbody>
         </table>
         <div style="font-size:11px; color:var(--muted); margin-top:10px; font-family:var(--mono);">
-<<<<<<< HEAD
           Bar width = |coefficient| normalised to the largest feature. Positive coefficients
           increase predicted demand; negative reduce it.
-=======
-          * Weights are estimated from feature ranking. Actual Ridge coefficients available via /api/analytics/model-status.
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
         </div>
       ` : `<div class="ms-empty">Model not trained yet — no features available.</div>`}
     </div>
 
-<<<<<<< HEAD
     <!--  How the Model Works -->
-=======
-    <!-- How the Model Works -->
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
     <div class="ms-card ms-full" style="border-left: 3px solid ${modelColor};">
       <div class="ms-card-title"><i class="bi bi-diagram-3-fill"></i> How ${isRidge ? 'Ridge Regression' : 'Momentum Forecasting'} Works</div>
       <div style="display:grid; grid-template-columns: repeat(5,1fr); gap:16px; font-size:12px; color:var(--text2);">
@@ -583,38 +441,22 @@ function renderStatus(d, activeModel = 'ridge') {
           <div style="text-align:center;">
             <div style="font-size:20px; margin-bottom:6px;">2</div>
             <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Feature Scaling</div>
-<<<<<<< HEAD
             <div>StandardScaler normalises all features to mean=0, std=1 so no single feature dominates</div>
-=======
-            <div>StandardScaler normalises all features to mean=0, std=1 so no feature dominates</div>
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
           </div>
           <div style="text-align:center;">
             <div style="font-size:20px; margin-bottom:6px;">3</div>
             <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Ridge Training</div>
-<<<<<<< HEAD
             <div>Ridge learns β coefficients with L2 penalty (α=1.0) to prevent overfitting on correlated features</div>
-=======
-            <div>Ridge learns β coefficients with L2 penalty (α=1.0) to prevent overfitting</div>
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
           </div>
           <div style="text-align:center;">
             <div style="font-size:20px; margin-bottom:6px;">4</div>
             <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Cross-Validation</div>
-<<<<<<< HEAD
             <div>K-Fold CV measures R² on unseen folds to give an unbiased accuracy estimate</div>
-=======
-            <div>K-Fold CV measures R² on unseen data to give an unbiased accuracy estimate</div>
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
           </div>
           <div style="text-align:center;">
             <div style="font-size:20px; margin-bottom:6px;">5</div>
             <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Auto-Retrain</div>
-<<<<<<< HEAD
             <div>Model retrains automatically when occupation or job-post counts change</div>
-=======
-            <div>Model retrains automatically when new pipeline data is detected</div>
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
           </div>
         ` : `
           <div style="text-align:center;">
@@ -630,29 +472,17 @@ function renderStatus(d, activeModel = 'ridge') {
           <div style="text-align:center;">
             <div style="font-size:20px; margin-bottom:6px;">3</div>
             <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Momentum Factor</div>
-<<<<<<< HEAD
             <div>momentum = 1.05 + (velocity x 0.5) — baseline 5 % growth always applied</div>
-=======
-            <div>momentum = 1.05 + (velocity * 0.5) — baseline 5% growth always applied</div>
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
           </div>
           <div style="text-align:center;">
             <div style="font-size:20px; margin-bottom:6px;">4</div>
             <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Shadow Bonus</div>
-<<<<<<< HEAD
             <div>Shadow skill count x 0.1 added to prediction to reward emerging demand</div>
-=======
-            <div>Shadow skill count * 0.1 added to prediction to reward emerging demand</div>
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
           </div>
           <div style="text-align:center;">
             <div style="font-size:20px; margin-bottom:6px;">5</div>
             <div style="font-weight:700; color:var(--text); margin-bottom:4px;">Prediction</div>
-<<<<<<< HEAD
             <div>predicted = current x momentum + shadow bonus</div>
-=======
-            <div>predicted = current * momentum + shadow bonus</div>
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
           </div>
         `}
       </div>
@@ -661,17 +491,10 @@ function renderStatus(d, activeModel = 'ridge') {
   `;
 }
 
-<<<<<<< HEAD
 // ── Auto-load on page open ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', loadModelStatus);
 
 // ── Spin animation for refresh icon ───────────────────────────────────────────
-=======
-// ── Auto-load on page open ────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', loadModelStatus);
-
-// ── Spin animation for refresh icon ───────────────────────────────────────
->>>>>>> dc9ff5da2beacc545df23e12bc139397f3583791
 const style = document.createElement('style');
 style.textContent = `
   @keyframes spin-once { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
