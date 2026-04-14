@@ -38,6 +38,7 @@ app = FastAPI(
     
     docs_url="/docs" if settings.DEBUG else None,      # Swagger UI at /docs
     redoc_url="/redocs" if settings.DEBUG else None,   # ReDoc UI at /redoc
+    openapi_url="/openapi.json" if settings.DEBUG else None,
     # Register limiter
 )
 app.state.limiter = limiter
@@ -97,7 +98,7 @@ async def no_cache_middleware(request: Request, call_next):
 
 def _render(request, template_name, page):
     return templates.TemplateResponse(
-        request=request,        # request goes FIRST now
+        request=request,        # request goes FIRST
         name=template_name,     # then the template name
         context={               
             "active_page": page,
@@ -169,8 +170,11 @@ async def startup_event():
     """
     verify_connection()  # Check DB connection before accepting requests
     logger.info(f" {settings.APP_NAME} v{settings.APP_VERSION} starting...")
-    logger.info(f" Dashboard: http://localhost:8000")
-    logger.info(f" API Docs:  http://localhost:8000/docs")
+    if settings.DEBUG:
+        logger.info(f" Dashboard: http://localhost:8000")
+        logger.info(f" API Docs:  http://localhost:8000/docs")
+    else:
+        logger.info(" Application running in PRODUCTION mode.")
 
 # ── Run directly ─
 if __name__ == "__main__":

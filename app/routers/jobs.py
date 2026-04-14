@@ -18,9 +18,8 @@ from app.services.jobs_service import (
 router = APIRouter(
     prefix="/api/jobs",
     tags=["Jobs"],
-    dependencies=[Depends(require_auth)],
+    dependencies=[Depends(require_admin)],
 )
-
 
 # ── Schemas ────────────────────────────────────────────────
 

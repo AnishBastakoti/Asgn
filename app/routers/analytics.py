@@ -29,7 +29,7 @@ from app.services.ridge_service import (
 from app.services.similarity_service import get_occupation_similarity
 from app.services.cluster_service import get_occupation_clusters, get_elbow_data
 
-router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
+router = APIRouter(prefix="/api/analytics", tags=["Analytics"], dependencies=[Depends(require_admin)])
 
 # ── Schemas ──────────────────────────────────────────────
 
