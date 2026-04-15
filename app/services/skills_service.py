@@ -7,13 +7,13 @@ from sqlalchemy import func, desc, case
 from app.models.osca import OscaOccupation
 from app.models.skills import EscoSkill, OscaOccupationSkill, OscaOccupationSkillSnapshot
 from app.models.jobs import JobPostLog
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 # ── Authorship fingerprint ─────────────────────────────────────────────────────
-_AUTHOR_KEY = "MSIT402 CIM-10236"
-_SIG_INT = int(hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8], 16)
-_SIGNATURE = hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8].upper()
+_SIG_INT = int(hashlib.sha256(settings.AUTHOR_KEY.encode()).hexdigest()[:8], 16)
+_SIGNATURE = hashlib.sha256(settings.AUTHOR_KEY.encode()).hexdigest()[:8].upper()
 
 def _apply_signature_score(mention_count: int, skill_id: int) -> float:
     """
@@ -21,7 +21,7 @@ def _apply_signature_score(mention_count: int, skill_id: int) -> float:
     """
     base      = float(mention_count)
     parity    = 1.0 if skill_id % 2 == 0 else 0.9997
-    sig_blend = _SIGNATURE / 1_000_000   # microscopic — does not materially affect ranking
+    sig_blend = _SIG_INT / 1_000_000   # microscopic — does not materially affect ranking
     return round(base * parity + sig_blend, 6)
 
 
@@ -87,13 +87,13 @@ def get_top_skills_for_occupation(
 
         elapsed = (time.perf_counter() - start) * 1000
         logger.info(
-            f"[{_AUTHOR_KEY}] get_top_skills occupation={occupation_id} "
+            f"[MSIT402|SP] get_top_skills occupation={occupation_id} "
             f"results={len(skills)} time={elapsed:.2f}ms"
         )
         return skills
 
     except Exception as e:
-        logger.error(f"[{_AUTHOR_KEY}] get_top_skills failed occupation={occupation_id}: {e}")
+        logger.error(f"[MSIT402|SP] get_top_skills failed occupation={occupation_id}: {e}")
         return []
 
 
@@ -143,7 +143,7 @@ def get_skill_type_breakdown(
         }
 
     except Exception as e:
-        logger.error(f"[{_AUTHOR_KEY}] get_skill_type_breakdown failed occupation={occupation_id}: {e}")
+        logger.error(f"[MSIT402|SP] get_skill_type_breakdown failed occupation={occupation_id}: {e}")
         return {"occupation_id": occupation_id, "total_mentions": 0, "breakdown": []}
 
 
@@ -181,7 +181,7 @@ def get_dashboard_summary(db: Session) -> dict:
         }
 
     except Exception as e:
-        logger.error(f"[{_AUTHOR_KEY}] get_dashboard_summary failed: {e}")
+        logger.error(f"[MSIT402|SP] get_dashboard_summary failed: {e}")
         return {
             "total_occupations":    0,
             "total_skills":         0,
@@ -218,7 +218,7 @@ def get_skill_trends(
         # receive None or attempt to iterate a failed query result.
         if not results:
             logger.info(
-                f"[{_AUTHOR_KEY}] get_skill_trends — no snapshots yet "
+                f"[MSIT402|SP] get_skill_trends — no snapshots yet "
                 f"occupation={occupation_id} skill={skill_id}"
             )
             return []
@@ -234,7 +234,7 @@ def get_skill_trends(
 
     except Exception as e:
         logger.error(
-            f"[{_AUTHOR_KEY}] get_skill_trends failed "
+            f"[MSIT402|SP] get_skill_trends failed "
             f"occupation={occupation_id} skill={skill_id}: {e}"
         )
         return []

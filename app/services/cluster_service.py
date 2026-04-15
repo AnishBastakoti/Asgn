@@ -2,6 +2,7 @@ import os
 import logging
 import pickle
 import threading
+import hashlib
 import numpy as np
 import time 
 
@@ -13,8 +14,12 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import KMeans
 from app.models.osca import OscaOccupation
 from app.services.matrix_cache import get_matrix
+from config import settings
 
 logger = logging.getLogger(__name__)
+
+# ── Authorship Fingerprint ─────────────────────────────────
+_SIGNATURE = hashlib.sha256(settings.AUTHOR_KEY.encode()).hexdigest()[:8].upper()
 
 
 # ── KMeans model cache ───────────────────────────────────────────────────────
@@ -39,9 +44,9 @@ def _save_kmeans_to_disk(cache: _KMeansCache) -> None:
     try:
         with open(_KMEANS_PKL_PATH, "wb") as f:
             pickle.dump(cache, f, protocol=pickle.HIGHEST_PROTOCOL)
-        logger.info(f"[ClusterService] KMeans cache saved to disk (k={cache.k})")
+        logger.info(f"[MSIT402|SP] KMeans cache saved to disk (k={cache.k})")
     except Exception as e:
-        logger.warning(f"[ClusterService] Could not save KMeans to disk: {e}")
+        logger.warning(f"[MSIT402|SP] Could not save KMeans to disk: {e}")
 
 
 def _load_kmeans_from_disk() -> Optional[_KMeansCache]:
@@ -50,10 +55,10 @@ def _load_kmeans_from_disk() -> Optional[_KMeansCache]:
     try:
         with open(_KMEANS_PKL_PATH, "rb") as f:
             cache = pickle.load(f)
-        logger.info(f"[ClusterService] KMeans cache loaded from disk (k={cache.k})")
+        logger.info(f"[MSIT402|SP] KMeans cache loaded from disk (k={cache.k})")
         return cache
     except Exception as e:
-        logger.warning(f"[ClusterService] Could not load KMeans from disk: {e}")
+        logger.warning(f"[MSIT402|SP] Could not load KMeans from disk: {e}")
         return None
 
 
@@ -73,42 +78,45 @@ def _get_kmeans(db: Session, n_clusters: Optional[int] = None) -> _KMeansCache:
 
     mc = get_matrix(db)   # shared matrix — already cached after first call
 
-    with _KMEANS_LOCK:
-        # Cache hit: same occupation count and no explicit override
-        if (
-            _KMEANS_CACHE is not None
-            and _KMEANS_CACHE.occ_count == mc.n_occupations
-            and (n_clusters is None or n_clusters == _KMEANS_CACHE.k)
-        ):
-            return _KMEANS_CACHE
+    try:
+        with _KMEANS_LOCK:
+            # Cache hit: same occupation count and no explicit override
+            if (
+                _KMEANS_CACHE is not None
+                and _KMEANS_CACHE.occ_count == mc.n_occupations
+                and (n_clusters is None or n_clusters == _KMEANS_CACHE.k)
+            ):
+                return _KMEANS_CACHE
 
-        # Determine K
-        if n_clusters is None:
-            if _KMEANS_CACHE is not None and _KMEANS_CACHE.occ_count == mc.n_occupations:
-                # occupation count unchanged — reuse stored K
-                k = _KMEANS_CACHE.k
+            # Determine K
+            if n_clusters is None:
+                if _KMEANS_CACHE is not None and _KMEANS_CACHE.occ_count == mc.n_occupations:
+                    # occupation count unchanged — reuse stored K
+                    k = _KMEANS_CACHE.k
+                else:
+                    logger.info("[MSIT402|SP] Computing optimal K via elbow method …")
+                    k = _compute_optimal_k(mc.matrix)
+                    logger.info(f"[MSIT402|SP] Optimal K = {k}")
             else:
-                logger.info("[ClusterService] Computing optimal K via elbow method …")
-                k = _compute_optimal_k(mc.matrix)
-                logger.info(f"[ClusterService] Optimal K = {k}")
-        else:
-            k = n_clusters
+                k = n_clusters
 
-        k = min(k, mc.n_occupations)
+            k = min(k, mc.n_occupations)
 
-        logger.info(f"[ClusterService] Fitting KMeans k={k} on {mc.n_occupations} occupations …")
-        from sklearn.cluster import KMeans
-        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
-        labels = kmeans.fit_predict(mc.matrix)
+            logger.info(f"[MSIT402|SP] Fitting KMeans k={k} on {mc.n_occupations} occupations …")
+            kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+            labels = kmeans.fit_predict(mc.matrix)
 
-        _KMEANS_CACHE = _KMeansCache(
-            model=kmeans,
-            labels=labels,
-            k=k,
-            occ_count=mc.n_occupations,
-        )
-        _save_kmeans_to_disk(_KMEANS_CACHE)
-        return _KMEANS_CACHE
+            _KMEANS_CACHE = _KMeansCache(
+                model=kmeans,
+                labels=labels,
+                k=k,
+                occ_count=mc.n_occupations,
+            )
+            _save_kmeans_to_disk(_KMEANS_CACHE)
+            return _KMEANS_CACHE
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] _get_kmeans failed: {e}")
+        raise
 
 
 def _compute_optimal_k(matrix: np.ndarray, k_max: int = 20) -> int:
@@ -159,7 +167,7 @@ def get_elbow_data(db: Session, k_max: int = 25) -> dict:
         return {"optimal_k": optimal_k, "k_range": k_range, "inertias": inertias}
 
     except Exception as e:
-        logger.error(f"[ClusterService] get_elbow_data failed: {e}")
+        logger.error(f"[MSIT402|SP] get_elbow_data failed: {e}")
         return {"optimal_k": 16}
 
 
@@ -186,9 +194,8 @@ def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: Optiona
             if lbl == target_cluster and mc.all_occ_ids[i] != occupation_id
         ]
 
-        endtime1=time.time()
-        print("time check for cluster ",starttime-endtime1)
-
+        elapsed_clustering = (time.time() - starttime) * 1000
+        logger.debug(f"[MSIT402|SP] Cluster retrieval took {elapsed_clustering:.2f}ms")
 
         target_vec = mc.matrix[target_idx].reshape(1, -1)
         if cluster_member_ids:
@@ -200,8 +207,6 @@ def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: Optiona
                 reverse=True,
             )[:10]
 
-            endtime2=time.time()
-            print("time check for cluster1 ",endtime1-endtime2)
         else:
             ranked_members = []
 
@@ -223,8 +228,8 @@ def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: Optiona
             for oid, score in ranked_members
             if oid in title_map
         ]
-        endtime3=time.time()
-        print("time check for cluster2 ",endtime2-endtime3)
+        total_elapsed = (time.time() - starttime) * 1000
+        logger.info(f"[MSIT402|SP] get_occupation_clusters for {occupation_id} completed in {total_elapsed:.2f}ms")
 
         return {
             "occupation_id":   occupation_id,
@@ -236,5 +241,5 @@ def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: Optiona
         }
 
     except Exception as e:
-        logger.error(f"[ClusterService] get_occupation_clusters failed: {e}")
+        logger.error(f"[MSIT402|SP] get_occupation_clusters failed: {e}")
         return {"error": str(e)}
