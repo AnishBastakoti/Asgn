@@ -7,11 +7,15 @@ from collections import defaultdict
 
 from app.models.skills import EscoSkill, OscaOccupationSkill, OscaOccupationSkillSnapshot
 from app.models.jobs import JobPostLog, JobPostSkill
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 # ── Authorship Fingerprint ─────────────────────────────────
-_AUTHOR_KEY = "MSIT402 CIM-10236"
+_FP = hashlib.sha256(
+    f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
+
 _SIGNATURE = hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8].upper()
 
 # ─────────────────────────────────────────────

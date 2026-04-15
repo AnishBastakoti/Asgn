@@ -1,8 +1,14 @@
 import logging
+import hashlib
 from sqlalchemy.orm import Session
 from app.models.pipeline import BatchJobExecution
+from config import settings
 
 logger = logging.getLogger(__name__)
+
+_FP = hashlib.sha256(
+    f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
 
 def get_last_pipeline_run(db: Session) -> dict | None:
     """Return the most recent COMPLETED pipeline execution timestamp."""

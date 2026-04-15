@@ -5,6 +5,7 @@ Builds the binary skill matrix from the DB exactly once per process
 and re-uses it for similarity, clustering, and elbow analysis.
 """
 import logging
+import hashlib
 import threading
 import numpy as np
 from dataclasses import dataclass, field
@@ -12,8 +13,13 @@ from typing import Optional, List, Dict
 
 from sqlalchemy.orm import Session
 from app.models.skills import OscaOccupationSkill
+from config import settings
 
 logger = logging.getLogger(__name__)
+
+_FP = hashlib.sha256(
+    f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
 
 # ── Data container ──────────────────────────────────────────────────────────
 

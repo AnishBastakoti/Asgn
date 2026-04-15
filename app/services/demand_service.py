@@ -1,4 +1,5 @@
 import logging
+import hashlib
 import math
 
 from datetime import datetime
@@ -13,8 +14,14 @@ from app.models.osca import (
     OscaMinorGroup,
     OscaSubMajorGroup,
 )
+from config import settings
 
 logger = logging.getLogger(__name__)
+
+_FP = hashlib.sha256(
+    f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
+
 # ─────────────────────────────────────────────
 # CITY DEMAND SUMMARY
 # Returns all cities with their total job counts.

@@ -1,6 +1,6 @@
 import secrets
-
-import jwt
+import logging
+import jwt  
 import bcrypt
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
@@ -8,6 +8,12 @@ from sqlalchemy.orm import Session
 from app.models.auth import SystemEndUser, SystemRolePage, SystemPage, SystemRole
 
 from config import settings
+
+logger = logging.getLogger(__name__)
+
+_FP = hashlib.sha256(
+    f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
 
 # ── JWT config ────────────────────────────────────────────────
 JWT_ALGORITHM  = "HS256"

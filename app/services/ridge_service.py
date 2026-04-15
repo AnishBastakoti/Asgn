@@ -1,5 +1,6 @@
 import os
 import pickle
+import hashlib
 import logging
 import numpy as np
 import pandas as pd
@@ -14,8 +15,13 @@ from sqlalchemy import func, text
 from app.models.skills import OscaOccupationSkill, SkillpulseCityOccupationDemand
 from app.models.jobs import JobPostLog
 from app.models.osca import OscaOccupation
+from config import settings
 
 logger = logging.getLogger(__name__)
+
+_FP = hashlib.sha256(
+    f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
 
 # ── Disk cache path ──────────────────────────────────────────────────────────
 _MODEL_PKL_PATH = os.path.join(os.path.dirname(__file__), ".ridge_model_cache.pkl")

@@ -12,6 +12,10 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 # ── Authorship fingerprint ─────────────────────────────────────────────────────
+_FP = hashlib.sha256(
+    f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
+
 _SIG_INT = int(hashlib.sha256(settings.AUTHOR_KEY.encode()).hexdigest()[:8], 16)
 _SIGNATURE = hashlib.sha256(settings.AUTHOR_KEY.encode()).hexdigest()[:8].upper()
 
