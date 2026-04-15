@@ -13,7 +13,23 @@ async function loadPipelineLastRun() {
   if (!el) return;
 
   try {
-    const d = await api('/api/pipeline/last-run');
+    // Direct fetch (not via api() helper) to avoid redirect loops on API Keys page
+    const response = await fetch('/api/pipeline/last-run', {
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    // If 401/403, user likely doesn't have admin access — hide gracefully
+    if (response.status === 401 || response.status === 403) {
+      el.parentElement.style.display = 'none';
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const d = await response.json();
 
     if (!d.last_run) {
       el.textContent = 'Pipeline — no runs yet';

@@ -167,6 +167,9 @@ def serve_login(request: Request):
 def serve_model_status(request: Request):
     return _render(request, "model_status.html", "model_status")
 
+@app.get("/api-keys", response_class=HTMLResponse, include_in_schema=False)
+def serve_api_keys(request: Request):
+    return _render(request, "api_keys.html", "api-keys")
 
 # ── PWA assets ────────────────────────────────────────────────────────────────
 

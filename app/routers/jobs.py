@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from sqlalchemy.orm import Session
 
-from core.auth_deps import require_auth,require_admin
+from core.auth_deps import require_auth
 from core.rate_limiter import limiter          
 from app.database import get_db
 from app.services.jobs_service import (
@@ -18,7 +18,7 @@ from app.services.jobs_service import (
 router = APIRouter(
     prefix="/api/jobs",
     tags=["Jobs"],
-    dependencies=[Depends(require_admin)],
+    dependencies=[Depends(require_auth)]
 )
 
 # ── Schemas ────────────────────────────────────────────────
@@ -89,9 +89,9 @@ class SkillGapRadarResponse(BaseModel):
 @router.get("/cities/", response_model=List[CityResponse])
 @limiter.limit("20/minute")
 def city_demand(
-    request:       Request,           
+    request: Request,           
     occupation_id: int,
-    db:            Session = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     """Australian city demand distribution for an occupation."""
     result = get_cities_by_occupation(db, occupation_id)
@@ -106,9 +106,9 @@ def city_demand(
 @router.get("/skill-gap-radar/{occupation_id}", response_model=SkillGapRadarResponse)
 @limiter.limit("20/minute")
 def skill_gap_radar(
-    request:       Request,           
+    request: Request,           
     occupation_id: int,
-    db:            Session = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     """
     Compares official OSCA skill mapping against skills extracted from real
@@ -129,7 +129,7 @@ def skill_gap_radar(
 def skill_overlap(
     request:       Request,           
     occupation_id: int,
-    db:            Session = Depends(get_db),
+    db: Session = Depends(get_db),
 ):
     """Skill overlap heatmap between related occupations."""
     result = get_skill_overlap(db, occupation_id)

@@ -1,0 +1,1017 @@
+{% extends "index.html" %}
+{% block title %}API Key Management{% endblock %}
+{% block page_title %}API Key Management{% endblock %}
+{% block page_sub %}Generate, manage and revoke partner API keys{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Page-level layout ── */
+.ak-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .ak-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Cards ── */
+.ak-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow-card);
+}
+.ak-card-header {
+  padding: 0.875rem 1.125rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.ak-card-header i { color: var(--orange); font-size: 1rem; }
+.ak-card-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.ak-card-body { padding: 1.125rem; }
+
+/* ── Form ── */
+.ak-field { margin-bottom: 0.875rem; }
+.ak-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text2);
+  margin-bottom: 0.3rem;
+  letter-spacing: 0.02em;
+}
+.ak-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border2);
+  border-radius: var(--rad-sm);
+  font-size: 0.8125rem;
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--page-bg);
+  transition: border-color 0.15s;
+  outline: none;
+}
+.ak-input:focus { border-color: var(--orange); }
+.ak-input::placeholder { color: var(--muted); }
+
+.ak-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+.ak-btn {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: var(--rad-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: background 0.15s, transform 0.1s;
+  font-family: var(--font);
+}
+.ak-btn:active { transform: scale(0.98); }
+.ak-btn-primary {
+  background: var(--orange);
+  color: #fff;
+}
+.ak-btn-primary:hover { background: var(--orange-d); }
+.ak-btn-primary:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── Generated key display ── */
+.ak-key-result {
+  display: none;
+  margin-top: 1rem;
+  padding: 0.875rem;
+  background: #fff8f0;
+  border: 1px solid rgba(235,89,5,0.25);
+  border-radius: var(--rad-sm);
+  animation: slideDown 0.2s ease;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ak-key-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--orange);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+.ak-key-mono {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text);
+  word-break: break-all;
+  background: var(--page-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--rad-sm);
+  padding: 0.5rem 0.625rem;
+  margin-bottom: 0.5rem;
+  position: relative;
+}
+.ak-copy-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--orange);
+  border: none;
+  border-radius: 3px;
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  cursor: pointer;
+  font-family: var(--font);
+}
+.ak-copy-btn:hover { background: var(--orange-d); }
+
+/* ── Keys table ── */
+.ak-table-wrap {
+  overflow-x: auto;
+}
+table.ak-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.ak-table thead th {
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.ak-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.ak-table tbody tr:last-child { border-bottom: none; }
+.ak-table tbody tr:hover { background: var(--page-bg); }
+.ak-table td {
+  padding: 0.625rem 0.75rem;
+  color: var(--text);
+  vertical-align: middle;
+}
+.ak-table td.muted { color: var(--muted); font-size: 0.75rem; }
+
+/* ── Badges ── */
+.ak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 2px 8px;
+  border-radius: var(--rad-pill);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ak-badge-active   { background: rgba(62,229,170,0.15); color: #0d9968; }
+.ak-badge-revoked  { background: rgba(231,24,24,0.1);  color: var(--coral); }
+.ak-badge-expired  { background: rgba(118,118,118,0.12); color: var(--muted); }
+
+/* ── Action buttons inside table ── */
+.ak-tbl-btn {
+  border: none;
+  border-radius: var(--rad-sm);
+  padding: 3px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.ak-tbl-btn-revoke {
+  background: rgba(231,24,24,0.1);
+  color: var(--coral);
+}
+.ak-tbl-btn-revoke:hover { background: rgba(231,24,24,0.2); }
+.ak-tbl-btn-delete {
+  background: rgba(118,118,118,0.1);
+  color: var(--muted);
+}
+.ak-tbl-btn-delete:hover { background: rgba(118,118,118,0.2); }
+
+/* ── Empty / loading states ── */
+.ak-empty {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.ak-empty i { font-size: 1.75rem; display: block; margin-bottom: 0.5rem; opacity: 0.4; }
+.ak-spinner {
+  display: inline-block;
+  width: 18px; height: 18px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--orange);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── API Endpoint catalogue ── */
+.ak-endpoint-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.ak-endpoint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--rad-sm);
+  background: var(--page-bg);
+  transition: border-color 0.15s;
+}
+.ak-endpoint:hover { border-color: var(--orange); }
+.ak-method {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  min-width: 44px;
+  text-align: center;
+  text-transform: uppercase;
+}
+.m-get  { background: rgba(14,165,233,0.12); color: #0284c7; }
+.m-post { background: rgba(62,229,170,0.12); color: #0d9968; }
+.ak-ep-info { flex: 1; min-width: 0; }
+.ak-ep-path {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text);
+  word-break: break-all;
+}
+.ak-ep-desc { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+.ak-ep-copy {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 0.65rem;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font);
+  transition: border-color 0.15s, color 0.15s;
+}
+.ak-ep-copy:hover { border-color: var(--orange); color: var(--orange); }
+
+/* ── Stats strip ── */
+.ak-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.ak-stat {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--rad);
+  padding: 0.875rem 1rem;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.ak-stat-icon {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+.ak-stat-icon-total   { background: var(--orange-l); color: var(--orange); }
+.ak-stat-icon-active  { background: rgba(62,229,170,0.15); color: #0d9968; }
+.ak-stat-icon-revoked { background: rgba(231,24,24,0.1); color: var(--coral); }
+.ak-stat-icon-expiring{ background: rgba(139,92,246,0.1); color: var(--violet); }
+.ak-stat-val { font-size: 1.375rem; font-weight: 700; color: var(--text); line-height: 1; }
+.ak-stat-lbl { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+
+/* ── Toast ── */
+#akToast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: var(--text);
+  color: #fff;
+  padding: 0.625rem 1rem;
+  border-radius: var(--rad);
+  font-size: 0.8rem;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 320px;
+}
+#akToast.show { opacity: 1; }
+#akToast.success i { color: var(--emerald); }
+#akToast.error   i { color: var(--coral); }
+
+/* ── Revoke confirm modal ── */
+.ak-modal-bg {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 900;
+  align-items: center;
+  justify-content: center;
+}
+.ak-modal-bg.open { display: flex; }
+.ak-modal {
+  background: var(--card-bg);
+  border-radius: var(--rad);
+  padding: 1.5rem;
+  max-width: 360px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  animation: modalPop 0.18s ease;
+}
+@keyframes modalPop {
+  from { opacity:0; transform: scale(0.94); }
+  to   { opacity:1; transform: scale(1); }
+}
+.ak-modal-icon {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: rgba(231,24,24,0.1);
+  color: var(--coral);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  margin-bottom: 0.875rem;
+}
+.ak-modal h3 { font-size: 0.9375rem; font-weight: 700; color: var(--text); margin-bottom: 0.375rem; }
+.ak-modal p  { font-size: 0.8rem; color: var(--text2); margin-bottom: 1.125rem; line-height: 1.5; }
+.ak-modal-name { font-weight: 700; color: var(--text); }
+.ak-modal-actions { display: flex; gap: 0.625rem; justify-content: flex-end; }
+.ak-modal-cancel {
+  padding: 0.4rem 0.875rem;
+  background: var(--page-bg);
+  border: 1px solid var(--border2);
+  border-radius: var(--rad-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  color: var(--text2);
+}
+.ak-modal-confirm {
+  padding: 0.4rem 0.875rem;
+  background: var(--coral);
+  border: none;
+  border-radius: var(--rad-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  color: #fff;
+  transition: background 0.15s;
+}
+.ak-modal-confirm:hover { background: #c01212; }
+
+/* ── Search ── */
+.ak-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+.ak-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 0.8rem;
+  font-family: var(--font);
+  color: var(--text);
+  background: transparent;
+}
+.ak-search-input::placeholder { color: var(--muted); }
+
+/* ── Span full grid width ── */
+.ak-span-full { grid-column: 1 / -1; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Stats strip ── -->
+<div class="ak-stats">
+  <div class="ak-stat">
+    <div class="ak-stat-icon ak-stat-icon-total"><i class="bi bi-key-fill"></i></div>
+    <div><div class="ak-stat-val" id="statTotal">—</div><div class="ak-stat-lbl">Total Keys</div></div>
+  </div>
+  <div class="ak-stat">
+    <div class="ak-stat-icon ak-stat-icon-active"><i class="bi bi-check-circle-fill"></i></div>
+    <div><div class="ak-stat-val" id="statActive">—</div><div class="ak-stat-lbl">Active</div></div>
+  </div>
+  <div class="ak-stat">
+    <div class="ak-stat-icon ak-stat-icon-revoked"><i class="bi bi-slash-circle-fill"></i></div>
+    <div><div class="ak-stat-val" id="statRevoked">—</div><div class="ak-stat-lbl">Revoked</div></div>
+  </div>
+  <div class="ak-stat">
+    <div class="ak-stat-icon ak-stat-icon-expiring"><i class="bi bi-clock-fill"></i></div>
+    <div><div class="ak-stat-val" id="statExpiring">—</div><div class="ak-stat-lbl">Expiring ≤30d</div></div>
+  </div>
+</div>
+
+<!-- ── Main grid ── -->
+<div class="ak-grid">
+
+  <!-- LEFT COL Generate + Endpoints -->
+  <div style="display:flex; flex-direction:column; gap:1rem;">
+
+    <!-- Generate Key Card -->
+    <div class="ak-card">
+      <div class="ak-card-header">
+        <i class="bi bi-plus-circle-fill"></i>
+        <span class="ak-card-title">Generate New API Key</span>
+      </div>
+      <div class="ak-card-body">
+        <div class="ak-field">
+          <label class="ak-label">Partner / Client Name</label>
+          <input id="genName" class="ak-input" placeholder="e.g. TAFE Queensland Portal" />
+        </div>
+        <div class="ak-field">
+          <label class="ak-label">Owner Email</label>
+          <input id="genEmail" class="ak-input" type="email" placeholder="contact@partner.edu.au" />
+        </div>
+        <div class="ak-row">
+          <div class="ak-field" style="margin-bottom:0;">
+            <label class="ak-label">Expires In (days)</label>
+            <input id="genDays" class="ak-input" type="number" min="1" max="3650" placeholder="365 (leave blank = never)" />
+          </div>
+          <div class="ak-field" style="margin-bottom:0;">
+            <label class="ak-label">Rate Limit (req/day)</label>
+            <input id="genRate" class="ak-input" type="number" min="1" value="1000" />
+          </div>
+        </div>
+        <div style="margin-top:1rem;">
+          <button class="ak-btn ak-btn-primary" id="generateBtn" onclick="generateKey()">
+            <i class="bi bi-key-fill"></i> Generate API Key
+          </button>
+        </div>
+
+        <!-- Result box (shown after generation) -->
+        <div class="ak-key-result" id="keyResult">
+          <button onclick="hideKeyResult()" style="float:right; background:none; border:none; color:var(--muted); cursor:pointer; padding:0; line-height:1;" title="Dismiss"><i class="bi bi-x-lg"></i></button>
+          <div class="ak-key-warning">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            Copy now — shown only once
+          </div>
+          <div class="ak-key-mono" id="keyDisplay">
+            <span id="keyText">—</span>
+            <button class="ak-copy-btn" onclick="copyKey()">COPY</button>
+          </div>
+          <div style="font-size:0.72rem; color:var(--muted);">
+            Expires: <span id="keyExpires">Never</span> &nbsp;·&nbsp;
+            Partner: <span id="keyName">—</span><br>
+            <button class="ak-tbl-btn ak-tbl-btn-delete" style="margin-top:10px; width:100%; justify-content:center;" onclick="hideKeyResult()">Done, I've saved it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Available API Endpoints Card -->
+    <div class="ak-card">
+      <div class="ak-card-header">
+        <i class="bi bi-terminal-fill"></i>
+        <span class="ak-card-title">Available Public Endpoints</span>
+      </div>
+      <div class="ak-card-body" style="padding-bottom:0.75rem;">
+        <p style="font-size:0.75rem; color:var(--muted); margin-bottom:0.875rem; line-height:1.5;">
+          Share these endpoints with partners. All require an <code style="font-family:var(--mono); font-size:0.72rem; background:var(--page-bg); padding:1px 5px; border-radius:3px; border:1px solid var(--border);">X-API-Key</code> header.
+        </p>
+        <div class="ak-endpoint-list" style="max-height: 520px; overflow-y: auto; padding-right: 5px;">
+          
+          <!-- ── Occupations ── -->
+          <div class="ak-label" style="margin: 10px 0 5px; color: var(--orange); border-bottom: 1px solid var(--border); padding-bottom: 2px;">Occupations</div>
+          
+          <div class="ak-endpoint">
+            <span class="ak-method m-get">GET</span>
+            <div class="ak-ep-info">
+              <div class="ak-ep-path">/api/public/occupations/major-groups</div>
+              <div class="ak-ep-desc">Get all Major Groups</div>
+            </div>
+            <button class="ak-ep-copy" onclick="copyEndpoint(this, '/api/public/occupations/major-groups')">Copy</button>
+          </div>
+
+          <div class="ak-endpoint">
+            <span class="ak-method m-get">GET</span>
+            <div class="ak-ep-info">
+              <div class="ak-ep-path">/api/public/occupations/list</div>
+              <div class="ak-ep-desc">List all ANZSCO occupations</div>
+            </div>
+            <button class="ak-ep-copy" onclick="copyEndpoint(this, '/api/public/occupations/list')">Copy</button>
+          </div>
+
+          <div class="ak-endpoint">
+            <span class="ak-method m-get">GET</span>
+            <div class="ak-ep-info">
+              <div class="ak-ep-path">/api/public/occupations/{id}</div>
+              <div class="ak-ep-desc">Get detailed profile for an occupation</div>
+            </div>
+            <button class="ak-ep-copy" onclick="copyEndpoint(this, '/api/public/occupations/{id}')">Copy</button>
+          </div>
+
+          <!-- ── Jobs ── -->
+          <div class="ak-label" style="margin: 15px 0 5px; color: var(--orange); border-bottom: 1px solid var(--border); padding-bottom: 2px;">Jobs & Demand</div>
+
+          <div class="ak-endpoint">
+            <span class="ak-method m-get">GET</span>
+            <div class="ak-ep-info">
+              <div class="ak-ep-path">/api/public/jobs/cities/</div>
+              <div class="ak-ep-desc">Current demand breakdown by city</div>
+          </div>
+            <button class="ak-ep-copy" onclick="copyEndpoint(this, '/api/public/jobs/cities/')">Copy</button>
+          </div>
+
+          <div class="ak-endpoint">
+            <span class="ak-method m-get">GET</span>
+            <div class="ak-ep-info">
+              <div class="ak-ep-path">/api/public/jobs/skill-gap-radar/{id}</div>
+              <div class="ak-ep-desc">Radar data for skill gap analysis</div>
+            </div>
+            <button class="ak-ep-copy" onclick="copyEndpoint(this, '/api/public/jobs/skill-gap-radar/{id}')">Copy</button>
+          </div>
+
+          <div class="ak-endpoint">
+            <span class="ak-method m-get">GET</span>
+            <div class="ak-info">
+              <div class="ak-ep-path">/api/public/jobs/hot-skills/</div>
+              <div class="ak-ep-desc">Trending skills in recent job postings</div>
+            </div>
+            <button class="ak-ep-copy" onclick="copyEndpoint(this, '/api/public/jobs/hot-skills/')">Copy</button>
+          </div>
+
+          <!-- ── Analytics ── -->
+          <div class="ak-label" style="margin: 15px 0 5px; color: var(--orange); border-bottom: 1px solid var(--border); padding-bottom: 2px;">Advanced Analytics</div>
+
+          <div class="ak-endpoint">
+            <span class="ak-method m-get">GET</span>
+            <div class="ak-ep-info">
+              <div class="ak-ep-path">/api/public/analytics/shadow-skills/{id}</div>
+              <div class="ak-ep-desc">Identify unmapped emerging skills</div>
+            </div>
+            <button class="ak-ep-copy" onclick="copyEndpoint(this, '/api/public/analytics/shadow-skills/{id}')">Copy</button>
+          </div>
+
+          <div class="ak-endpoint">
+            <span class="ak-method m-get">GET</span>
+            <div class="ak-ep-info">
+              <div class="ak-ep-path">/api/public/analytics/predict-demand-by-occ/{id}</div>
+              <div class="ak-ep-desc">Regression-based demand forecasting</div>
+            </div>
+            <button class="ak-ep-copy" onclick="copyEndpoint(this, '/api/public/analytics/predict-demand-by-occ/{id}')">Copy</button>
+          </div>
+
+          <div class="ak-endpoint">
+            <span class="ak-method m-get">GET</span>
+            <div class="ak-ep-info">
+              <div class="ak-ep-path">/api/public/analytics/market-saturation/{id}</div>
+              <div class="ak-ep-desc">Supply vs Demand saturation scores</div>
+            </div>
+            <button class="ak-ep-copy" onclick="copyEndpoint(this, '/api/public/analytics/market-saturation/{id}')">Copy</button>
+          </div>
+
+          <div class="ak-endpoint">
+            <span class="ak-method m-get">GET</span>
+            <div class="ak-ep-info">
+              <div class="ak-ep-path">/api/public/analytics/career-transition</div>
+              <div class="ak-ep-desc">Analyze overlap between two occupations</div>
+            </div>
+            <button class="ak-ep-copy" onclick="copyEndpoint(this, '/api/public/analytics/career-transition')">Copy</button>
+          </div>
+
+          <div class="ak-endpoint">
+            <span class="ak-method m-get">GET</span>
+            <div class="ak-ep-info">
+              <div class="ak-ep-path">/api/public/analytics/occupation-similarity/{id}</div>
+              <div class="ak-ep-desc">Cosine similarity for related roles</div>
+            </div>
+            <button class="ak-ep-copy" onclick="copyEndpoint(this, '/api/public/analytics/occupation-similarity/{id}')">Copy</button>
+          </div>
+
+          <div class="ak-endpoint">
+            <span class="ak-method m-get">GET</span>
+            <div class="ak-ep-info">
+              <div class="ak-ep-path">/api/public/analytics/city-forecast/{city}</div>
+              <div class="ak-ep-desc">Future demand trends for a specific city</div>
+            </div>
+            <button class="ak-ep-copy" onclick="copyEndpoint(this, '/api/public/analytics/city-forecast/{city}')">Copy</button>
+          </div>
+
+          <div style="margin-top:0.5rem; padding:0.625rem 0.75rem; background:var(--page-bg); border-radius:var(--rad-sm); font-size:0.72rem; color:var(--muted); border:1px dashed var(--border2);">
+            <strong style="color:var(--text2);">Example request</strong><br>
+            <code style="font-family:var(--mono); font-size:0.7rem; word-break:break-all;">
+              curl -H "X-API-Key: YOUR_KEY" https://skillpulse.nt.gov.au/api/public/occupations/list?limit=50
+            </code>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end left col -->
+
+  <!-- RIGHT COL: Keys Table -->
+  <div class="ak-card" style="min-height:400px;">
+    <div class="ak-card-header" style="justify-content:space-between;">
+      <div style="display:flex; align-items:center; gap:0.5rem;">
+        <i class="bi bi-table"></i>
+        <span class="ak-card-title">All API Keys</span>
+      </div>
+      <button class="ak-tbl-btn ak-tbl-btn-delete" style="background:var(--orange-l); color:var(--orange);" onclick="loadKeys()">
+        <i class="bi bi-arrow-clockwise"></i> Refresh
+      </button>
+    </div>
+
+    <!-- Search bar -->
+    <div class="ak-search-wrap">
+      <i class="bi bi-search" style="color:var(--muted); font-size:0.8rem;"></i>
+      <input class="ak-search-input" id="keySearch" placeholder="Search by name or email…" oninput="filterKeys()" />
+    </div>
+
+    <div class="ak-table-wrap">
+      <table class="ak-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name / Owner</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Expires</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="keysTableBody">
+          <tr><td colspan="6"><div class="ak-empty"><span class="ak-spinner"></span></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div><!-- end right col -->
+
+</div><!-- end ak-grid -->
+
+<!-- ── Toast ── -->
+<div id="akToast"><i class="bi bi-check-circle-fill"></i><span id="akToastMsg"></span></div>
+
+<!-- ── Revoke confirm modal ── -->
+<div class="ak-modal-bg" id="revokeModal">
+  <div class="ak-modal">
+    <div class="ak-modal-icon"><i class="bi bi-slash-circle-fill"></i></div>
+    <h3>Revoke API Key?</h3>
+    <p>
+      You're about to revoke the key for
+      <span class="ak-modal-name" id="modalKeyName">—</span>.
+      All requests using this key will immediately return <code>403 Forbidden</code>.
+      This cannot be undone.
+    </p>
+    <div class="ak-modal-actions">
+      <button class="ak-modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="ak-modal-confirm" id="modalConfirmBtn" onclick="confirmRevoke()">
+        <i class="bi bi-slash-circle"></i> Revoke Key
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete confirm modal ── -->
+<div class="ak-modal-bg" id="deleteModal">
+  <div class="ak-modal">
+    <div class="ak-modal-icon" style="background:rgba(118,118,118,0.1); color:var(--muted);"><i class="bi bi-trash-fill"></i></div>
+    <h3>Delete API Key?</h3>
+    <p>
+      You're about to permanently delete the key for
+      <span class="ak-modal-name" id="deleteModalName">—</span>.
+      This will remove the record entirely from the database. This action cannot be undone.
+    </p>
+    <div class="ak-modal-actions">
+      <button class="ak-modal-cancel" onclick="closeDeleteModal()">Cancel</button>
+      <button class="ak-modal-confirm" id="deleteConfirmBtn" onclick="confirmDelete()" style="background:var(--muted);">
+        <i class="bi bi-trash"></i> Delete Permanently
+      </button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── State ──────────────────────────────────────────
+let _allKeys = [];
+let _revokeId = null;
+let _deleteId = null;
+
+// ── Helpers ───────────────────────────────────────
+
+function toast(msg, type = 'success') {
+  const el = document.getElementById('akToast');
+  const icon = el.querySelector('i');
+  el.className = `show ${type}`;
+  icon.className = type === 'success' ? 'bi bi-check-circle-fill' : 'bi bi-x-circle-fill';
+  document.getElementById('akToastMsg').textContent = msg;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+function isExpired(iso) {
+  if (!iso) return false;
+  return new Date(iso) < new Date();
+}
+
+function isExpiringSoon(iso) {
+  if (!iso) return false;
+  const diff = new Date(iso) - new Date();
+  return diff > 0 && diff < 30 * 86400 * 1000;
+}
+
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+  } else {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-9999px";
+    textArea.style.top = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+  }
+}
+
+async function copyKey() {
+  const key = document.getElementById('keyText').textContent;
+  await copyText(key);
+  toast('API key copied to clipboard');
+}
+
+function copyEndpoint(btn, path) {
+  const base = window.location.origin;
+  copyText(base + path);
+  const orig = btn.textContent;
+  btn.textContent = 'Copied!';
+  btn.style.borderColor = 'var(--orange)';
+  btn.style.color = 'var(--orange)';
+  setTimeout(() => { btn.textContent = orig; btn.style.cssText = ''; }, 1500);
+}
+
+// ── Stats update ──────────────────────────────────
+
+function updateStats(keys) {
+  const total    = keys.length;
+  const active   = keys.filter(k => k.is_active && !isExpired(k.expires_at)).length;
+  const revoked  = keys.filter(k => !k.is_active).length;
+  const expiring = keys.filter(k => k.is_active && isExpiringSoon(k.expires_at)).length;
+
+  document.getElementById('statTotal').textContent   = total;
+  document.getElementById('statActive').textContent  = active;
+  document.getElementById('statRevoked').textContent = revoked;
+  document.getElementById('statExpiring').textContent= expiring;
+}
+
+// ── Render table ──────────────────────────────────
+
+function renderTable(keys) {
+  const tbody = document.getElementById('keysTableBody');
+
+  if (!keys.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="ak-empty">
+      <i class="bi bi-key"></i>No API keys found
+    </div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = keys.map((k, i) => {
+    const expired  = isExpired(k.expires_at);
+    const expiring = isExpiringSoon(k.expires_at);
+
+    let statusBadge;
+    if (!k.is_active)     statusBadge = `<span class="ak-badge ak-badge-revoked"><i class="bi bi-slash-circle"></i>Revoked</span>`;
+    else if (expired)     statusBadge = `<span class="ak-badge ak-badge-expired"><i class="bi bi-clock"></i>Expired</span>`;
+    else if (expiring)    statusBadge = `<span class="ak-badge" style="background:rgba(139,92,246,0.12);color:var(--violet);"><i class="bi bi-exclamation-circle"></i>Expiring</span>`;
+    else                  statusBadge = `<span class="ak-badge ak-badge-active"><i class="bi bi-check-circle"></i>Active</span>`;
+
+    const canRevoke = k.is_active && !expired;
+
+    return `<tr>
+      <td class="muted">${k.id}</td>
+      <td>
+        <div style="font-weight:600; font-size:0.8rem; color:var(--text);">${esc(k.name)}</div>
+        <div style="font-size:0.72rem; color:var(--muted);">${esc(k.owner_email)}</div>
+      </td>
+      <td>${statusBadge}</td>
+      <td class="muted">${fmtDate(k.created_at)}</td>
+      <td class="muted" style="${expiring ? 'color:var(--violet); font-weight:600;' : ''}">${fmtDate(k.expires_at)}</td>
+      <td style="display:flex; gap:6px;">
+        ${canRevoke
+          ? `<button class="ak-tbl-btn ak-tbl-btn-revoke" onclick="openRevokeModal(${k.id}, '${esc(k.name)}')">
+              <i class="bi bi-slash-circle"></i> Revoke
+             </button>`
+          : ''
+        }
+        <button class="ak-tbl-btn ak-tbl-btn-delete" onclick="openDeleteModal(${k.id}, '${esc(k.name)}')">
+          <i class="bi bi-trash"></i> Delete
+        </button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Load keys ─────────────────────────────────────
+
+async function loadKeys() {
+  try {
+    _allKeys = await api('/api/admin/keys/list');
+    updateStats(_allKeys);
+    filterKeys(); // apply any existing search
+  } catch (e) {
+    document.getElementById('keysTableBody').innerHTML =
+      `<tr><td colspan="6"><div class="ak-empty"><i class="bi bi-exclamation-circle"></i>Failed to load keys — ${e.message}</div></td></tr>`;
+  }
+}
+
+function filterKeys() {
+  const q = document.getElementById('keySearch').value.toLowerCase().trim();
+  const filtered = q
+    ? _allKeys.filter(k =>
+        k.name.toLowerCase().includes(q) ||
+        k.owner_email.toLowerCase().includes(q))
+    : _allKeys;
+  renderTable(filtered);
+}
+
+// ── Generate key ──────────────────────────────────
+
+async function generateKey() {
+  // Hide any previous result
+  hideKeyResult();
+
+  const name  = document.getElementById('genName').value.trim();
+  const email = document.getElementById('genEmail').value.trim();
+  const days  = document.getElementById('genDays').value.trim();
+
+  if (!name)  { toast('Enter a partner name', 'error'); return; }
+  if (!email) { toast('Enter an owner email', 'error'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    toast('Enter a valid email address', 'error'); return;
+  }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="ak-spinner"></span> Generating…`;
+
+  const params = new URLSearchParams({ name, owner_email: email });
+  if (days) params.append('expires_days', days);
+
+  try {
+    const data = await api(`/api/admin/keys/generate?${params}`, { method: 'POST' });
+
+    // Show result
+    document.getElementById('keyText').textContent = data.api_key;
+    document.getElementById('keyExpires').textContent = data.expires_at
+      ? fmtDate(data.expires_at) : 'Never';
+    document.getElementById('keyName').textContent = data.name;
+    document.getElementById('keyResult').style.display = 'block';
+
+    // Clear form
+    document.getElementById('genName').value  = '';
+    document.getElementById('genEmail').value = '';
+    document.getElementById('genDays').value  = '';
+
+    toast(`Key generated for ${data.name}`);
+    loadKeys(); // refresh the table
+
+  } catch (e) {
+    toast(`Failed: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="bi bi-key-fill"></i> Generate API Key`;
+  }
+}
+
+function hideKeyResult() {
+  document.getElementById('keyResult').style.display = 'none';
+}
+
+// ── Revoke ────────────────────────────────────────
+
+function openRevokeModal(id, name) {
+  _revokeId = id;
+  document.getElementById('modalKeyName').textContent = name;
+  document.getElementById('revokeModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('revokeModal').classList.remove('open');
+  _revokeId = null;
+}
+
+async function confirmRevoke() {
+  if (!_revokeId) return;
+  const btn = document.getElementById('modalConfirmBtn');
+  btn.textContent = 'Revoking…';
+  btn.disabled = true;
+
+  try {
+    const data = await api(`/api/admin/keys/${_revokeId}/revoke`, { method: 'PATCH' });
+    toast(data.message ?? 'Key revoked successfully');
+    closeModal();
+    loadKeys();
+  } catch (e) {
+    toast(`Revoke failed: ${e.message}`, 'error');
+  } finally {
+    btn.textContent = 'Revoke Key';
+    btn.disabled = false;
+  }
+}
+
+// ── Delete ────────────────────────────────────────
+
+function openDeleteModal(id, name) {
+  _deleteId = id;
+  document.getElementById('deleteModalName').textContent = name;
+  document.getElementById('deleteModal').classList.add('open');
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteModal').classList.remove('open');
+  _deleteId = null;
+}
+
+async function confirmDelete() {
+  if (!_deleteId) return;
+  const btn = document.getElementById('deleteConfirmBtn');
+  btn.textContent = 'Deleting…';
+  btn.disabled = true;
+
+  try {
+    await api(`/api/admin/keys/${_deleteId}`, { method: 'DELETE' });
+    toast('Key deleted from database');
+    closeDeleteModal();
+    loadKeys();
+  } catch (e) {
+    toast(`Delete failed: ${e.message}`, 'error');
+  } finally {
+    btn.textContent = 'Delete Permanently';
+    btn.disabled = false;
+  }
+}
+
+// Close modal on background click
+document.getElementById('revokeModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDeleteModal();
+});
+
+// ── Init ─────────────────────────────────────────
+// Wait for main.js to finish loading summary stats first
+setTimeout(() => loadKeys(), 100);
+</script>
+{% endblock %}

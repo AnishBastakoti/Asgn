@@ -24,7 +24,6 @@ EXEMPT_PATHS: frozenset[str] = frozenset(
         "/login",
         "/health",
         # Docs routes are protected by the application session cookie and
-        # admin-role check in core/docs.py, so they are handled specially.
         "/redocs",
         # PWA / manifest files — must load before any auth check
         "/manifest.json",
