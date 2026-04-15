@@ -280,7 +280,7 @@ async function doLogin() {
     const rawName    = data.display_name || data.email || '';
     const displayName = rawName.includes('@') ? rawName.split('@')[0] : rawName;
 
-    localStorage.setItem('sp_token', data.access_token);
+    // Token is already in httpOnly cookie (set by backend), don't store in localStorage
     localStorage.setItem('sp_user', JSON.stringify({
       user_id:      data.user_id,
       email:        data.email,

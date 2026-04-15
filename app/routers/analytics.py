@@ -29,7 +29,7 @@ from app.services.ridge_service import (
 from app.services.similarity_service import get_occupation_similarity
 from app.services.cluster_service import get_occupation_clusters, get_elbow_data
 
-router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
+router = APIRouter(prefix="/api/analytics", tags=["Analytics"], dependencies=[Depends(require_auth)])
 
 # ── Schemas ──────────────────────────────────────────────
 
@@ -107,12 +107,12 @@ class DemandPredictionResponse(BaseModel):
 
 @router.get("/shadow-skills/{occupation_id}", response_model=List[ShadowSkillResponse])
 @limiter.limit("20/minute")
-def shadow_skills(request: Request, occupation_id: int, db: Session = Depends(get_db), admin = Depends(require_admin)):
+def shadow_skills(request: Request, occupation_id: int, db: Session = Depends(get_db)):
     return get_shadow_skills(db, occupation_id)
 
 @router.get("/skill-decay/{occupation_id}", response_model=List[SkillDecayResponse])
 @limiter.limit("20/minute")
-def skill_decay(request: Request, occupation_id: int, db: Session = Depends(get_db), admin = Depends(require_admin)):
+def skill_decay(request: Request, occupation_id: int, db: Session = Depends(get_db)):
     return get_skill_decay(db, occupation_id)
 
 @router.get("/city-demand", response_model=List[CityDemandSummaryResponse])
@@ -122,7 +122,7 @@ def city_demand_summary(
     from_date: Optional[date] = Query(None),
     to_date:   Optional[date] = Query(None),
     db: Session = Depends(get_db),
-    admin = Depends(require_admin)
+    user = Depends(require_auth)
 ):
     return get_city_demand_summary(db, from_date, to_date)
 
@@ -135,7 +135,7 @@ def city_demand_detail(
     from_date: Optional[date] = Query(None),
     to_date:   Optional[date] = Query(None),
     db: Session = Depends(get_db), 
-    admin = Depends(require_admin)
+    user = Depends(require_auth)
 ):
     return get_city_demand_detail(db, city, limit, from_date, to_date)
 
@@ -146,7 +146,7 @@ def predict_occ_demand(
     occupation_id: int,
     model: Optional[str] = None,
     db: Session = Depends(get_db),
-    admin = Depends(require_admin)
+    user = Depends(require_auth)
 ):
     prediction = get_occupation_prediction(db, occupation_id, model_preference=model)
     if not prediction:
@@ -155,17 +155,17 @@ def predict_occ_demand(
 
 @router.get("/skill-velocity/{occupation_id}", response_model=SkillVelocityResponse)
 @limiter.limit("20/minute")
-def skill_velocity(request: Request, occupation_id: int, db: Session = Depends(get_db), admin = Depends(require_admin)):
+def skill_velocity(request: Request, occupation_id: int, db: Session = Depends(get_db)):
     return get_skill_velocity(db, occupation_id)
 
 @router.get("/market-saturation/{occupation_id}", response_model=MarketSaturationResponse)
 @limiter.limit("20/minute")
-def market_saturation(request: Request, occupation_id: int, db: Session = Depends(get_db), admin = Depends(require_admin)):
+def market_saturation(request: Request, occupation_id: int, db: Session = Depends(get_db)):
     return get_market_saturation(db, occupation_id)
 
 @router.get("/occupation-profile/{occupation_id}", response_model=OccupationProfileResponse)
 @limiter.limit("20/minute")
-def occupation_profile(request: Request, occupation_id: int, db: Session = Depends(get_db), admin = Depends(require_admin)):
+def occupation_profile(request: Request, occupation_id: int, db: Session = Depends(get_db)):
     result = get_occupation_profile(db, occupation_id)
     if not result:
         raise HTTPException(status_code=404, detail="Profile not found")
@@ -183,20 +183,20 @@ def occupation_similarity(request: Request, occupation_id: int, top_n: int = 8, 
 
 @router.get("/occupation-clusters/{occupation_id}")
 @limiter.limit("20/minute")
-def occupation_clusters(request: Request, occupation_id: int, n_clusters: Optional[int] = None, db: Session = Depends(get_db), admin = Depends(require_admin)):
+def occupation_clusters(request: Request, occupation_id: int, n_clusters: Optional[int] = None, db: Session = Depends(get_db)):
     return get_occupation_clusters(db, occupation_id, n_clusters)
 
 @router.get("/city-forecast/{city}")
 @limiter.limit("20/minute")
-def city_demand_forecast(request: Request, city: str, db: Session = Depends(get_db), admin = Depends(require_admin)):
+def city_demand_forecast(request: Request, city: str, db: Session = Depends(get_db)):
     return get_demand_forecast(db, city)
 
 @router.get("/model-status")
 @limiter.limit("20/minute")
-def model_status(request: Request, db: Session = Depends(get_db), admin = Depends(require_admin)):
+def model_status(request: Request, db: Session = Depends(get_db)):
     return get_model_status(db)
 
 @router.get("/elbow-analysis")
 @limiter.limit("20/minute")
-def elbow_analysis(request: Request, k_max: int = 20, db: Session = Depends(get_db), admin = Depends(require_admin)):
+def elbow_analysis(request: Request, k_max: int = 20, db: Session = Depends(get_db)):
     return get_elbow_data(db, k_max)

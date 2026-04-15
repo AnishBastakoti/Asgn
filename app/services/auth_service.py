@@ -175,8 +175,15 @@ _HTML_PAGE_ROUTES: set[str] = {
     "analytics",
     "career",
     "model-status",
+    "api-keys",
+    "docs",
 }
-_DEFAULT_VIEWER_ROUTES: set[str] = {"dashboard", "career"}
+_DEFAULT_VIEWER_ROUTES: set[str] = {"dashboard",
+    "skills",
+    "occupations",
+    "analytics",
+    "career",
+    "model-status",}
 _ADMIN_ROLES: frozenset[str] = frozenset({"admin", "administrator"})
 
 

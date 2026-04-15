@@ -91,6 +91,12 @@
         <i class="bi bi-cpu-fill"></i><span>Model Status</span>
       </a>
       {% endif %}
+
+      {% if user_role in ['administrator', 'ADMINISTRATOR'] %}
+        <a href="/api-keys" class="sp-nav-link {% if active_page=='api-keys' %}active{% endif %}" title="API Keys">
+          <i class="bi bi-key-fill"></i><span>API Keys</span>
+        </a>
+      {% endif %}
     </nav>
     <!-- Pipeline last run -->
     <div id="pipelineLastRun"

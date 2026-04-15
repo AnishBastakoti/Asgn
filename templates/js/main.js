@@ -91,8 +91,8 @@ const _tip = $('spTooltip');
 function showTip(e, html) {
   if (!_tip) return;
   // Only show tooltip if the event target is inside the chart container
-  const chartContainer = document.getElementByElement('div');
-  if (!chartContainer.contains(e.target)) return;
+  const container = e.target.closest('div');
+  if (!container) return;
 
   _tip.innerHTML = html;
   _tip.classList.add('visible');
@@ -183,7 +183,7 @@ function initBootstrapTooltips() {
 }
 
 /* ── Boot ── */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Configure NProgress — thin orange bar at top of page
   if (typeof NProgress !== 'undefined') {
     NProgress.configure({
@@ -192,15 +192,38 @@ document.addEventListener('DOMContentLoaded', () => {
       minimum: 0.1,
     });
   }
-  loadGlobalSummary();
+  // Load these in parallel (don't wait for each other)
+  await Promise.all([
+    loadGlobalSummary(),
+    populateUserInfo()
+  ]);
+  // Then do the synchronous stuff
   highlightActiveNav();
   initBootstrapTooltips();
-  populateUserInfo();
 });
 
 // ── Populate user name in sidebar ────────────────────────────
-function populateUserInfo() {
-  const user = getCurrentUser();
+async function populateUserInfo() {
+  let user = getCurrentUser();
+  
+  // If localStorage is empty, fetch from API as fallback
+  if (!user) {
+    try {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (response.ok) {
+        user = await response.json();
+        // Save to localStorage for future page loads
+        localStorage.setItem('sp_user', JSON.stringify(user));
+      }
+    } catch (err) {
+      console.warn('[SkillPulse] Failed to fetch user info from API:', err.message);
+      return;
+    }
+  }
+  
   if (!user) return;
 
   const nameEl   = document.getElementById('navUserName');
