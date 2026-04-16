@@ -16,7 +16,7 @@ _FP = hashlib.sha256(
     f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
 ).hexdigest()[:12]
 
-_SIGNATURE = hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8].upper()
+_SIGNATURE = hashlib.sha256(settings.AUTHOR_KEY.encode()).hexdigest()[:8].upper()
 
 # ─────────────────────────────────────────────
 # SHADOW SKILLS

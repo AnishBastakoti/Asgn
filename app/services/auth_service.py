@@ -2,6 +2,7 @@ import secrets
 import logging
 import jwt  
 import bcrypt
+import hashlib
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
