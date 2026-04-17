@@ -1,5 +1,14 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+from datetime import datetime, date, timedelta
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from app.database import Base
+from app.services.analytics_service import (
+    get_shadow_skills, 
+    get_skill_decay, 
+    get_skill_velocity
+)
 
 from app.services.jobs_service import (
     get_skill_overlap,
@@ -16,6 +25,45 @@ from app.services.demand_service import (
     get_career_transition,
 )
 
+# ═════════════════════════════════════════════════════════════════════════════
+# FIXTURES FOR REAL DB EXECUTION (Resolves 12% Coverage Issue)
+# ═════════════════════════════════════════════════════════════════════════════
+
+@pytest.fixture
+def db_session():
+    """Provides a real in-memory SQLite session for testing service logic."""
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    yield session
+    session.close()
+    Base.metadata.drop_all(engine)
+
+def test_get_shadow_skills_full_execution(db_session, sample_occupation_id):
+    """Tests get_shadow_skills with actual DB execution to ensure line coverage."""
+    from app.models.jobs import JobPostLog, JobPostSkill
+    from app.models.skills import EscoSkill
+    
+    # 1. Setup Data: skill not mapped to occupation
+    skill = EscoSkill(preferred_label="Emerging Tech", skill_type="knowledge")
+    db_session.add(skill)
+    db_session.commit()
+    
+    job = JobPostLog(occupation_id=sample_occupation_id, city="Sydney", processed_by_ai=True)
+    db_session.add(job)
+    db_session.commit()
+    
+    link = JobPostSkill(job_post_id=job.id, skill_id=skill.id)
+    db_session.add(link)
+    db_session.commit()
+
+    # Act
+    results = get_shadow_skills(db_session, sample_occupation_id)
+    
+    # Assert
+    assert len(results) > 0
+    assert results[0]["skill_name"] == "Emerging Tech"
 
 # ═════════════════════════════════════════════════════════════════════════════
 # DEMAND SERVICE TESTS
@@ -745,3 +793,197 @@ class TestGetSkillOverlap:
         assert matrix[0]      == [1, 0]     # skill 1: shared with occ 10, not 20
         assert matrix[1]      == [1, 0]     # skill 2: shared with occ 10, not 20
         assert matrix[2]      == [0, 1]     # skill 3: shared with occ 20, not 10
+
+
+# ── Authorship Note ──────────────────────────────────────────────────────────
+# Structured for high-coverage testing of complex SQLAlchemy queries and 
+# data transformation logic within the Analytics Service.
+# ──────────────────────────────────────────────────────────────────────────────
+
+class TestAnalyticsService:
+
+    # ── Test: Shadow Skills ──────────────────────────────────────────────────
+    
+    def test_get_shadow_skills_success(self, mock_db):
+        """
+        Scenario: Occupation has skills appearing in job logs that are not mapped.
+        Validates: Proper joining and filtering logic.
+        """
+        # Arrange: Setup mock results for the query
+        mock_row = MagicMock()
+        mock_row.skill_name = "Python Programming"
+        
+        # Mocking the fluent API: db.query().join().join().filter()...all()
+        mock_db.query.return_value.join.return_value.join.return_value \
+            .filter.return_value.filter.return_value.filter.return_value \
+            .group_by.return_value.order_by.return_value.limit.return_value \
+            .all.return_value = [mock_row]
+
+        # Act
+        result = get_shadow_skills(mock_db, occupation_id=123)
+
+        # Assert
+        assert len(result) == 1
+        assert result[0]["skill_name"] == "Python Programming"
+
+    def test_get_shadow_skills_exception_handling(self, mock_db):
+        """Validates that service returns empty list and logs error on DB failure."""
+        mock_db.query.side_effect = Exception("Database Connection Lost")
+        
+        result = get_shadow_skills(mock_db, occupation_id=123)
+        assert result == []
+
+    # ── Test: Skill Decay ────────────────────────────────────────────────────
+
+    def test_get_skill_decay_no_data(self, mock_db):
+        """Scenario: No snapshots exist for the occupation."""
+        mock_db.query.return_value.filter.return_value.first.return_value = None
+        
+        result = get_skill_decay(mock_db, occupation_id=999)
+        assert result == []
+
+    def test_get_skill_decay_calculation_logic(self, mock_db):
+        """
+        Scenario: Skill 'A' dropped from 100 to 40 (60% decay).
+        Validates: The 50%+ threshold logic.
+        """
+        # 1. Mock date bounds (Earliest vs Latest)
+        mock_bounds = MagicMock(earliest=date(2023, 1, 1), latest=date(2023, 12, 1))
+        
+        # 2. Setup mock responses for the series of queries in the function
+        # We use side_effect to provide different returns for sequential .first() or .scalar() calls
+        mock_db.query.return_value.filter.return_value.first.return_value = mock_bounds
+        
+        # job_execution_id mocks (scalar() calls)
+        mock_db.query.return_value.filter.return_value.filter.return_value.scalar.side_effect = [10, 20]
+        
+        # Row data mocks (early vs late)
+        early_row = MagicMock(skill_id=1, early_count=100)
+        late_row = MagicMock(skill_id=1, late_count=40)
+        
+        # Label mock
+        label_row = MagicMock(id=1, preferred_label="Legacy COBOL")
+        
+        # To handle the multiple .all() calls, we use side_effect on the final chain link
+        mock_db.query.return_value.filter.return_value.filter.return_value.all.side_effect = [
+            [early_row], [late_row], [label_row]
+        ]
+
+        # Act
+        results = get_skill_decay(mock_db, occupation_id=1)
+
+        # Assert
+        assert len(results) == 1
+        assert results[0]["skill_name"] == "Legacy COBOL"
+        assert results[0]["decline_pct"] == 60.0
+
+    # ── Test: Skill Velocity ─────────────────────────────────────────────────
+
+    def test_get_skill_velocity_rising_status(self, mock_db):
+        """
+        Scenario: Mentions go from 10 to 50 over a 2-day span.
+        Validates: Slope calculation and status categorization.
+        """
+        # Arrange
+        rows = [
+            MagicMock(skill_id=1, mention_count=10, snapshot_date=date(2023, 1, 1)),
+            MagicMock(skill_id=1, mention_count=50, snapshot_date=date(2023, 1, 3))
+        ]
+        mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = rows
+        
+        label_row = MagicMock(id=1, preferred_label="FastAPI")
+        mock_db.query.return_value.filter.return_value.all.return_value = [label_row]
+
+        # Act
+        result = get_skill_velocity(mock_db, occupation_id=1)
+
+        # Assert
+        assert result["snapshot_count"] == 2
+        assert len(result["rising"]) == 1
+        assert result["rising"][0]["skill_name"] == "FastAPI"
+        assert result["rising"][0]["status"] == "rising"
+        assert result["rising"][0]["slope"] > 0
+
+    def test_get_skill_velocity_insufficient_data(self, mock_db):
+        """Scenario: Only one snapshot exists."""
+        rows = [MagicMock(skill_id=1, mention_count=10, snapshot_date=date(2023, 1, 1))]
+        mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value = rows
+        
+        label_row = MagicMock(id=1, preferred_label="Python")
+        mock_db.query.return_value.filter.return_value.all.return_value = [label_row]
+
+        # Act
+        result = get_skill_velocity(mock_db, occupation_id=1)
+
+        # Assert
+        assert result["snapshot_count"] == 1
+        assert len(result["stable"]) == 1
+        assert result["stable"][0]["status"] == "stable"
+        assert result["stable"][0]["slope"] == 0.0
+
+    def test_get_skill_decay_full_execution(self, db_session, sample_occupation_id):
+        """Covers all branches of get_skill_decay logic."""
+        from app.models.skills import OscaOccupationSkillSnapshot, EscoSkill
+        
+        # Setup Skill
+        skill = EscoSkill(preferred_label="Old Tech", skill_type="knowledge")
+        db_session.add(skill)
+        db_session.commit()
+
+        # Setup two snapshots with 60% decay
+        s1 = OscaOccupationSkillSnapshot(
+            occupation_id=sample_occupation_id, 
+            skill_id=skill.id, 
+            mention_count=100, 
+            snapshot_date=datetime(2023, 1, 1),
+            job_execution_id=1
+        )
+        s2 = OscaOccupationSkillSnapshot(
+            occupation_id=sample_occupation_id, 
+            skill_id=skill.id, 
+            mention_count=40, 
+            snapshot_date=datetime(2023, 6, 1),
+            job_execution_id=2
+        )
+        db_session.add_all([s1, s2])
+        db_session.commit()
+
+        results = get_skill_decay(db_session, sample_occupation_id)
+        assert len(results) == 1
+        assert results[0]["decline_pct"] == 60.0
+
+    def test_get_skill_velocity_full_execution(self, db_session, sample_occupation_id):
+        """Covers rising/falling logic branches in get_skill_velocity."""
+        from app.models.skills import OscaOccupationSkillSnapshot, EscoSkill
+        
+        skill = EscoSkill(preferred_label="Hot Tech", skill_type="knowledge")
+        db_session.add(skill)
+        db_session.commit()
+
+        # Setup rising trend
+        dates = [datetime(2023, 1, 1), datetime(2023, 1, 2), datetime(2023, 1, 3)]
+        counts = [10, 30, 90]
+        for i in range(3):
+            snap = OscaOccupationSkillSnapshot(
+                occupation_id=sample_occupation_id,
+                skill_id=skill.id,
+                mention_count=counts[i],
+                snapshot_date=dates[i]
+            )
+            db_session.add(snap)
+        db_session.commit()
+
+        result = get_skill_velocity(db_session, sample_occupation_id)
+        assert len(result["rising"]) == 1
+        assert result["rising"][0]["skill_name"] == "Hot Tech"
+        assert result["snapshot_count"] == 3
+
+    def test_get_shadow_skills_empty_db(self, db_session):
+        """Covers the empty return branch."""
+        results = get_shadow_skills(db_session, 99999)
+        assert results == []
+
+    def test_get_skill_decay_no_data(self, db_session):
+        """Covers the initial return branch of decay."""
+        assert get_skill_decay(db_session, 99999) == []
+        

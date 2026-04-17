@@ -82,6 +82,13 @@ def require_auth(
     request: Request,
     db: Session = Depends(get_db),
 ) -> dict:
+    """
+    Check request.state first to see if AuthMiddleware already
+    validated and hydrated the user, avoiding a redundant DB/Token lookup.
+    """
+    state_user = getattr(request.state, "user", None)
+    if state_user:
+        return state_user
 
     token: str | None = request.cookies.get("sp_token")
 
@@ -103,7 +110,7 @@ def require_auth(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Role-based guards  (compose on top of require_auth)
+# Role-based guards
 # ─────────────────────────────────────────────────────────────────────────────
 
 def require_admin(user: dict = Depends(require_auth)) -> dict:

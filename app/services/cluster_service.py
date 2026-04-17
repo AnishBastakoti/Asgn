@@ -123,6 +123,21 @@ def _get_kmeans(db: Session, n_clusters: Optional[int] = None) -> _KMeansCache:
         raise
 
 
+def _compute_optimal_k_from_inertias(inertias: list[float], k_range: list[int]) -> int:
+    """Mathematical elbow detection using second derivative of inertia."""
+    inertia_arr  = np.array(inertias)
+    denom        = inertia_arr.max() - inertia_arr.min() + 1e-9
+    inertia_norm = (inertia_arr - inertia_arr.min()) / denom
+
+    if len(inertia_norm) >= 3:
+        second_deriv = np.diff(inertia_norm, n=2)
+        optimal_k    = k_range[int(np.argmax(np.abs(second_deriv))) + 1]
+    else:
+        optimal_k = k_range[0]
+
+    return optimal_k
+
+
 def _compute_optimal_k(matrix: np.ndarray, k_max: int = 20) -> int:
     """Elbow method on the already-built matrix — no DB access needed."""
 
@@ -135,17 +150,7 @@ def _compute_optimal_k(matrix: np.ndarray, k_max: int = 20) -> int:
         km.fit(matrix)
         inertias.append(float(km.inertia_))
 
-    inertia_arr  = np.array(inertias)
-    denom        = inertia_arr.max() - inertia_arr.min() + 1e-9
-    inertia_norm = (inertia_arr - inertia_arr.min()) / denom
-
-    if len(inertia_norm) >= 3:
-        second_deriv = np.diff(inertia_norm, n=2)
-        optimal_k    = k_range[int(np.argmax(np.abs(second_deriv))) + 1]
-    else:
-        optimal_k = k_range[0]
-
-    return optimal_k
+    return _compute_optimal_k_from_inertias(inertias, k_range)
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -166,7 +171,7 @@ def get_elbow_data(db: Session, k_max: int = 25) -> dict:
             km.fit(mc.matrix)
             inertias.append(float(km.inertia_))
 
-        optimal_k = _compute_optimal_k(mc.matrix, k_max=k_max)
+        optimal_k = _compute_optimal_k_from_inertias(inertias, k_range)
 
         return {"optimal_k": optimal_k, "k_range": k_range, "inertias": inertias}
 
