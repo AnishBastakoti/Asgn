@@ -67,7 +67,6 @@ def get_skill_decay(db: Session, occupation_id: int) -> list[dict]:
     """
     Skills where demand has dropped by 50%+ comparing the earliest
     recorded snapshot batch vs the most recent batch for this occupation.
-
     Uses osca_occupation_skill_snapshots — the point-in-time trend table.
     """
     try:

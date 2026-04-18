@@ -81,17 +81,16 @@ def list_occupations(
     user = Depends(require_auth)
 ):
     
+    # array_agg is omitted — COUNT alone is enough for the skill badge and
+    # avoids the expensive per-occupation skill ID aggregation.
     sql = """
-        SELECT 
+        SELECT
             o.id, o.principal_title as title,
             o.skill_level, o.unit_group_id,
-            COALESCE(s.skill_count, 0) as skill_count,
-            COALESCE(s.skill_ids, ARRAY[]::bigint[]) as skill_ids
+            COALESCE(s.skill_count, 0) as skill_count
         FROM osca_occupations o
         LEFT JOIN (
-            SELECT occupation_id,
-                   COUNT(skill_id) as skill_count,
-                   array_agg(skill_id) as skill_ids
+            SELECT occupation_id, COUNT(skill_id) as skill_count
             FROM osca_occupation_skills
             GROUP BY occupation_id
         ) s ON s.occupation_id = o.id
@@ -120,32 +119,31 @@ def list_occupations(
     sql += " ORDER BY o.principal_title"
 
     rows = db.execute(text(sql), params).fetchall()
-    occ_ids = [r.id for r in rows]
-    alt_rows = (
-        db.query(OscaAlternativeTitle.occupation_id, OscaAlternativeTitle.title)
-        .filter(OscaAlternativeTitle.occupation_id.in_(occ_ids))
-        .all()
-    )
-    alt_map = {}
-    for a in alt_rows:
-        alt_map.setdefault(a.occupation_id, []).append(a.title.lower())
 
+    alt_map: dict = {}
+    if rows:
+        occ_ids = [r.id for r in rows]
+        alt_rows = (
+            db.query(OscaAlternativeTitle.occupation_id, OscaAlternativeTitle.title)
+            .filter(OscaAlternativeTitle.occupation_id.in_(occ_ids))
+            .all()
+        )
+        for a in alt_rows:
+            alt_map.setdefault(a.occupation_id, []).append(a.title.lower())
 
-    result = [
+    return [
         {
             "id":            r.id,
             "title":         r.title,
             "skill_level":   r.skill_level,
             "skill_count":   r.skill_count,
             "unit_group_id": r.unit_group_id,
-            "skill_ids":     [str(s) for s in r.skill_ids] if r.skill_ids else [],
+            "skill_ids":     [],
             "has_data":      r.skill_count > 0,
             "alt_titles":    alt_map.get(r.id, [])
         }
         for r in rows
     ]
-
-    return result
 
 @router.get("/{occupation_id}")
 def get_occupation_detail(occupation_id: int, db: Session = Depends(get_db), user = Depends(require_auth)):

@@ -133,7 +133,7 @@ async function loadCityDetail(cityName) {
 
   if (!content) return;
 
-  console.log('Loading city detail for:', cityName, 'with dates:', cdState.fromDate, cdState.toDate);
+  //console.log('Loading city detail for:', cityName, 'with dates:', cdState.fromDate, cdState.toDate);
 
   // Show loading state
   welcome.classList.add('d-none');
@@ -144,9 +144,11 @@ async function loadCityDetail(cityName) {
     const params = new URLSearchParams({ limit: cdState.topN });
     if (cdState.fromDate) params.append('from_date', cdState.fromDate);
     if (cdState.toDate)   params.append('to_date',   cdState.toDate);
-    const data = await api(`/api/analytics/city-demand/${encodeURIComponent(cityName)}?${params}`);
+    const data        = await api(`/api/analytics/city-demand/${encodeURIComponent(cityName)}?${params}`);
+    const occupations = data.occupations ?? [];
+    const warning     = data.warning     ?? null;
 
-    if (!data.length) {
+    if (!occupations.length) {
       bars.innerHTML = `<div class="sp-occ-empty">No occupation data available for ${esc(cityName)}</div>`;
       return;
     }
@@ -158,18 +160,24 @@ async function loadCityDetail(cityName) {
         <div class="cd-chart-title">
           <i class="bi bi-geo-alt-fill me-2" style="color:var(--orange)"></i>${esc(cityName)}
         </div>
-        <div class="cd-chart-sub">Top ${data.length} occupations by job demand</div>
+        <div class="cd-chart-sub">Top ${occupations.length} occupations by job demand</div>
       </div>
       <div class="cd-chart-badges">
-        <span class="sp-cbadge sp-cbadge--orange">${data.length} roles</span>
+        <span class="sp-cbadge sp-cbadge--orange">${occupations.length} roles</span>
         <span class="sp-cbadge">${cityData ? fmt(cityData.total_jobs) + ' total jobs' : ''}</span>
       </div>`;
 
-    // ── Bars ──
-    bars.innerHTML = '';
-    const maxJobs = data[0].total_jobs;
+    // ── Warning banner (shown when fewer results than requested) ──
+    bars.innerHTML = warning
+      ? `<div class="cd-warning-banner">
+           <i class="bi bi-exclamation-triangle-fill"></i>
+           ${esc(warning)}
+         </div>`
+      : '';
 
-    data.forEach((row, i) => {
+    const maxJobs = occupations[0].total_jobs;
+
+    occupations.forEach((row, i) => {
       const pct   = (row.total_jobs / maxJobs) * 100;
 
       const el = document.createElement('div');
@@ -211,7 +219,7 @@ async function loadCityDetail(cityName) {
       <div class="sp-occ-empty">
         <i class="bi bi-exclamation-triangle me-2"></i>Failed to load data for ${esc(cityName)}
       </div>`;
-    console.warn('[SkillPulse] loadCityDetail:', err.message);
+     console.warn('[SkillPulse] loadCityDetail:', err.message);
   }
 }
 
@@ -224,7 +232,6 @@ function setKpi(id, value) {
 function applyDateFilter() {
   cdState.fromDate = document.getElementById('cdFromDate')?.value || null;
   cdState.toDate   = document.getElementById('cdToDate')?.value   || null;
-  console.log('Applying date filter:', cdState.fromDate, cdState.toDate);
   loadCitySummary();
 }
 
@@ -233,6 +240,5 @@ function clearDateFilter() {
   cdState.toDate   = null;
   document.getElementById('cdFromDate').value = '';
   document.getElementById('cdToDate').value   = '';
-  console.log('Clearing date filter');
   loadCitySummary();
 }

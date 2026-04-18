@@ -55,6 +55,10 @@ class CityDemandDetailResponse(BaseModel):
     total_jobs:       int
     demand_pct:       float
 
+class CityDemandDetailWrapped(BaseModel):
+    occupations: List[CityDemandDetailResponse]
+    warning:     Optional[str] = None
+
 class SkillVelocityItem(BaseModel):
     skill_name:   str
     latest_count: int
@@ -126,7 +130,7 @@ def city_demand_summary(
 ):
     return get_city_demand_summary(db, from_date, to_date)
 
-@router.get("/city-demand/{city}", response_model=List[CityDemandDetailResponse])
+@router.get("/city-demand/{city}", response_model=CityDemandDetailWrapped)
 @limiter.limit("20/minute")
 def city_demand_detail(
     request: Request,
@@ -183,8 +187,8 @@ def occupation_similarity(request: Request, occupation_id: int, top_n: int = 8, 
 
 @router.get("/occupation-clusters/{occupation_id}")
 @limiter.limit("20/minute")
-def occupation_clusters(request: Request, occupation_id: int, n_clusters: Optional[int] = None, db: Session = Depends(get_db)):
-    return get_occupation_clusters(db, occupation_id, n_clusters)
+def occupation_clusters(request: Request, occupation_id: int, n_clusters: Optional[int] = None, top_n: int = 10, db: Session = Depends(get_db)):
+    return get_occupation_clusters(db, occupation_id, n_clusters, top_n)
 
 @router.get("/city-forecast/{city}")
 @limiter.limit("20/minute")

@@ -54,7 +54,7 @@ def mock_db():
 # ── Sample data fixtures ──────────────────────────────────────────────────────
 @pytest.fixture
 def sample_occupation_id():
-    """A real occupation ID from DB (Software Engineer)."""
+    """Sample occupation ID used across service/API tests (Software Engineer ANZSCO code)."""
     return 273333
 
 

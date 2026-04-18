@@ -17,9 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Initialize dashboard ──
 async function initDashboard() {
   if (!document.getElementById('chartPanel')) return;
-  await loadKpiCards();
-  await loadMajorGroups();
-  await loadOccupations();
+  await Promise.all([loadKpiCards(), loadMajorGroups(), loadOccupations()]);
 
   // Event listeners
   $('topNSlider')?.addEventListener('input', e => {

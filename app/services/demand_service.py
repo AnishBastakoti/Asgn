@@ -79,7 +79,7 @@ def get_city_demand_summary(db: Session, from_date: str = None, to_date: str = N
 # Used to populate the bar chart on city selection.
 # ─────────────────────────────────────────────
 
-def get_city_demand_detail(db: Session, city: str, limit: int = 10, from_date: str = None, to_date: str = None) -> list[dict]:
+def get_city_demand_detail(db: Session, city: str, limit: int = 10, from_date: str = None, to_date: str = None) -> dict:
     try:
         if from_date or to_date:
             from app.models.osca import OscaOccupation
@@ -112,10 +112,10 @@ def get_city_demand_detail(db: Session, city: str, limit: int = 10, from_date: s
             )
 
         if not rows:
-            return []
+            return {"occupations": [], "warning": None}
 
         max_jobs = rows[0].total_jobs or 1
-        return [
+        results = [
             {
                 "occupation_title": r.occupation_title,
                 "occupation_id":    r.occupation_id,
@@ -124,9 +124,16 @@ def get_city_demand_detail(db: Session, city: str, limit: int = 10, from_date: s
             }
             for r in rows
         ]
+
+        warning = None
+        if len(results) < limit:
+            warning = f"Only {len(results)} occupations found for {city} (requested {limit})."
+
+        return {"occupations": results, "warning": warning}
+
     except Exception as e:
         logger.error(f"[MSIT402|SP] get_city_demand_detail failed: {e}")
-        return []
+        return {"occupations": [], "warning": "Error fetching data"}
 
 
 # ─────────────────────────────────────────────

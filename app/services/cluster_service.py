@@ -206,6 +206,10 @@ def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: Optiona
         elapsed_clustering = (time.time() - starttime) * 1000
         logger.debug(f"[MSIT402|SP] Cluster retrieval took {elapsed_clustering:.2f}ms")
 
+        # Optimization: We want top_n items TOTAL. 
+        # Since the target is 1 item, we fetch (top_n - 1) similar members.
+        members_to_fetch = max(0, top_n - 1)
+
         target_vec = mc.matrix[target_idx].reshape(1, -1)
         if cluster_member_ids:
             member_indices = [mc.occ_index[oid] for oid in cluster_member_ids]
@@ -214,8 +218,7 @@ def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: Optiona
                 zip(cluster_member_ids, sim_scores.tolist()),
                 key=lambda x: x[1],
                 reverse=True,
-            )[:10]
-
+            )[:members_to_fetch]
         else:
             ranked_members = []
 
@@ -240,6 +243,12 @@ def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: Optiona
         total_elapsed = (time.time() - starttime) * 1000
         logger.info(f"[MSIT402|SP] get_occupation_clusters for {occupation_id} completed in {total_elapsed:.2f}ms")
 
+        # Logic for Warning if data is less than requested
+        warning = None
+        total_returned = len(members) + 1
+        if total_returned < top_n:
+            warning = f"Only {total_returned} occupations found in this cluster (requested {top_n})."
+
         return {
             "occupation_id":   occupation_id,
             "cluster_id":      target_cluster,
@@ -247,6 +256,7 @@ def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: Optiona
             "cluster_size":    len(cluster_member_ids) + 1,
             "n_clusters":      kc.k,
             "cluster_members": members,
+            "warning":         warning
         }
 
     except Exception as e:
