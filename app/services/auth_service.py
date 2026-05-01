@@ -1,13 +1,20 @@
 import secrets
-
-import jwt
+import logging
+import jwt  
 import bcrypt
+import hashlib
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 
 from app.models.auth import SystemEndUser, SystemRolePage, SystemPage, SystemRole
 
 from config import settings
+
+logger = logging.getLogger(__name__)
+
+_FP = hashlib.sha256(
+    f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
 
 # ── JWT config ────────────────────────────────────────────────
 JWT_ALGORITHM  = "HS256"
@@ -29,7 +36,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
             plain_password.encode("utf-8"),
             hashed_password.encode("utf-8")
         )
-    except Exception:
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] Password verification error: {e}")
         return False
 
 
@@ -72,8 +80,10 @@ def decode_access_token(token: str) -> dict | None:
         )
         return payload
     except jwt.ExpiredSignatureError:
+        logger.debug("[MSIT402|SP] Token expired")
         return None   # token expired — user must log in again
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        logger.error(f"[MSIT402|SP] Invalid token: {e}")
         return None   # token tampered or invalid
 
 
@@ -85,41 +95,49 @@ def authenticate_user(db: Session, email: str, password: str) -> dict | None:
     """
     Verifies credentials and returns a JWT token on success.
     """
-    # Find user by email
-    user = (
-        db.query(SystemEndUser)
-        .filter(SystemEndUser.email == email.lower().strip())
-        .first()
-    )
+    try:
+        # Find user by email
+        user = (
+            db.query(SystemEndUser)
+            .filter(SystemEndUser.email == email.lower().strip())
+            .first()
+        )
 
-    if not user:
-        return None  # no such user
+        if not user:
+            logger.info(f"[MSIT402|SP] Auth failed: user not found ({email})")
+            return None  # no such user
 
-    if not user.enabled:
-        return None  # account disabled
+        if not user.enabled:
+            logger.warning(f"[MSIT402|SP] Auth blocked: account disabled ({email})")
+            return None  # account disabled
 
-    if not verify_password(password, user.password_hash):
-        return None  # wrong password
+        if not verify_password(password, user.password_hash):
+            logger.info(f"[MSIT402|SP] Auth failed: incorrect password ({email})")
+            return None  # wrong password
 
-    # Get role name
-    role_name = user.role.name if user.role else "viewer"
+        # Get role name
+        role_name = user.role.name if user.role else "viewer"
 
-    # Create JWT token
-    token = create_access_token({
-        "user_id": user.id,
-        "email": user.email,
-        "role": role_name,
-    })
+        # Create JWT token
+        token = create_access_token({
+            "user_id": user.id,
+            "email": user.email,
+            "role": role_name,
+        })
 
-    return {
-        "access_token": token,
-        "token_type":   "bearer",
-        "user_id":      user.id,
-        "email":        user.email,
-        "display_name": user.email,
-        "role":         role_name,
-        "expires_in":   JWT_EXPIRES_HRS * 3600,
-    }
+        logger.info(f"[MSIT402|SP] User authenticated: {email} (Role: {role_name})")
+        return {
+            "access_token": token,
+            "token_type":   "bearer",
+            "user_id":      user.id,
+            "email":        user.email,
+            "display_name": user.email,
+            "role":         role_name,
+            "expires_in":   JWT_EXPIRES_HRS * 3600,
+        }
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] authenticate_user system error: {e}")
+        return None
 
 
 # ─────────────────────────────────────────────
@@ -154,14 +172,18 @@ def get_current_user(db: Session, token: str) -> dict | None:
 # ─────────────────────────────────────────────
 
 def get_allowed_pages(db: Session, role_name: str) -> list[str]:
-    role_pages = (
-        db.query(SystemPage.route_path)
-        .join(SystemRolePage, SystemRolePage.page_id == SystemPage.id)
-        .join(SystemRole, SystemRole.id == SystemRolePage.role_id)
-        .filter(SystemRole.name == role_name)
-        .all()
-    )
-    return [r.route_path for r in role_pages if r.route_path]
+    try:
+        role_pages = (
+            db.query(SystemPage.route_path)
+            .join(SystemRolePage, SystemRolePage.page_id == SystemPage.id)
+            .join(SystemRole, SystemRole.id == SystemRolePage.role_id)
+            .filter(SystemRole.name == role_name)
+            .all()
+        )
+        return [r.route_path for r in role_pages if r.route_path]
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_allowed_pages failed for {role_name}: {e}")
+        return []
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -1,10 +1,5 @@
-
-"""
-Shared occupation-skill matrix cache.
-Builds the binary skill matrix from the DB exactly once per process
-and re-uses it for similarity, clustering, and elbow analysis.
-"""
 import logging
+import hashlib
 import threading
 import numpy as np
 from dataclasses import dataclass, field
@@ -12,8 +7,14 @@ from typing import Optional, List, Dict
 
 from sqlalchemy.orm import Session
 from app.models.skills import OscaOccupationSkill
+from app.models.osca import OscaOccupation
+from config import settings
 
 logger = logging.getLogger(__name__)
+
+_FP = hashlib.sha256(
+    f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
 
 # ── Data container ──────────────────────────────────────────────────────────
 
@@ -61,7 +62,8 @@ def get_matrix(db: Session, force_rebuild: bool = False) -> OccupationMatrix:
     with _lock:
         if not force_rebuild and _cache is not None:
             # Quick row-count check — cheap single-column COUNT query
-            current_count = db.query(OscaOccupationSkill.occupation_id).count()
+            # Optimization: Count primary occupations instead of the massive mapping table
+            current_count = db.query(OscaOccupation.id).count()
             if current_count == _cache_occ_count:
                 return _cache          # cache hit, return immediately
 

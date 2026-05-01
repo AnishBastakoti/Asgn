@@ -1,12 +1,21 @@
 import logging
+import hashlib
 
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.services.matrix_cache import get_matrix
+from config import settings
 
 logger = logging.getLogger(__name__)
+
+# ── Authorship Fingerprint ─────────────────────────────────
+_FP = hashlib.sha256(
+    f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
+
+_SIGNATURE = hashlib.sha256(settings.AUTHOR_KEY.encode()).hexdigest()[:8].upper()
+
 
 # ─────────────────────────────────────────────
 # COSINE SIMILARITY
@@ -73,5 +82,5 @@ def get_occupation_similarity(db: Session, occupation_id: int, top_n: int = 8) -
         }
 
     except Exception as e:
-        logger.error(f"[SimilarityService] get_occupation_similarity failed: {e}")
+        logger.error(f"[MSIT402|SP] get_occupation_similarity failed: {e}")
         return {"error": str(e)}

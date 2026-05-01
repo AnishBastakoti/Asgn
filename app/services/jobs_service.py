@@ -9,12 +9,16 @@ from sqlalchemy import func, text
 from app.models.jobs import JobPostLog, JobPostSkill
 from app.models.skills import EscoSkill, OscaOccupationSkill
 from app.models.osca import OscaOccupation
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 # ── Authorship Fingerprint ─────────────────────────────────
-_AUTHOR_KEY = "MSIT402 CIM-10236"
-_SIGNATURE = hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8].upper()
+_FP = hashlib.sha256(
+    f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
+
+_SIGNATURE = hashlib.sha256(settings.AUTHOR_KEY.encode()).hexdigest()[:8].upper()
 
 # ── City Demand ─────────────────────────────────────────
 def get_cities_by_occupation(db: Session, occupation_id: int) -> list[dict]:
@@ -439,104 +443,108 @@ def get_skill_gap_radar(db: Session, occupation_id: int) -> dict | None:
       - market_intensity  : avg posting frequency of matched skills, normalised 0-100
       - shadow_ratio      : shadow skills as % of official count, capped at 100
     """
-    # Official skills mapped to this occupation via OSCA
-    official = (
-        db.query(
-            EscoSkill.id,
-            EscoSkill.preferred_label,
-            EscoSkill.skill_type,
+    try:
+        # Official skills mapped to this occupation via OSCA
+        official = (
+            db.query(
+                EscoSkill.id,
+                EscoSkill.preferred_label,
+                EscoSkill.skill_type,
+            )
+            .join(OscaOccupationSkill, OscaOccupationSkill.skill_id == EscoSkill.id)
+            .filter(OscaOccupationSkill.occupation_id == occupation_id)
+            .all()
         )
-        .join(OscaOccupationSkill, OscaOccupationSkill.skill_id == EscoSkill.id)
-        .filter(OscaOccupationSkill.occupation_id == occupation_id)
-        .all()
-    )
  
-    if not official:
+        if not official:
+            return None
+ 
+        official_ids = {r.id for r in official}
+ 
+        # Skills extracted from job postings for this occupation
+        posting_rows = (
+            db.query(
+                JobPostSkill.skill_id,
+                func.count(JobPostSkill.id).label("mention_count"),
+            )
+            .join(JobPostLog, JobPostLog.id == JobPostSkill.job_post_id)
+            .filter(JobPostLog.occupation_id == occupation_id)
+            .group_by(JobPostSkill.skill_id)
+            .all()
+        )
+        posting_map: dict[int, int] = {r.skill_id: r.mention_count for r in posting_rows}
+ 
+        # Per-type coverage breakdown
+        TYPE_MAP = [
+            ("knowledge",        "Knowledge"),
+            ("skill/competence", "Competence"),
+            ("attitude",         "Attitude"),
+        ]
+        by_type: list[dict] = []
+        type_coverage: dict[str, float] = {}
+ 
+        for raw_type, label in TYPE_MAP:
+            bucket  = [s for s in official if (s.skill_type or "").lower() == raw_type]
+            if not bucket:
+                type_coverage[raw_type] = 0.0
+                continue
+ 
+            matched = [s for s in bucket if s.id in posting_map]
+            missing = [s for s in bucket if s.id not in posting_map]
+            coverage = round(len(matched) / len(bucket) * 100, 1)
+            type_coverage[raw_type] = coverage
+ 
+            matched_sorted = sorted(matched, key=lambda s: posting_map.get(s.id, 0), reverse=True)
+ 
+            by_type.append({
+                "key":            raw_type,
+                "label":          label,
+                "official_count": len(bucket),
+                "matched_count":  len(matched),
+                "missing_count":  len(missing),
+                "coverage_pct":   coverage,
+                "top_matched":    [s.preferred_label for s in matched_sorted[:5]],
+                "top_missing":    [s.preferred_label for s in missing[:5]],
+            })
+ 
+        # Shadow skills: in postings but absent from the official OSCA mapping
+        shadow_count = len([sid for sid in posting_map if sid not in official_ids])
+ 
+        # Overall coverage
+        overall_matched  = len([s for s in official if s.id in posting_map])
+        overall_coverage = round(overall_matched / len(official) * 100, 1)
+ 
+        # Market intensity (avg freq of matched official skills, normalised 0-100)
+        if posting_map:
+            max_v = max(posting_map.values()) or 1
+            official_mentions = [posting_map[s.id] for s in official if s.id in posting_map]
+            avg_freq = sum(official_mentions) / len(official_mentions) if official_mentions else 0
+            market_intensity = round(min(avg_freq / max_v * 100, 100), 1)
+        else:
+            market_intensity = 0.0
+ 
+        # Shadow ratio (capped at 100 for radar scale)
+        shadow_ratio = round(min(shadow_count / max(len(official_ids), 1) * 100, 100), 1)
+ 
+        return {
+            "occupation_id": occupation_id,
+            "radar": {
+                "knowledge_coverage":  type_coverage.get("knowledge", 0.0),
+                "competence_coverage": type_coverage.get("skill/competence", 0.0),
+                "attitude_coverage":   type_coverage.get("attitude", 0.0),
+                "market_intensity":    market_intensity,
+                "shadow_ratio":        shadow_ratio,
+            },
+            "summary": {
+                "official_skill_count": len(official),
+                "matched_in_postings":  overall_matched,
+                "unmatched_official":   len(official) - overall_matched,
+                "shadow_skills":        shadow_count,
+                "overall_coverage_pct": overall_coverage,
+            },
+            "by_type": by_type,
+        }
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_skill_gap_radar failed: {e}")
         return None
- 
-    official_ids = {r.id for r in official}
- 
-    # Skills extracted from job postings for this occupation
-    posting_rows = (
-        db.query(
-            JobPostSkill.skill_id,
-            func.count(JobPostSkill.id).label("mention_count"),
-        )
-        .join(JobPostLog, JobPostLog.id == JobPostSkill.job_post_id)
-        .filter(JobPostLog.occupation_id == occupation_id)
-        .group_by(JobPostSkill.skill_id)
-        .all()
-    )
-    posting_map: dict[int, int] = {r.skill_id: r.mention_count for r in posting_rows}
- 
-    # Per-type coverage breakdown
-    TYPE_MAP = [
-        ("knowledge",        "Knowledge"),
-        ("skill/competence", "Competence"),
-        ("attitude",         "Attitude"),
-    ]
-    by_type: list[dict] = []
-    type_coverage: dict[str, float] = {}
- 
-    for raw_type, label in TYPE_MAP:
-        bucket  = [s for s in official if (s.skill_type or "").lower() == raw_type]
-        if not bucket:
-            type_coverage[raw_type] = 0.0
-            continue
- 
-        matched = [s for s in bucket if s.id in posting_map]
-        missing = [s for s in bucket if s.id not in posting_map]
-        coverage = round(len(matched) / len(bucket) * 100, 1)
-        type_coverage[raw_type] = coverage
- 
-        matched_sorted = sorted(matched, key=lambda s: posting_map.get(s.id, 0), reverse=True)
- 
-        by_type.append({
-            "key":            raw_type,
-            "label":          label,
-            "official_count": len(bucket),
-            "matched_count":  len(matched),
-            "missing_count":  len(missing),
-            "coverage_pct":   coverage,
-            "top_matched":    [s.preferred_label for s in matched_sorted[:5]],
-            "top_missing":    [s.preferred_label for s in missing[:5]],
-        })
- 
-    # Shadow skills: in postings but absent from the official OSCA mapping
-    shadow_count = len([sid for sid in posting_map if sid not in official_ids])
- 
-    # Overall coverage
-    overall_matched  = len([s for s in official if s.id in posting_map])
-    overall_coverage = round(overall_matched / len(official) * 100, 1)
- 
-    # Market intensity (avg freq of matched official skills, normalised 0-100)
-    if posting_map:
-        max_v = max(posting_map.values()) or 1
-        official_mentions = [posting_map[s.id] for s in official if s.id in posting_map]
-        avg_freq = sum(official_mentions) / len(official_mentions) if official_mentions else 0
-        market_intensity = round(min(avg_freq / max_v * 100, 100), 1)
-    else:
-        market_intensity = 0.0
- 
-    # Shadow ratio (capped at 100 for radar scale)
-    shadow_ratio = round(min(shadow_count / max(len(official_ids), 1) * 100, 100), 1)
- 
-    return {
-        "occupation_id": occupation_id,
-        "radar": {
-            "knowledge_coverage":  type_coverage.get("knowledge", 0.0),
-            "competence_coverage": type_coverage.get("skill/competence", 0.0),
-            "attitude_coverage":   type_coverage.get("attitude", 0.0),
-            "market_intensity":    market_intensity,
-            "shadow_ratio":        shadow_ratio,
-        },
-        "summary": {
-            "official_skill_count": len(official),
-            "matched_in_postings":  overall_matched,
-            "unmatched_official":   len(official) - overall_matched,
-            "shadow_skills":        shadow_count,
-            "overall_coverage_pct": overall_coverage,
-        },
-        "by_type": by_type,
-    }
  

@@ -11,3 +11,5 @@ tests
 alembic.ini
 alembic/env.py
 .pytest_cache/
+skillpulse.log
+logs/

@@ -13,41 +13,49 @@ from app.models.osca import (
     OscaAlternativeTitle
 )
 from app.models.skills import OscaOccupationSkill
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 # --- Authorship Fingerprint
-_AUTHOR_KEY = "MSIT402 CIM-10236" 
-_SIGNATURE = hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8].upper()
+_FP = hashlib.sha256(
+    f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
+
+_SIGNATURE = hashlib.sha256(settings.AUTHOR_KEY.encode()).hexdigest()[:8].upper()
 # ── Hierarchy Functions
 
 def get_major_groups(db: Session) -> list[dict]:
     """
     Get all OSCA major groups.
     """
-    groups = (
-        db.query(
-            OscaMajorGroup.id,
-            OscaMajorGroup.title,
-            func.count(OscaOccupation.id).label("occupation_count")
+    try:
+        groups = (
+            db.query(
+                OscaMajorGroup.id,
+                OscaMajorGroup.title,
+                func.count(OscaOccupation.id).label("occupation_count")
+            )
+            .outerjoin(OscaSubMajorGroup, OscaSubMajorGroup.major_group_id == OscaMajorGroup.id)
+            .outerjoin(OscaMinorGroup, OscaMinorGroup.sub_major_group_id == OscaSubMajorGroup.id)
+            .outerjoin(OscaUnitGroup, OscaUnitGroup.minor_group_id == OscaMinorGroup.id)
+            .outerjoin(OscaOccupation, OscaOccupation.unit_group_id == OscaUnitGroup.id)
+            .group_by(OscaMajorGroup.id, OscaMajorGroup.title)
+            .order_by(OscaMajorGroup.id)
+            .all()
         )
-        .outerjoin(OscaSubMajorGroup, OscaSubMajorGroup.major_group_id == OscaMajorGroup.id)
-        .outerjoin(OscaMinorGroup, OscaMinorGroup.sub_major_group_id == OscaSubMajorGroup.id)
-        .outerjoin(OscaUnitGroup, OscaUnitGroup.minor_group_id == OscaMinorGroup.id)
-        .outerjoin(OscaOccupation, OscaOccupation.unit_group_id == OscaUnitGroup.id)
-        .group_by(OscaMajorGroup.id, OscaMajorGroup.title)
-        .order_by(OscaMajorGroup.id)
-        .all()
-    )
 
-    return [
-        {
-            "id":               g.id,
-            "title":            g.title,
-            "occupation_count": g.occupation_count
-        }
-        for g in groups
-    ]
+        return [
+            {
+                "id":               g.id,
+                "title":            g.title,
+                "occupation_count": g.occupation_count
+            }
+            for g in groups
+        ]
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_major_groups failed: {e}")
+        return []
 
 
 def get_sub_major_groups(
@@ -57,27 +65,31 @@ def get_sub_major_groups(
     """
     Get sub-major groups, optionally filtered by major group.
     """
-    query = db.query(
-        OscaSubMajorGroup.id,
-        OscaSubMajorGroup.title,
-        OscaSubMajorGroup.major_group_id
-    )
-
-    if major_group_id:
-        query = query.filter(
-            OscaSubMajorGroup.major_group_id == major_group_id
+    try:
+        query = db.query(
+            OscaSubMajorGroup.id,
+            OscaSubMajorGroup.title,
+            OscaSubMajorGroup.major_group_id
         )
 
-    groups = query.order_by(OscaSubMajorGroup.id).all()
+        if major_group_id:
+            query = query.filter(
+                OscaSubMajorGroup.major_group_id == major_group_id
+            )
 
-    return [
-        {
-            "id":             g.id,
-            "title":          g.title,
-            "major_group_id": g.major_group_id
-        }
-        for g in groups
-    ]
+        groups = query.order_by(OscaSubMajorGroup.id).all()
+
+        return [
+            {
+                "id":             g.id,
+                "title":          g.title,
+                "major_group_id": g.major_group_id
+            }
+            for g in groups
+        ]
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_sub_major_groups failed: {e}")
+        return []
 
 
 def get_minor_groups(
@@ -87,27 +99,31 @@ def get_minor_groups(
     """
     Get minor groups, optionally filtered by sub-major group.
     """
-    query = db.query(
-        OscaMinorGroup.id,
-        OscaMinorGroup.title,
-        OscaMinorGroup.sub_major_group_id
-    )
-
-    if sub_major_group_id:
-        query = query.filter(
-            OscaMinorGroup.sub_major_group_id == sub_major_group_id
+    try:
+        query = db.query(
+            OscaMinorGroup.id,
+            OscaMinorGroup.title,
+            OscaMinorGroup.sub_major_group_id
         )
 
-    groups = query.order_by(OscaMinorGroup.id).all()
+        if sub_major_group_id:
+            query = query.filter(
+                OscaMinorGroup.sub_major_group_id == sub_major_group_id
+            )
 
-    return [
-        {
-            "id":                  g.id,
-            "title":               g.title,
-            "sub_major_group_id":  g.sub_major_group_id
-        }
-        for g in groups
-    ]
+        groups = query.order_by(OscaMinorGroup.id).all()
+
+        return [
+            {
+                "id":                  g.id,
+                "title":               g.title,
+                "sub_major_group_id":  g.sub_major_group_id
+            }
+            for g in groups
+        ]
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_minor_groups failed: {e}")
+        return []
 
 
 def get_occupations(
@@ -119,51 +135,55 @@ def get_occupations(
     """
     Get occupations with optional filtering and search.
     """
-    query = db.query(
-        OscaOccupation.id,
-        OscaOccupation.principal_title,
-        OscaOccupation.skill_level,
-        OscaOccupation.unit_group_id,
-        func.count(OscaOccupationSkill.id).label("skill_count")
-    ).outerjoin(
-        OscaOccupationSkill,
-        OscaOccupationSkill.occupation_id == OscaOccupation.id
-    )
-
-    if unit_group_id:
-        query = query.filter(OscaOccupation.unit_group_id == unit_group_id)
-
-    if search:
-        # Case insensitive search
-        query = query.filter(
-            OscaOccupation.principal_title.ilike(f"%{search}%")|
-            (OscaOccupation.id.cast(String).ilike(f"%{search}%"))
-        )
-
-    occupations = (
-        query
-        .group_by(
+    try:
+        query = db.query(
             OscaOccupation.id,
             OscaOccupation.principal_title,
             OscaOccupation.skill_level,
-            OscaOccupation.unit_group_id
+            OscaOccupation.unit_group_id,
+            func.count(OscaOccupationSkill.id).label("skill_count")
+        ).outerjoin(
+            OscaOccupationSkill,
+            OscaOccupationSkill.occupation_id == OscaOccupation.id
         )
-        .order_by(OscaOccupation.principal_title)
-        .limit(limit)
-        .all()
-    )
 
-    return [
-        {
-            "id":              o.id,
-            "title":           o.principal_title,
-            "skill_level":     o.skill_level,
-            "unit_group_id":   o.unit_group_id,
-            "skill_count":     o.skill_count,
-            "has_data":        o.skill_count > 0  #on UI it shows to grey out empty ones
-        }
-        for o in occupations
-    ]
+        if unit_group_id:
+            query = query.filter(OscaOccupation.unit_group_id == unit_group_id)
+
+        if search:
+            # Case insensitive search
+            query = query.filter(
+                OscaOccupation.principal_title.ilike(f"%{search}%")|
+                (OscaOccupation.id.cast(String).ilike(f"%{search}%"))
+            )
+
+        occupations = (
+            query
+            .group_by(
+                OscaOccupation.id,
+                OscaOccupation.principal_title,
+                OscaOccupation.skill_level,
+                OscaOccupation.unit_group_id
+            )
+            .order_by(OscaOccupation.principal_title)
+            .limit(limit)
+            .all()
+        )
+
+        return [
+            {
+                "id":              o.id,
+                "title":           o.principal_title,
+                "skill_level":     o.skill_level,
+                "unit_group_id":   o.unit_group_id,
+                "skill_count":     o.skill_count,
+                "has_data":        o.skill_count > 0  #on UI it shows to grey out empty ones
+            }
+            for o in occupations
+        ]
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_occupations failed: {e}")
+        return []
 
 
 def get_occupation_detail(
@@ -173,46 +193,50 @@ def get_occupation_detail(
     """
     Get full details for a single occupation including breadcrumb path.
     """
-    occupation = (
-        db.query(OscaOccupation)
-        .options(
-            joinedload(OscaOccupation.unit_group)
-            .joinedload(OscaUnitGroup.minor_group)
-            .joinedload(OscaMinorGroup.sub_major_group)
-            .joinedload(OscaSubMajorGroup.major_group)
+    try:
+        occupation = (
+            db.query(OscaOccupation)
+            .options(
+                joinedload(OscaOccupation.unit_group)
+                .joinedload(OscaUnitGroup.minor_group)
+                .joinedload(OscaMinorGroup.sub_major_group)
+                .joinedload(OscaSubMajorGroup.major_group)
+            )
+            .filter(OscaOccupation.id == occupation_id)
+            .first()
         )
-        .filter(OscaOccupation.id == occupation_id)
-        .first()
-    )
 
-    if not occupation:
+        if not occupation:
+            return None
+        
+        #  clean, data is already in memory
+        u = occupation.unit_group
+        m = u.minor_group if u else None
+        sm = m.sub_major_group if m else None
+        major = sm.major_group if sm else None
+
+        return {
+            "id":            occupation.id,
+            "title":         occupation.principal_title,
+            "skill_level":   occupation.skill_level,
+            "lead_statement": occupation.lead_statement,
+            "caveats":           occupation.caveats,
+            "licensing":         occupation.licensing,
+            "nec_category":      occupation.nec_category,
+            "skill_attributes":  occupation.skill_attributes,
+            "specialisations":   occupation.specialisations,
+            "main_tasks":        occupation.main_tasks,
+            "information_card":  occupation.information_card,
+            # content_hash, embedding excluded for now
+            "breadcrumb": [
+                {"level": "major",      "title": major.title if major else None},
+                {"level": "sub_major",  "title": sm.title if sm else None},
+                {"level": "minor",      "title": m.title if m else None},
+                {"level": "unit",       "title": u.title if u  else None},
+                {"level": "occupation", "title": occupation.principal_title},
+            ],
+            "signature": f"SP-{_SIGNATURE:03d}"
+        }
+    except Exception as e:
+        logger.error(f"[MSIT402|SP] get_occupation_detail failed for {occupation_id}: {e}")
         return None
-    
-    #  clean, data is already in memory
-    u = occupation.unit_group
-    m = u.minor_group if u else None
-    sm = m.sub_major_group if m else None
-    major = sm.major_group if sm else None
-
-    return {
-        "id":            occupation.id,
-        "title":         occupation.principal_title,
-        "skill_level":   occupation.skill_level,
-        "lead_statement": occupation.lead_statement,
-        "caveats":           occupation.caveats,
-        "licensing":         occupation.licensing,
-        "nec_category":      occupation.nec_category,
-        "skill_attributes":  occupation.skill_attributes,
-        "specialisations":   occupation.specialisations,
-        "main_tasks":        occupation.main_tasks,
-        "information_card":  occupation.information_card,
-        # content_hash, embedding excluded for now
-        "breadcrumb": [
-            {"level": "major",      "title": major.title if major else None},
-            {"level": "sub_major",  "title": sm.title if sm else None},
-            {"level": "minor",      "title": m.title if m else None},
-            {"level": "unit",       "title": u.title if u  else None},
-            {"level": "occupation", "title": occupation.principal_title},
-        ],
-        "signature": f"SP-{_SIGNATURE:03d}"
-    }

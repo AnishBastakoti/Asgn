@@ -7,12 +7,16 @@ from collections import defaultdict
 
 from app.models.skills import EscoSkill, OscaOccupationSkill, OscaOccupationSkillSnapshot
 from app.models.jobs import JobPostLog, JobPostSkill
+from config import settings
 
 logger = logging.getLogger(__name__)
 
 # ── Authorship Fingerprint ─────────────────────────────────
-_AUTHOR_KEY = "MSIT402 CIM-10236"
-_SIGNATURE = hashlib.sha256(_AUTHOR_KEY.encode()).hexdigest()[:8].upper()
+_FP = hashlib.sha256(
+    f"{settings.AUTHOR_KEY}:{settings.APP_NAME}:{settings.APP_VERSION}".encode()
+).hexdigest()[:12]
+
+_SIGNATURE = hashlib.sha256(settings.AUTHOR_KEY.encode()).hexdigest()[:8].upper()
 
 # ─────────────────────────────────────────────
 # SHADOW SKILLS
@@ -63,7 +67,6 @@ def get_skill_decay(db: Session, occupation_id: int) -> list[dict]:
     """
     Skills where demand has dropped by 50%+ comparing the earliest
     recorded snapshot batch vs the most recent batch for this occupation.
-
     Uses osca_occupation_skill_snapshots — the point-in-time trend table.
     """
     try:

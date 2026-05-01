@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
     SECRET_KEY: str
     API_KEY: str
+    AUTHOR_KEY: str = "MSIT402 CIM-10236"
     FINGERPRINT_SALT: str
     API_KEY_BASE_PREFIX: str = "AB"
     API_KEY_ENVIRONMENT: str = "liv"
@@ -62,8 +63,7 @@ class Settings(BaseSettings):
         Generates the prefix dynamically based on environment and salt.
         """
         # Reproducing fingerprint logic centrally
-        _AUTHOR_KEY = "MSIT402 CIM-10236"
-        combined_key = f"{_AUTHOR_KEY}{self.FINGERPRINT_SALT}"
+        combined_key = f"{self.AUTHOR_KEY}{self.FINGERPRINT_SALT}"
         _SIGNATURE = hashlib.sha256(combined_key.encode()).hexdigest()[:8].upper()
         _ENV = "liv" if not self.DEBUG else "tst"
         
