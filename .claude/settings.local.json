@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(python -m pytest tests/test_demand_jobs_service.py -v)"
-    ]
-  }
-}

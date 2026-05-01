@@ -180,7 +180,7 @@ def get_elbow_data(db: Session, k_max: int = 25) -> dict:
         return {"optimal_k": 16}
 
 
-def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: Optional[int] = None) -> dict:
+def get_occupation_clusters(db: Session, occupation_id: int, n_clusters: Optional[int] = None, top_n: int = 10) -> dict:
     """
     Clusters all occupations by skill profile using K-Means.
     Returns the cluster the selected occupation belongs to
