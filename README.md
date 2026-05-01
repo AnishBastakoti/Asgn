@@ -142,9 +142,9 @@ Full team contributions are documented in the [Group Charter](docs/group-charter
 
 ---
 
-![Market Saturation](sample-images/image-8.png)
+![Admin Login](sample-images/image10.png)
 
-*Market Saturation — Hot, Balanced, or Saturated classification per occupation*
+*Public API - Admin Access Only*
 
 ---
 
