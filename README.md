@@ -100,12 +100,6 @@ Full team contributions are documented in the [Group Charter](docs/group-charter
 
 ---
 
-![Dashboard](sample-images/image-1.png)
-
-*Analytics Overview — Platform KPIs and occupation demand summary*
-
----
-
 ![Dashboard](sample-images/image-9.png)
 
 *Main Dashboard — Live skill demand signals across Northern Territory occupations*
