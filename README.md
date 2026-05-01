@@ -2,6 +2,8 @@
 
 **An AI-assisted skills analytical platform for the Northern Territory labour market.**
 
+![Python](https://img.shields.io/badge/Python-3.14-blue) ![FastAPI](https://img.shields.io/badge/FastAPI-0.135-green) ![Java](https://img.shields.io/badge/Java-21-orange) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-blue) ![Status](https://img.shields.io/badge/Status-Submitted%20April%202026-brightgreen)
+
 Built as the capstone project for the Master of Information & Communications Technology at the Canterbury Institute of Management (Darwin Campus), Semester 1, 2026.
 
 ---
@@ -92,35 +94,63 @@ Full team contributions are documented in the [Group Charter](docs/group-charter
 
 ## Selected screenshots
 
-![login screen](image.png)
+![Login Screen](sample-images/image.png)
 
-login screen
+*Login Screen — Role-based entry point for job seekers, institutions, and government users*
 
-![DashBoard](image-9.png)
+---
 
-Dashboard
+![Dashboard](sample-images/image-1.png)
 
-![Job Trends](image-2.png)
+*Analytics Overview — Platform KPIs and occupation demand summary*
 
-Job trends
+---
 
-![Skill Overlap](image-3.png)
+![Dashboard](sample-images/image-9.png)
 
-Skill Overlap for the Occupations
+*Main Dashboard — Live skill demand signals across Northern Territory occupations*
 
-![AI Model Forecast](image-4.png)
+---
 
-AI Model forecast for Occupation
+![Job Trends](sample-images/image-2.png)
 
-![Clustering](image-5.png)
+*Job Trends — Rising, falling, and stable skill velocity per occupation*
 
-K-means Clustering
+---
 
-![Career Transitioning](image-6.png)
+![Skill Overlap](sample-images/image-3.png)
 
-![Career Transitioning](image-7.png)
+*Skill Overlap Heatmap — Shared skill profiles across related occupations*
 
-Career Transitioning
+---
+
+![AI Model Forecast](sample-images/image-4.png)
+
+*AI Demand Forecast — Ridge regression predictions with confidence scores per occupation*
+
+---
+
+![K-Means Clustering](sample-images/image-5.png)
+
+*Occupation Clustering — K-Means grouped occupations by skill profile similarity*
+
+---
+
+![Career Transition — Overview](sample-images/image-6.png)
+
+*Career Transition Analyser — 4-factor difficulty scoring between two occupations*
+
+---
+
+![Career Transition — Skill Gap](sample-images/image-7.png)
+
+*Career Transition — Shared skills and skill gap breakdown*
+
+---
+
+![Market Saturation](sample-images/image-8.png)
+
+*Market Saturation — Hot, Balanced, or Saturated classification per occupation*
 
 ---
 
