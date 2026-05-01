@@ -92,7 +92,28 @@ Full team contributions are documented in the [Group Charter](docs/group-charter
 
 ## Selected screenshots
 
-> *Add a few screenshots here — login screen, AI advisor chat, CV analysis result, demand heatmap. Keep them sharp and readable. PNG > JPG for UI screenshots.*
+![alt text](image.png)
+login screen
+
+![alt text](image-1.png)
+Dashboard
+
+![alt text](image-2.png)
+Job trends
+
+![alt text](image-3.png)
+Skill Overlap for the Occupations
+
+![alt text](image-4.png)
+AI Model forecast for Occupation
+
+![alt text](image-5.png)
+K-means Clustering
+
+![alt text](image-6.png)
+
+![alt text](image-7.png)
+Career Transitioning
 
 ---
 
