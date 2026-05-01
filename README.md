@@ -92,27 +92,34 @@ Full team contributions are documented in the [Group Charter](docs/group-charter
 
 ## Selected screenshots
 
-![alt text](image.png)
+![login screen](image.png)
+
 login screen
 
-![alt text](image-1.png)
+![Dashboard](image-1.png)
+
 Dashboard
 
-![alt text](image-2.png)
+![Job Trends](image-2.png)
+
 Job trends
 
-![alt text](image-3.png)
+![Skill Overlap](image-3.png)
+
 Skill Overlap for the Occupations
 
-![alt text](image-4.png)
+![AI Model Forecast](image-4.png)
+
 AI Model forecast for Occupation
 
-![alt text](image-5.png)
+![Clustering](image-5.png)
+
 K-means Clustering
 
-![alt text](image-6.png)
+![Career Transitioning](image-6.png)
 
-![alt text](image-7.png)
+![Career Transitioning](image-7.png)
+
 Career Transitioning
 
 ---
