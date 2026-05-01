@@ -96,7 +96,7 @@ Full team contributions are documented in the [Group Charter](docs/group-charter
 
 login screen
 
-![Dashboard]!(image-8.png)
+![DashBoard](image-9.png)
 
 Dashboard
 
